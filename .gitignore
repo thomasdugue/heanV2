@@ -1,0 +1,20 @@
+# Build
+target/
+dist/
+node_modules/
+*.app
+*.dmg
+
+# Secrets — JAMAIS commités
+.env
+.env.*
+!.env.template
+scripts/.env.local
+
+# macOS
+.DS_Store
+
+# Artefacts de test
+/test-results/
+/playwright-report/
+__snapshots__/*.actual.png

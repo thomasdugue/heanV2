@@ -1,0 +1,124 @@
+/* tokens.css — SOURCE DE VÉRITÉ des valeurs du design Hean.
+   Extrait de noir-tauri/src/styles.css (branche claude/refonte-fab-5-2-3901f8,
+   commit 02508ea, 2026-11-21). 60 variables.
+
+   En cas de divergence, CES VALEURS L'EMPORTENT, y compris sur
+   reference/noir-design-system.html (qui est en retard de +1px sur les 7 petites
+   tailles de police) et sur DESIGN-SYSTEM.md (faux sur 5 couleurs et une ombre).
+   Détail des écarts : ECARTS-DESIGN.md
+
+   Pour les COMPOSANTS et les ÉCRANS (et non les valeurs), la référence est
+   reference/noir-design-system.html — 28 sections avec aperçus live. */
+
+:root {
+  /* Couleurs primaires */
+  --color-bg: #0a0a0a;
+  --color-bg-light: #111;
+  --color-bg-lighter: #151515;
+  --color-bg-surface: #1a1a1a;
+  --color-bg-hover: #222;
+  --color-bg-active: #2a2a2a;
+  --color-bg-elevated: #333;
+  --color-bg-muted: #444;
+
+  /* Texte */
+  --color-text: #fff;
+  --color-text-muted: #888;
+  --color-text-dimmed: #666;
+  --color-text-faint: #555;
+
+  /* Accent (monochrome) */
+  --color-accent: #fff;
+  --color-accent-hover: #ccc;
+  --color-accent-muted: #888;
+
+  /* Bordures */
+  --color-border: #222;
+  --color-border-light: #333;
+  --color-border-muted: #444;
+
+  /* États */
+  --color-error: #ff4444;
+  --color-error-muted: #ff6b6b;
+  --color-success: #fff;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+
+  /* Rayons */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Typographie */
+  --font-body: 'Geist Mono', 'SF Mono', 'Monaco', 'Menlo', monospace;
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+
+  /* Spacing scale */
+  --sp-xs: 4px;
+  --sp-sm: 8px;
+  --sp-md: 12px;
+  --sp-base: 16px;
+  --sp-lg: 20px;
+  --sp-xl: 24px;
+  --sp-2xl: 32px;
+  --sp-3xl: 40px;
+
+  /* Font sizes (+1 cran pour lisibilité) */
+  --fs-caption: 10px;
+  --fs-small: 11px;
+  --fs-body: 12px;
+  --fs-label: 13px;
+  --fs-subheading: 14px;
+  --fs-title: 15px;
+  --fs-heading: 18px;
+  --fs-section-title: 22px;
+  --fs-page-title: 28px;
+  --fs-hero: 48px;
+
+  /* Shadows (elevation) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 40px rgba(255, 255, 255, 0.03);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  /* Easing */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Glassmorphism */
+  --glass-bg: rgba(17, 17, 17, 0.78);
+  --glass-blur: blur(20px) saturate(150%);
+  --glass-border: rgba(255, 255, 255, 0.06);
+
+  /* Couleur accent vert */
+  --color-green: #4ade80;
+
+  /* Ambient glow (set dynamiquement par JS) */
+  --ambient-intensity: 0.03;
+}
+
+/* --- @font-face déclarés dans styles.css --- */
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('./fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* --- variables ambient posées dynamiquement par JS (fullscreen-player.js / views.js) --- */
+  --ambient-gradient-opacity: <runtime>;
+  --ambient-intensity: <runtime>;
+  --ambient-luminosity: <runtime>;
+  --ambient-watermark-opacity: <runtime>;
+  --color-ambient-2-b: <runtime>;
+  --color-ambient-2-g: <runtime>;
+  --color-ambient-2-r: <runtime>;
+  --color-ambient-b: <runtime>;
+  --color-ambient-g: <runtime>;
+  --color-ambient-r: <runtime>;

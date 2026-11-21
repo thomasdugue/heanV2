@@ -1,0 +1,2387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Noir — Design System</title>
+<style>
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('./fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+/* === DESIGN SYSTEM PAGE STYLES === */
+:root {
+  --ds-bg: #0a0a0a;
+  --ds-surface: #111;
+  --ds-card: #151515;
+  --ds-border: #222;
+  --ds-text: #fff;
+  --ds-muted: #888;
+  --ds-dim: #666;
+  --ds-faint: #555;
+  --ds-accent: #fff;
+  --ds-green: #4ade80;
+  --ds-error: #ff4444;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Geist Mono', 'SF Mono', monospace;
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.ds-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 48px 32px;
+}
+
+.ds-hero {
+  text-align: center;
+  padding: 64px 0 48px;
+  border-bottom: 1px solid var(--ds-border);
+  margin-bottom: 48px;
+  position: relative;
+}
+
+.ds-hero h1 {
+  font-size: 48px;
+  font-weight: 300;
+  letter-spacing: -2px;
+  margin-bottom: 12px;
+}
+
+.ds-hero p {
+  color: var(--ds-muted);
+  font-size: 14px;
+}
+
+.ds-hero .ds-version {
+  display: inline-block;
+  margin-top: 16px;
+  font-size: 10px;
+  color: var(--ds-faint);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: 4px;
+}
+
+.ds-section {
+  margin-bottom: 64px;
+}
+
+.ds-section-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ds-border);
+  position: relative;
+}
+
+.ds-section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 32px;
+  height: 1px;
+  background: #fff;
+}
+
+.ds-section-desc {
+  color: var(--ds-muted);
+  font-size: 11px;
+  margin-bottom: 24px;
+}
+
+.ds-subsection {
+  margin-bottom: 32px;
+}
+
+.ds-subsection-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ds-muted);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+}
+
+/* Grid helpers */
+.ds-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ds-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.ds-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; }
+.ds-grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.ds-grid-8 { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
+
+/* Color swatch */
+.ds-swatch {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ds-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.ds-swatch-color {
+  height: 56px;
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.ds-swatch-info {
+  padding: 8px 10px;
+  background: var(--ds-card);
+}
+
+.ds-swatch-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ds-text);
+  margin-bottom: 2px;
+}
+
+.ds-swatch-hex {
+  font-size: 10px;
+  color: var(--ds-dim);
+}
+
+.ds-swatch-var {
+  font-size: 9px;
+  color: var(--ds-faint);
+  margin-top: 2px;
+}
+
+/* Token table */
+.ds-token-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.ds-token-table th {
+  text-align: left;
+  color: var(--ds-dim);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.ds-token-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #1a1a1a;
+  vertical-align: middle;
+}
+
+.ds-token-table tr:last-child td { border-bottom: none; }
+
+.ds-token-name { color: var(--ds-accent); font-weight: 500; }
+.ds-token-value { color: var(--ds-text); }
+.ds-token-desc { color: var(--ds-dim); font-size: 10px; }
+
+/* Preview boxes */
+.ds-preview {
+  background: var(--ds-card);
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ds-preview-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ds-border);
+  font-size: 10px;
+  color: var(--ds-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.ds-preview-body {
+  padding: 24px;
+}
+
+/* Code block */
+.ds-code {
+  background: #111;
+  border: 1px solid var(--ds-border);
+  border-radius: 6px;
+  padding: 16px;
+  font-size: 11px;
+  color: var(--ds-muted);
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.5;
+}
+
+/* Icon grid */
+.ds-icon-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: 6px;
+  background: var(--ds-card);
+  transition: background 0.15s ease;
+}
+
+.ds-icon-item:hover { background: #222; }
+
+.ds-icon-item svg { color: var(--ds-muted); }
+
+.ds-icon-label {
+  font-size: 9px;
+  color: var(--ds-dim);
+  text-align: center;
+}
+
+/* Spacing visual */
+.ds-spacing-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.ds-spacing-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.ds-spacing-label {
+  font-size: 10px;
+  color: var(--ds-dim);
+  min-width: 80px;
+}
+
+.ds-spacing-value {
+  font-size: 10px;
+  color: var(--ds-muted);
+}
+
+/* Radius visual */
+.ds-radius-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ds-radius-box {
+  width: 64px;
+  height: 64px;
+  background: #222;
+  border: 1px solid #444;
+}
+
+.ds-radius-label {
+  font-size: 10px;
+  color: var(--ds-dim);
+  text-align: center;
+}
+
+/* Component preview */
+.ds-comp-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+/* Glass morphism demo */
+.ds-glass-demo {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 180px;
+  background: linear-gradient(135deg, #1a1a1a, #2a2a2a, #111);
+}
+
+.ds-glass-demo-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.15), rgba(100, 150, 255, 0.1), rgba(255, 100, 150, 0.08));
+}
+
+.ds-glass-panel {
+  position: absolute;
+  background: rgba(10, 10, 10, 0.50);
+  backdrop-filter: blur(52px) saturate(1.9) brightness(1.10);
+  -webkit-backdrop-filter: blur(52px) saturate(1.9) brightness(1.10);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* Anti-pattern card */
+.ds-anti {
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  border-left: 3px solid rgba(255, 68, 68, 0.4);
+  border-radius: 0 6px 6px 0;
+  background: rgba(255, 68, 68, 0.03);
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--ds-muted);
+}
+
+.ds-anti strong {
+  color: #ff6b6b;
+  font-weight: 500;
+}
+
+/* Do pattern card */
+.ds-do {
+  padding: 12px 16px;
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  border-left: 3px solid rgba(74, 222, 128, 0.4);
+  border-radius: 0 6px 6px 0;
+  background: rgba(74, 222, 128, 0.03);
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--ds-muted);
+}
+
+.ds-do strong {
+  color: #4ade80;
+  font-weight: 500;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--ds-bg); }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0); border-radius: 3px; transition: background 0.3s; }
+*:hover > ::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .ds-grid-4, .ds-grid-5 { grid-template-columns: repeat(3, 1fr); }
+  .ds-grid-8 { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .ds-grid-2, .ds-grid-3, .ds-grid-4, .ds-grid-5 { grid-template-columns: 1fr 1fr; }
+  .ds-grid-8 { grid-template-columns: repeat(3, 1fr); }
+  .ds-container { padding: 24px 16px; }
+}
+
+/* ======================================== */
+/* Live component styles (from Noir app)    */
+/* ======================================== */
+.noir-btn-primary {
+  padding: 14px 28px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0a0a0a;
+  background: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.noir-btn-primary:hover { box-shadow: 0 0 16px rgba(255, 255, 255, 0.15); transform: translateY(-1px); }
+.noir-btn-primary:active { transform: scale(0.97); box-shadow: none; }
+.noir-btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.noir-btn-secondary {
+  padding: 14px 28px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: #888;
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.noir-btn-secondary:hover { border-color: #555; color: #fff; background: rgba(255,255,255,0.04); }
+.noir-btn-secondary:active { transform: scale(0.97); }
+
+.noir-btn-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #888;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+.noir-btn-icon:hover { color: #fff; background: rgba(255,255,255,0.06); border-color: #555; }
+
+.noir-btn-control {
+  background: none;
+  border: 2px solid #333;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.noir-btn-control:hover { color: #fff; border-color: #555; background: rgba(255,255,255,0.04); }
+.noir-btn-control:active { transform: scale(0.92); }
+
+.noir-btn-play {
+  background: none;
+  border: 2px solid #333;
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  position: relative;
+}
+.noir-btn-play:hover { border-color: #fff; }
+.noir-btn-play:active { transform: scale(0.92); }
+.noir-btn-play::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border: 1px solid rgba(255,255,255,0);
+  border-radius: 50%;
+  transition: border-color 0.2s ease;
+}
+.noir-btn-play:hover::after { border-color: rgba(255,255,255,0.15); }
+
+.noir-btn-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #888;
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+  width: 100%;
+  position: relative;
+}
+.noir-btn-nav:hover { color: #fff; background: rgba(255,255,255,0.04); transform: translateX(2px); }
+.noir-btn-nav.active {
+  color: #fff;
+  background: linear-gradient(90deg, rgba(255,255,255,0.06), transparent);
+}
+.noir-btn-nav.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 15%;
+  bottom: 15%;
+  width: 2px;
+  background: #fff;
+  border-radius: 1px;
+}
+
+.noir-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  color: #fff;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.noir-input:focus { border-color: #444; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04); }
+.noir-input::placeholder { color: #555; }
+
+.noir-select {
+  padding: 6px 10px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  color: #fff;
+  background: #1a1a1a;
+  border: 1px solid #222;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+}
+
+.noir-toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+  display: inline-block;
+}
+.noir-toggle input { opacity: 0; width: 0; height: 0; }
+.noir-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: #333;
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+.noir-toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #666;
+  border-radius: 50%;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.noir-toggle input:checked + .noir-toggle-slider { background: #444; }
+.noir-toggle input:checked + .noir-toggle-slider::after { transform: translateX(16px); background: #fff; }
+
+.noir-range {
+  width: 200px;
+  height: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #222;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  transition: height 0.15s ease;
+}
+.noir-range:hover { height: 5px; }
+.noir-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+.noir-badge {
+  display: inline-block;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+.noir-badge-bp { color: #C0C5CE; background: rgba(192,197,206,0.08); border: 1px solid rgba(192,197,206,0.2); }
+.noir-badge-hires { color: #fff; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); }
+.noir-badge-lossless { color: #4ade80; background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.2); }
+.noir-badge-lossy { color: #666; }
+
+/* Audio spec badge */
+.noir-badge-audio {
+  display: inline-flex;
+  align-items: center;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: #888;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: normal;
+  text-transform: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Status badge */
+.noir-badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 100px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.noir-badge-status-ok { color: #4ade80; background: rgba(74,222,128,0.08); }
+.noir-badge-status-error { color: #ff4444; background: rgba(255,68,68,0.08); }
+
+/* Toast notifications */
+.noir-toast {
+  background: rgba(30, 30, 30, 0.85);
+  backdrop-filter: blur(40px) saturate(1.7) brightness(1.06);
+  -webkit-backdrop-filter: blur(40px) saturate(1.7) brightness(1.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #fff;
+  font-size: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+  max-width: 300px;
+}
+.noir-toast-success { border-color: rgba(74,222,128,0.3); color: #4ade80; }
+.noir-toast-error { border-color: rgba(255,68,68,0.3); color: #ff4444; }
+
+/* Layout diagram */
+.ds-layout-diagram {
+  display: flex;
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 400px;
+  background: #0a0a0a;
+  position: relative;
+}
+
+.ds-layout-titlebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 38px;
+  background: #111;
+  border-bottom: 1px solid #222;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 8px;
+  z-index: 2;
+}
+
+.ds-layout-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.ds-layout-sidebar {
+  width: 240px;
+  background: rgba(10, 10, 10, 0.50);
+  backdrop-filter: blur(44px) saturate(1.6) brightness(1.05);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 38px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.ds-layout-main {
+  flex: 1;
+  min-width: 0;
+  padding-top: 38px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-layout-player {
+  height: 80px;
+  background: rgba(10, 10, 10, 0.50);
+  backdrop-filter: blur(52px) saturate(1.9) brightness(1.10);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 16px;
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.ds-layout-label {
+  font-size: 10px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 12px 16px;
+}
+
+.ds-layout-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  font-size: 11px;
+}
+
+.ds-layout-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  font-size: 11px;
+  color: #555;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+.ds-layout-nav-item:hover { color: #fff; transform: translateX(2px); }
+.ds-layout-nav-item.active {
+  color: #fff;
+  background: linear-gradient(90deg, rgba(255,255,255,0.06), transparent);
+  border-left: 2px solid #fff;
+}
+
+/* Context menu preview */
+.ds-ctx-menu {
+  background: rgba(20, 20, 20, 0.58);
+  backdrop-filter: blur(52px) saturate(1.9) brightness(1.10);
+  -webkit-backdrop-filter: blur(52px) saturate(1.9) brightness(1.10);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+  min-width: 200px;
+  overflow: hidden;
+  animation: contextMenuIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ds-ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: 'Geist Mono', monospace;
+  transition: background 0.15s ease;
+}
+.ds-ctx-item:hover { background: rgba(255, 255, 255, 0.08); }
+.ds-ctx-item svg { flex-shrink: 0; }
+.ds-ctx-separator { height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); margin: 0; }
+.ds-ctx-danger { color: #ff4444; }
+.ds-ctx-danger:hover { background: #ff4444; color: #fff; }
+
+/* Modal preview */
+.ds-modal-preview {
+  background: rgba(20, 20, 20, 0.78);
+  backdrop-filter: blur(44px) saturate(1.6) brightness(1.05);
+  -webkit-backdrop-filter: blur(44px) saturate(1.6) brightness(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  max-width: 400px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 24px 64px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+  overflow: hidden;
+}
+.ds-modal-header {
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ds-modal-title { font-size: 12px; font-weight: 500; }
+.ds-modal-body { padding: 16px; color: #888; font-size: 11px; }
+.ds-modal-footer { padding: 16px; border-top: 1px solid rgba(255, 255, 255, 0.06); display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Player bar preview */
+.ds-player-preview {
+  background: rgba(10, 10, 10, 0.50);
+  backdrop-filter: blur(52px) saturate(1.9) brightness(1.10);
+  -webkit-backdrop-filter: blur(52px) saturate(1.9) brightness(1.10);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.ds-player-cover {
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  background: #222;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #444;
+  font-size: 24px;
+  flex-shrink: 0;
+  position: relative;
+}
+.ds-player-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+.ds-player-info { flex: 1; min-width: 0; }
+.ds-player-title { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-player-artist { font-family: 'DM Sans', sans-serif; font-size: 11px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.ds-progress-bar {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ds-progress-track {
+  flex: 1;
+  height: 3px;
+  background: #222;
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+  transition: height 0.15s ease;
+}
+.ds-progress-track:hover { height: 5px; }
+.ds-progress-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 35%;
+  background: #fff;
+  border-radius: 2px;
+}
+.ds-progress-time { font-size: 10px; color: #888; min-width: 35px; font-variant-numeric: tabular-nums; }
+
+/* Sidebar preview */
+.ds-sidebar-preview {
+  background: rgba(10, 10, 10, 0.50);
+  backdrop-filter: blur(44px) saturate(1.7) brightness(1.06);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  width: 260px;
+  overflow: hidden;
+}
+.ds-sidebar-head {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.ds-sidebar-nav { padding: 8px; }
+
+/* Carousel preview */
+.ds-carousel-wrap {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 12px 0;
+}
+.ds-carousel-item {
+  flex-shrink: 0;
+  width: 160px;
+  cursor: pointer;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ds-carousel-item:hover { transform: translateY(-6px) scale(1.02); }
+.ds-carousel-cover {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background: #222;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  font-size: 32px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.ds-carousel-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+  pointer-events: none;
+}
+.ds-carousel-cover.circle { border-radius: 50%; }
+.ds-carousel-cover.circle::after { border-radius: 50%; }
+.ds-carousel-title { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-carousel-sub { font-family: 'DM Sans', sans-serif; font-size: 10px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Track list preview */
+.ds-track-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #1a1a1a;
+  height: 48px;
+  font-size: 11px;
+  transition: background 0.15s ease;
+  cursor: pointer;
+  border-radius: 4px;
+  position: relative;
+}
+.ds-track-row:hover { background: rgba(255,255,255,0.04); }
+.ds-track-row:hover::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 15%;
+  bottom: 15%;
+  width: 2px;
+  background: rgba(255,255,255,0.3);
+  border-radius: 1px;
+}
+.ds-track-row.playing::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 15%;
+  bottom: 15%;
+  width: 2px;
+  background: #4ade80;
+  border-radius: 1px;
+  animation: pulse-bar 2s ease-in-out infinite;
+}
+.ds-track-num { color: #555; width: 24px; text-align: right; font-variant-numeric: tabular-nums; }
+.ds-track-title { font-family: 'DM Sans', sans-serif; flex: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-track-artist { font-family: 'DM Sans', sans-serif; flex: 1; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-track-dur { color: #555; min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Onboarding step preview */
+.ds-onboarding-preview {
+  background: #0a0a0a;
+  border: 1px solid #222;
+  border-radius: 8px;
+  padding: 32px;
+  max-width: 400px;
+}
+.ds-ob-title { font-family: 'DM Sans', sans-serif; font-size: 20px; font-weight: 600; letter-spacing: -0.3px; margin-bottom: 4px; }
+.ds-ob-subtitle { font-size: 12px; color: #888; margin-bottom: 24px; }
+
+.ds-device-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #1a1a1a;
+  border: 1px solid #222;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  margin-bottom: 8px;
+}
+.ds-device-item:hover { border-color: #333; }
+.ds-device-item.selected { border-color: #666; background: #222; }
+.ds-device-icon { color: #888; flex-shrink: 0; }
+.ds-device-name { font-size: 12px; flex: 1; }
+.ds-device-status {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #555;
+}
+.ds-device-item.selected .ds-device-status { background: #4ade80; box-shadow: 0 0 8px rgba(74,222,128,0.4); }
+
+/* Animation previews */
+.ds-anim-box {
+  width: 80px;
+  height: 80px;
+  background: #222;
+  border: 1px solid #333;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  font-size: 10px;
+  text-align: center;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes contextMenuIn { from { opacity: 0; transform: scale(0.96) translateY(-4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes toastSlideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes pulse-ring { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.15); opacity: 0; } }
+@keyframes pulse-bar { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes ob-spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+@keyframes ds-spring-demo { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+@keyframes ds-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes ds-drift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-10px); } }
+
+.ds-anim-fadein:hover { animation: fadeIn 0.5s ease; }
+.ds-anim-slideup:hover { animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.ds-anim-scale:hover { animation: contextMenuIn 0.15s cubic-bezier(0.16, 1, 0.3, 1); }
+.ds-anim-toast:hover { animation: toastSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* Noise texture demo */
+.ds-noise-demo {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 120px;
+  background: #111;
+}
+.ds-noise-demo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
+}
+.ds-noise-demo-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  font-size: 11px;
+  z-index: 2;
+}
+
+/* Nav tabs */
+.ds-nav {
+  position: sticky;
+  top: 0;
+  background: rgba(10,10,10,0.85);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border-bottom: 1px solid var(--ds-border);
+  padding: 8px 0;
+  z-index: 100;
+  margin-bottom: 32px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.ds-nav a {
+  color: var(--ds-dim);
+  text-decoration: none;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.ds-nav a:hover { color: #fff; background: rgba(255,255,255,0.06); }
+
+/* Checklist */
+.ds-checklist {
+  list-style: none;
+  padding: 0;
+}
+.ds-checklist li {
+  padding: 8px 0;
+  border-bottom: 1px solid #1a1a1a;
+  font-size: 11px;
+  color: var(--ds-muted);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.ds-checklist li::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border: 1px solid #444;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+</style>
+</head>
+<body>
+<div class="ds-container">
+
+<!-- ============================================ -->
+<!-- HERO -->
+<!-- ============================================ -->
+<div class="ds-hero">
+  <svg viewBox="0 0 343 232" fill="none" xmlns="http://www.w3.org/2000/svg" style="height:48px;margin-bottom:16px;">
+    <circle cx="31.5" cy="117.5" r="31.5" fill="white"/>
+    <path d="M69 117C62.2 94.6 42 86 33 86C33.5 103.833 32.6 141.8 33 149C57 149 67 126.5 69 117Z" fill="white"/>
+    <circle cx="311.5" cy="117.5" r="31.5" transform="rotate(-180 311.5 117.5)" fill="white"/>
+    <path d="M274 118C280.8 140.4 301 149 310 149C309.5 131.167 310.4 93.2 310 86C286 86 276 108.5 274 118Z" fill="white"/>
+    <rect x="69" y="48" width="64" height="138" rx="32" fill="white"/>
+    <rect x="137" width="69" height="232" rx="32" fill="white"/>
+    <rect x="210" y="48" width="64" height="138" rx="32" fill="white"/>
+    <circle cx="171.5" cy="117.5" r="38.5" fill="black"/>
+    <path d="M70 116.854C75.3 106.115 111.333 91.96 132 116.854C116.315 139.112 76.359 131.985 70 116.854Z" fill="black"/>
+    <path d="M211 116.854C216.3 106.115 252.333 91.96 273 116.854C257.315 139.112 217.359 131.985 211 116.854Z" fill="black"/>
+  </svg>
+  <h1>Noir Design System</h1>
+  <p>Audiophile music player for macOS &mdash; Dark, monochrome, precise</p>
+  <div class="ds-version">v1.0.0 &mdash; Geist Mono + DM Sans &middot; Glass Morphism &middot; Monochrome</div>
+</div>
+
+<!-- NAV -->
+<nav class="ds-nav">
+  <a href="#philosophy">Philosophy</a>
+  <a href="#colors">Colors</a>
+  <a href="#typography">Typography</a>
+  <a href="#spacing">Spacing</a>
+  <a href="#radius">Radius</a>
+  <a href="#shadows">Shadows</a>
+  <a href="#glass">Glass Morphism</a>
+  <a href="#transitions">Transitions</a>
+  <a href="#textures">Textures</a>
+  <a href="#icons">Icons</a>
+  <a href="#buttons">Buttons</a>
+  <a href="#inputs">Inputs</a>
+  <a href="#badges">Badges</a>
+  <a href="#toasts">Toasts</a>
+  <a href="#layout">Layout</a>
+  <a href="#sidebar">Sidebar</a>
+  <a href="#player">Player</a>
+  <a href="#carousel">Carousels</a>
+  <a href="#tracklist">Tracks</a>
+  <a href="#contextmenu">Context Menu</a>
+  <a href="#modals">Modals</a>
+  <a href="#animations">Animations</a>
+  <a href="#trends2026">2026 Trends</a>
+  <a href="#screens">Screens</a>
+  <a href="#antipatterns">Anti-patterns</a>
+  <a href="#accessibility">Accessibility</a>
+  <a href="#checklist">Checklist</a>
+  <a href="#variables">Variables</a>
+</nav>
+
+<!-- ============================================ -->
+<!-- 1. PHILOSOPHY -->
+<!-- ============================================ -->
+<section class="ds-section" id="philosophy">
+  <h2 class="ds-section-title">1. Design Philosophy</h2>
+  <p class="ds-section-desc">Noir est un instrument, pas une vitrine. L'interface s'efface pour laisser la musique au premier plan.</p>
+
+  <div class="ds-grid-2" style="gap:24px">
+    <div>
+      <h3 class="ds-subsection-title">Principles</h3>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="padding:12px 16px;border:1px solid #222;border-radius:6px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px">La musique d'abord</div>
+          <div style="font-size:10px;color:#888">Album art is the only color. The UI stays monochrome to never compete with the artwork.</div>
+        </div>
+        <div style="padding:12px 16px;border:1px solid #222;border-radius:6px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px">Depth through transparency</div>
+          <div style="font-size:10px;color:#888">Glass morphism (backdrop-filter blur) creates hierarchy without color.</div>
+        </div>
+        <div style="padding:12px 16px;border:1px solid #222;border-radius:6px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px">Intentional motion</div>
+          <div style="font-size:10px;color:#888">Every animation communicates a state change. No decorative motion.</div>
+        </div>
+        <div style="padding:12px 16px;border:1px solid #222;border-radius:6px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px">macOS-native</div>
+          <div style="font-size:10px;color:#888">Context menus, glass effects, smooth easing. A first-class macOS citizen.</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3 class="ds-subsection-title">Identity</h3>
+      <div style="padding:16px;border:1px solid #222;border-radius:8px;background:#111">
+        <div style="font-size:11px;color:#888;margin-bottom:12px">The Noir identity borrows from hi-fi: precision, noble materials, silent control.</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:10px">
+          <div style="color:#4ade80">100% monochrome UI (white, grays, black)</div>
+          <div style="color:#4ade80">Green = playing state only</div>
+          <div style="color:#4ade80">Red = errors and destructive actions only</div>
+          <div style="color:#ff6b6b">No colored accents, gradients, or tinted backgrounds</div>
+          <div style="color:#ff6b6b">No emoji, no decorative blobs, no colored shadows</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- 2. COLORS -->
+<!-- ============================================ -->
+<section class="ds-section" id="colors">
+  <h2 class="ds-section-title">2. Colors</h2>
+  <p class="ds-section-desc">100% monochrome palette. The only colors in the app come from album artwork, green (playing state), and red (errors).</p>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Backgrounds (8-level gray scale)</h3>
+    <div class="ds-grid-8">
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#0a0a0a"></div><div class="ds-swatch-info"><div class="ds-swatch-name">bg</div><div class="ds-swatch-hex">#0a0a0a</div><div class="ds-swatch-var">--color-bg</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#111"></div><div class="ds-swatch-info"><div class="ds-swatch-name">bg-light</div><div class="ds-swatch-hex">#111</div><div class="ds-swatch-var">--color-bg-light</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#151515"></div><div class="ds-swatch-info"><div class="ds-swatch-name">bg-lighter</div><div class="ds-swatch-hex">#151515</div><div class="ds-swatch-var">--color-bg-lighter</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#1a1a1a"></div><div class="ds-swatch-info"><div class="ds-swatch-name">bg-surface</div><div class="ds-swatch-hex">#1a1a1a</div><div class="ds-swatch-var">--color-bg-surface</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#222"></div><div class="ds-swatch-info"><div class="ds-swatch-name">bg-hover</div><div class="ds-swatch-hex">#222</div><div class="ds-swatch-var">--color-bg-hover</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#2a2a2a"></div><div class="ds-swatch-info"><div class="ds-swatch-name">bg-active</div><div class="ds-swatch-hex">#2a2a2a</div><div class="ds-swatch-var">--color-bg-active</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#333"></div><div class="ds-swatch-info"><div class="ds-swatch-name">bg-elevated</div><div class="ds-swatch-hex">#333</div><div class="ds-swatch-var">--color-bg-elevated</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#444"></div><div class="ds-swatch-info"><div class="ds-swatch-name">bg-muted</div><div class="ds-swatch-hex">#444</div><div class="ds-swatch-var">--color-bg-muted</div></div></div>
+    </div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Text</h3>
+    <div class="ds-grid-4">
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#fff"></div><div class="ds-swatch-info"><div class="ds-swatch-name">text</div><div class="ds-swatch-hex">#fff</div><div class="ds-swatch-var">--color-text</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#888"></div><div class="ds-swatch-info"><div class="ds-swatch-name">text-muted</div><div class="ds-swatch-hex">#888</div><div class="ds-swatch-var">--color-text-muted</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#666"></div><div class="ds-swatch-info"><div class="ds-swatch-name">text-dimmed</div><div class="ds-swatch-hex">#666</div><div class="ds-swatch-var">--color-text-dimmed</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#555"></div><div class="ds-swatch-info"><div class="ds-swatch-name">text-faint</div><div class="ds-swatch-hex">#555</div><div class="ds-swatch-var">--color-text-faint</div></div></div>
+    </div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Borders</h3>
+    <div class="ds-grid-3">
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#222"></div><div class="ds-swatch-info"><div class="ds-swatch-name">border</div><div class="ds-swatch-hex">#222</div><div class="ds-swatch-var">--color-border</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#333"></div><div class="ds-swatch-info"><div class="ds-swatch-name">border-light</div><div class="ds-swatch-hex">#333</div><div class="ds-swatch-var">--color-border-light</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#444"></div><div class="ds-swatch-info"><div class="ds-swatch-name">border-muted</div><div class="ds-swatch-hex">#444</div><div class="ds-swatch-var">--color-border-muted</div></div></div>
+    </div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Semantic (limited use)</h3>
+    <div class="ds-grid-4">
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#fff"></div><div class="ds-swatch-info"><div class="ds-swatch-name">accent</div><div class="ds-swatch-hex">#fff</div><div class="ds-swatch-var">--color-accent</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#4ade80"></div><div class="ds-swatch-info"><div class="ds-swatch-name">green (playing)</div><div class="ds-swatch-hex">#4ade80</div><div class="ds-swatch-var">--color-green</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#ff4444"></div><div class="ds-swatch-info"><div class="ds-swatch-name">error</div><div class="ds-swatch-hex">#ff4444</div><div class="ds-swatch-var">--color-error</div></div></div>
+      <div class="ds-swatch"><div class="ds-swatch-color" style="background:#ff6b6b"></div><div class="ds-swatch-info"><div class="ds-swatch-name">error-muted</div><div class="ds-swatch-hex">#ff6b6b</div><div class="ds-swatch-var">--color-error-muted</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- 3. TYPOGRAPHY -->
+<!-- ============================================ -->
+<section class="ds-section" id="typography">
+  <h2 class="ds-section-title">3. Typography</h2>
+  <p class="ds-section-desc">Two font families with strict usage rules. Geist Mono for UI/navigation/controls. DM Sans for musical content.</p>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Font Families</h3>
+    <div class="ds-grid-2" style="gap:24px">
+      <div style="padding:24px;border:1px solid #222;border-radius:8px">
+        <div style="font-family:'Geist Mono',monospace;font-size:24px;font-weight:300;margin-bottom:8px">Geist Mono</div>
+        <div style="font-family:'Geist Mono',monospace;font-size:11px;color:#888;margin-bottom:12px">UI, navigation, labels, controls, timestamps</div>
+        <div style="font-family:'Geist Mono',monospace;font-size:12px;color:#555">ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>abcdefghijklmnopqrstuvwxyz<br>0123456789 :;- 24-bit / 96kHz</div>
+        <div style="margin-top:12px;font-size:9px;color:#555">var(--font-body)</div>
+      </div>
+      <div style="padding:24px;border:1px solid #222;border-radius:8px">
+        <div style="font-family:'DM Sans',sans-serif;font-size:24px;font-weight:700;margin-bottom:8px">DM Sans</div>
+        <div style="font-family:'DM Sans',sans-serif;font-size:11px;color:#888;margin-bottom:12px">Track names, artists, albums, page titles, section titles</div>
+        <div style="font-family:'DM Sans',sans-serif;font-size:14px;color:#555">Kind of Blue &mdash; Miles Davis<br>A Love Supreme &mdash; John Coltrane<br>Random Access Memories</div>
+        <div style="margin-top:12px;font-size:9px;color:#555">var(--font-sans)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Type Scale (10 tokens)</h3>
+    <table class="ds-token-table">
+      <tr><th>Token</th><th>Size</th><th>Usage</th><th>Preview</th></tr>
+      <tr><td class="ds-token-name">--fs-caption</td><td>9px</td><td class="ds-token-desc">Captions, ultra-compact timestamps</td><td><span style="font-size:9px">9px Caption</span></td></tr>
+      <tr><td class="ds-token-name">--fs-small</td><td>10px</td><td class="ds-token-desc">Secondary labels, stat labels</td><td><span style="font-size:10px">10px Small</span></td></tr>
+      <tr><td class="ds-token-name">--fs-body</td><td>11px</td><td class="ds-token-desc">Body text, metadata</td><td><span style="font-size:11px">11px Body</span></td></tr>
+      <tr><td class="ds-token-name">--fs-label</td><td>12px</td><td class="ds-token-desc">Form labels, badges</td><td><span style="font-size:12px">12px Label</span></td></tr>
+      <tr><td class="ds-token-name">--fs-subheading</td><td>13px</td><td class="ds-token-desc">Subtitles, player track title</td><td><span style="font-size:13px">13px Subheading</span></td></tr>
+      <tr><td class="ds-token-name">--fs-title</td><td>14px</td><td class="ds-token-desc">Element titles (queue, settings)</td><td><span style="font-size:14px">14px Title</span></td></tr>
+      <tr><td class="ds-token-name">--fs-heading</td><td>16px</td><td class="ds-token-desc">Page subtitles</td><td><span style="font-size:16px">16px Heading</span></td></tr>
+      <tr><td class="ds-token-name">--fs-section-title</td><td>22px</td><td class="ds-token-desc">Home section titles</td><td><span style="font-family:'DM Sans',sans-serif;font-size:22px;font-weight:600;letter-spacing:-0.02em">22px Section</span></td></tr>
+      <tr><td class="ds-token-name">--fs-page-title</td><td>28px</td><td class="ds-token-desc">Album/artist page titles</td><td><span style="font-family:'DM Sans',sans-serif;font-size:28px;font-weight:700;letter-spacing:-0.03em">28px Page</span></td></tr>
+      <tr><td class="ds-token-name">--fs-hero</td><td>48px</td><td class="ds-token-desc">Splash, onboarding</td><td><span style="font-size:32px;font-weight:300;letter-spacing:-1px">48px Hero</span></td></tr>
+    </table>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Typography Rules</h3>
+    <div class="ds-do"><strong>DO:</strong> Use <code>font-variant-numeric: tabular-nums</code> on all number displays (durations, bitrates, counters)</div>
+    <div class="ds-do"><strong>DO:</strong> Use <code>letter-spacing: -0.03em</code> to <code>-0.04em</code> on titles 22px+</div>
+    <div class="ds-do"><strong>DO:</strong> Use <code>letter-spacing: 0.08em</code> on uppercase labels at 10px</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Use a font-size outside the 10-token scale above</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Use <code>font-family</code> as a direct value &mdash; always <code>var(--font-body)</code> or <code>var(--font-sans)</code></div>
+  </div>
+
+  <div class="ds-card">
+    <h3 class="ds-subsection-title">2026 Oversized Display Typography</h3>
+    <p>Titles use <code>clamp()</code> responsive sizing with extreme weight contrast (800-900 vs 300-400).</p>
+    <table class="ds-table" style="width:100%;margin:16px 0;">
+      <thead><tr><th>Element</th><th>Size</th><th>Weight</th><th>Letter-spacing</th></tr></thead>
+      <tbody>
+        <tr><td><code>.album-page-title</code></td><td><code>clamp(36px, 5vw, 56px)</code></td><td>800</td><td>-0.04em</td></tr>
+        <tr><td><code>.home-section-title</code></td><td><code>clamp(28px, 3.5vw, 40px)</code></td><td>700</td><td>-0.03em</td></tr>
+        <tr><td><code>.fs-title</code></td><td><code>clamp(28px, 4vw, 42px)</code></td><td>800</td><td>-0.04em</td></tr>
+        <tr><td><code>.view-header h2</code></td><td><code>clamp(24px, 3vw, 36px)</code></td><td>800</td><td>-0.03em</td></tr>
+      </tbody>
+    </table>
+    <div class="ds-do"><strong>DO:</strong> Use gradient text fade on long titles: <code>background: linear-gradient(to right, #fff 75%, rgba(255,255,255,0.35))</code> with <code>-webkit-background-clip: text</code></div>
+    <div class="ds-do"><strong>DO:</strong> Use watermark text (giant ghosted name behind content) at 2.5-3% opacity, 120-220px, weight 900</div>
+    <div class="ds-do"><strong>DO:</strong> Pair heavy titles (800-900) with light subtitles (300-400) for extreme weight contrast</div>
+    <div class="ds-do"><strong>DO:</strong> Respect <code>prefers-reduced-motion: reduce</code> by hiding watermark text</div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- 4. SPACING -->
+<!-- ============================================ -->
+<section class="ds-section" id="spacing">
+  <h2 class="ds-section-title">4. Spacing</h2>
+
+  <div class="ds-spacing-item"><div class="ds-spacing-bar" style="width:4px"></div><span class="ds-spacing-label">--sp-xs</span><span class="ds-spacing-value">4px &mdash; Micro-gaps (icon + label)</span></div>
+  <div class="ds-spacing-item"><div class="ds-spacing-bar" style="width:8px"></div><span class="ds-spacing-label">--sp-sm</span><span class="ds-spacing-value">8px &mdash; Internal gaps (button padding, flex gap)</span></div>
+  <div class="ds-spacing-item"><div class="ds-spacing-bar" style="width:12px"></div><span class="ds-spacing-label">--sp-md</span><span class="ds-spacing-value">12px &mdash; Section inner padding</span></div>
+  <div class="ds-spacing-item"><div class="ds-spacing-bar" style="width:16px"></div><span class="ds-spacing-label">--sp-base</span><span class="ds-spacing-value">16px &mdash; Standard padding</span></div>
+  <div class="ds-spacing-item"><div class="ds-spacing-bar" style="width:20px"></div><span class="ds-spacing-label">--sp-lg</span><span class="ds-spacing-value">20px &mdash; Section padding</span></div>
+  <div class="ds-spacing-item"><div class="ds-spacing-bar" style="width:24px"></div><span class="ds-spacing-label">--sp-xl</span><span class="ds-spacing-value">24px &mdash; Between sections</span></div>
+  <div class="ds-spacing-item"><div class="ds-spacing-bar" style="width:32px"></div><span class="ds-spacing-label">--sp-2xl</span><span class="ds-spacing-value">32px &mdash; Page margins</span></div>
+  <div class="ds-spacing-item"><div class="ds-spacing-bar" style="width:40px"></div><span class="ds-spacing-label">--sp-3xl</span><span class="ds-spacing-value">40px &mdash; Hero margins</span></div>
+
+  <br>
+  <div class="ds-anti"><strong>NEVER:</strong> Use padding/margin/gap values outside this scale. Always use <code>var(--sp-*)</code> tokens.</div>
+</section>
+
+<!-- ============================================ -->
+<!-- 5. BORDER RADIUS -->
+<!-- ============================================ -->
+<section class="ds-section" id="radius">
+  <h2 class="ds-section-title">5. Border Radius</h2>
+
+  <div style="display:flex;gap:32px;align-items:flex-end;margin-bottom:24px">
+    <div class="ds-radius-item"><div class="ds-radius-box" style="border-radius:4px"></div><div class="ds-radius-label">--radius-sm<br>4px<br><span style="color:#555">Buttons, pills, track rows</span></div></div>
+    <div class="ds-radius-item"><div class="ds-radius-box" style="border-radius:8px"></div><div class="ds-radius-label">--radius-md<br>8px<br><span style="color:#555">Cards, covers, inputs, panels</span></div></div>
+    <div class="ds-radius-item"><div class="ds-radius-box" style="border-radius:12px"></div><div class="ds-radius-label">--radius-lg<br>12px<br><span style="color:#555">Modals, dropdowns, containers</span></div></div>
+    <div class="ds-radius-item"><div class="ds-radius-box" style="border-radius:50%"></div><div class="ds-radius-label">50%<br><br><span style="color:#555">Play buttons, artist covers</span></div></div>
+  </div>
+
+  <div class="ds-anti"><strong>NEVER:</strong> Use <code>border-radius</code> as a direct value. Always <code>var(--radius-*)</code>.</div>
+  <div class="ds-anti"><strong>NEVER:</strong> Use border-radius > 12px except circles (50%).</div>
+  <div class="ds-do"><strong>Rule:</strong> Inner radius = outer radius - gap (nesting rule).</div>
+</section>
+
+<!-- ============================================ -->
+<!-- 6. SHADOWS -->
+<!-- ============================================ -->
+<section class="ds-section" id="shadows">
+  <h2 class="ds-section-title">6. Shadows &amp; Elevation</h2>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Shadow Tokens (3 tiers)</h3>
+    <div style="display:flex;gap:24px;margin-bottom:24px">
+      <div style="width:120px;height:80px;background:#222;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:10px;color:#888">--shadow-sm</div>
+      <div style="width:120px;height:80px;background:#222;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:10px;color:#888">--shadow-md</div>
+      <div style="width:120px;height:80px;background:#222;border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-size:10px;color:#888">--shadow-lg</div>
+    </div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Elevation Hierarchy</h3>
+    <table class="ds-token-table">
+      <tr><th>Level</th><th>Elements</th><th>Treatment</th></tr>
+      <tr><td class="ds-token-name">0 (ground)</td><td>.app, main content</td><td class="ds-token-desc">--color-bg, no shadow</td></tr>
+      <tr><td class="ds-token-name">1 (surface)</td><td>Sidebar, player bar</td><td class="ds-token-desc">Glass morphism (blur 36-40px), subtle shadow</td></tr>
+      <tr><td class="ds-token-name">2 (panel)</td><td>Queue, settings, track info, EQ, lyrics</td><td class="ds-token-desc">Glass morphism (blur 44px), lateral shadow</td></tr>
+      <tr><td class="ds-token-name">3 (overlay)</td><td>Context menus, modals, search</td><td class="ds-token-desc">Glass morphism (blur 32-40px), --shadow-lg</td></tr>
+      <tr><td class="ds-token-name">4 (toast)</td><td>Toast notifications</td><td class="ds-token-desc">Glass morphism (blur 32px), --shadow-md</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- 7. GLASS MORPHISM -->
+<!-- ============================================ -->
+<section class="ds-section" id="glass">
+  <h2 class="ds-section-title">7. Glass Morphism</h2>
+  <p class="ds-section-desc">The defining visual trait of Noir. Creates depth without color. Every elevated surface uses glass.</p>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Live Preview</h3>
+    <div class="ds-glass-demo">
+      <div class="ds-glass-demo-bg"></div>
+      <div class="ds-glass-panel" style="top:20px;left:20px;right:50%;bottom:40px">
+        <div style="font-size:11px;font-weight:500;margin-bottom:4px">Player Bar</div>
+        <div style="font-size:9px;color:#888">blur(52px) saturate(1.9)<br>alpha: 0.50</div>
+      </div>
+      <div class="ds-glass-panel" style="top:20px;left:55%;right:20px;height:60px;background:rgba(22,22,22,0.72)">
+        <div style="font-size:11px;font-weight:500;margin-bottom:4px">Context Menu</div>
+        <div style="font-size:9px;color:#888">blur(52px) alpha: 0.58</div>
+      </div>
+      <div class="ds-glass-panel" style="bottom:20px;left:55%;right:20px;height:60px;background:rgba(14,14,14,0.68)">
+        <div style="font-size:11px;font-weight:500;margin-bottom:4px">Panel</div>
+        <div style="font-size:9px;color:#888">blur(44px) alpha: 0.58</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Parameters by Element</h3>
+    <table class="ds-token-table">
+      <tr><th>Element</th><th>BG Alpha</th><th>Blur</th><th>Saturate</th><th>Brightness</th><th>Extras</th></tr>
+      <tr><td class="ds-token-name">Player bar</td><td>0.50</td><td>52px</td><td>1.9</td><td>1.10</td><td class="ds-token-desc">inset 0 1px 0 rgba(255,255,255,0.05)</td></tr>
+      <tr><td class="ds-token-name">Sidebar</td><td>0.50</td><td>44px</td><td>1.6</td><td>1.05</td><td class="ds-token-desc">&mdash;</td></tr>
+      <tr><td class="ds-token-name">Panels</td><td>0.58</td><td>44px</td><td>1.7</td><td>1.06</td><td class="ds-token-desc">inset 1px 0 0 rgba(255,255,255,0.04)</td></tr>
+      <tr><td class="ds-token-name">Context menu</td><td>0.58</td><td>52px</td><td>1.9</td><td>1.08</td><td class="ds-token-desc">inset 0 1px 0 rgba(255,255,255,0.06)</td></tr>
+      <tr><td class="ds-token-name">Modal content</td><td>0.65</td><td>44px</td><td>1.6</td><td>1.05</td><td class="ds-token-desc">inset 0 1px 0 rgba(255,255,255,0.05)</td></tr>
+      <tr><td class="ds-token-name">Modal backdrop</td><td>&mdash;</td><td>24px</td><td>1.3</td><td>&mdash;</td><td class="ds-token-desc">On the dark overlay, not content</td></tr>
+      <tr><td class="ds-token-name">Toasts</td><td>0.58</td><td>40px</td><td>1.7</td><td>1.06</td><td class="ds-token-desc">inset 0 1px 0 rgba(255,255,255,0.05)</td></tr>
+      <tr><td class="ds-token-name">Search results</td><td>0.58</td><td>44px</td><td>1.7</td><td>1.06</td><td class="ds-token-desc">inset 0 1px 0 rgba(255,255,255,0.04)</td></tr>
+    </table>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Strict Rules</h3>
+    <div class="ds-do"><strong>ALWAYS:</strong> Double <code>backdrop-filter</code> with <code>-webkit-backdrop-filter</code> (WebKit/Tauri)</div>
+    <div class="ds-do"><strong>ALWAYS:</strong> Add <code>saturate()</code> to backdrop-filter (minimum 1.3)</div>
+    <div class="ds-do"><strong>ALWAYS:</strong> Add inset highlight (<code>inset 0 1px 0 rgba(255,255,255,0.03)</code>) on glass surfaces</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Background alpha below 0.40 (readability) or above 0.70 (glass not visible)</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Blur below 36px for main surfaces (28px minimum for small elements)</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Tinted/colored glass backgrounds &mdash; always gray rgba values</div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- 8. TRANSITIONS -->
+<!-- ============================================ -->
+<section class="ds-section" id="transitions">
+  <h2 class="ds-section-title">8. Transitions &amp; Easing</h2>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Duration Tokens</h3>
+    <table class="ds-token-table">
+      <tr><th>Token</th><th>Value</th><th>Usage</th></tr>
+      <tr><td class="ds-token-name">--transition-fast</td><td>0.15s ease</td><td class="ds-token-desc">Hover, focus, toggle</td></tr>
+      <tr><td class="ds-token-name">--transition-normal</td><td>0.2s ease</td><td class="ds-token-desc">State changes</td></tr>
+      <tr><td class="ds-token-name">--transition-slow</td><td>0.3s ease</td><td class="ds-token-desc">Panels, overlays</td></tr>
+    </table>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Easing Curves</h3>
+    <table class="ds-token-table">
+      <tr><th>Token</th><th>Value</th><th>Usage</th></tr>
+      <tr><td class="ds-token-name">--ease-out-expo</td><td>cubic-bezier(0.16, 1, 0.3, 1)</td><td class="ds-token-desc">Panels sliding, elements entering the viewport</td></tr>
+      <tr><td class="ds-token-name">--ease-spring</td><td>cubic-bezier(0.34, 1.56, 0.64, 1)</td><td class="ds-token-desc">Bounce effect (toasts, toggles)</td></tr>
+      <tr><td class="ds-token-name">ease</td><td>CSS native</td><td class="ds-token-desc">Simple hovers</td></tr>
+    </table>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Animation Patterns</h3>
+    <table class="ds-token-table">
+      <tr><th>Pattern</th><th>Timing</th><th>Properties</th></tr>
+      <tr><td class="ds-token-name">Button hover</td><td>--transition-fast</td><td class="ds-token-desc">background, color, border-color</td></tr>
+      <tr><td class="ds-token-name">Card hover</td><td>0.3s --ease-out-expo</td><td class="ds-token-desc">transform (translateY -6px + scale 1.02), box-shadow, filter</td></tr>
+      <tr><td class="ds-token-name">Track row hover</td><td>--transition-fast</td><td class="ds-token-desc">background only (no transform)</td></tr>
+      <tr><td class="ds-token-name">Panel slide</td><td>0.35s --ease-out-expo</td><td class="ds-token-desc">transform (translateX)</td></tr>
+      <tr><td class="ds-token-name">Context menu</td><td>0.15s --ease-out-expo</td><td class="ds-token-desc">opacity + transform (scale 0.96, translateY -4px)</td></tr>
+      <tr><td class="ds-token-name">View transition</td><td>0.12-0.18s ease</td><td class="ds-token-desc">opacity + transform (translateY 6px)</td></tr>
+      <tr><td class="ds-token-name">Button press</td><td>0.1s ease</td><td class="ds-token-desc">transform: scale(0.92-0.97)</td></tr>
+      <tr><td class="ds-token-name">Nav indicator</td><td>0.25s --ease-out-expo</td><td class="ds-token-desc">transform: scaleY() on left bar</td></tr>
+      <tr><td class="ds-token-name">Stagger reveal</td><td>0/30/60ms delay</td><td class="ds-token-desc">Track action buttons (opacity + transform)</td></tr>
+      <tr><td class="ds-token-name">Playing pulse</td><td>2s ease-in-out infinite</td><td class="ds-token-desc">Green left bar opacity animation</td></tr>
+    </table>
+  </div>
+
+  <div class="ds-anti"><strong>NEVER:</strong> <code>transition: all</code> &mdash; always list properties explicitly</div>
+  <div class="ds-anti"><strong>NEVER:</strong> Animate <code>width</code>, <code>height</code>, <code>top</code>, <code>left</code> &mdash; use <code>transform</code> and <code>opacity</code></div>
+  <div class="ds-anti"><strong>NEVER:</strong> Duration > 0.5s (except looping animations) or &lt; 0.1s (invisible)</div>
+</section>
+
+<!-- ============================================ -->
+<!-- 9. TEXTURES -->
+<!-- ============================================ -->
+<section class="ds-section" id="textures">
+  <h2 class="ds-section-title">9. Textures &amp; Visual Effects</h2>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Film Grain (Noise Overlay)</h3>
+    <div class="ds-noise-demo">
+      <div class="ds-noise-demo-label">SVG fractalNoise at 2.5% opacity &mdash; creates analog tactile feel</div>
+    </div>
+    <div class="ds-code" style="margin-top:12px">.app::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,...fractalNoise...");
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 9999;
+}</div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Other Textures</h3>
+    <table class="ds-token-table">
+      <tr><th>Effect</th><th>Where</th><th>Implementation</th></tr>
+      <tr><td class="ds-token-name">Vignette</td><td>Album page cover art</td><td class="ds-token-desc">box-shadow: inset 0 0 40px rgba(0,0,0,0.2)</td></tr>
+      <tr><td class="ds-token-name">Cover art halo</td><td>Player bar cover</td><td class="ds-token-desc">::after with blur(16px), opacity 0.35 &mdash; art radiates color</td></tr>
+      <tr><td class="ds-token-name">Inner border</td><td>All album covers</td><td class="ds-token-desc">::after with box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04)</td></tr>
+      <tr><td class="ds-token-name">Section accent</td><td>Home section titles</td><td class="ds-token-desc">::after 32px white bar under titles</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- 10. ICONS -->
+<!-- ============================================ -->
+<section class="ds-section" id="icons">
+  <h2 class="ds-section-title">10. Icons</h2>
+  <p class="ds-section-desc">SVG inline, <code>currentColor</code>, three size tiers. No emoji, no icons in colored circles.</p>
+
+  <table class="ds-token-table">
+    <tr><th>Size</th><th>Usage</th><th>Opacity (inactive/active)</th></tr>
+    <tr><td class="ds-token-name">14px</td><td>Compact buttons, badges</td><td class="ds-token-desc">0.6 / 1.0</td></tr>
+    <tr><td class="ds-token-name">18px</td><td>Navigation items</td><td class="ds-token-desc">0.6 / 1.0</td></tr>
+    <tr><td class="ds-token-name">24px</td><td>Player controls</td><td class="ds-token-desc">0.6 / 1.0</td></tr>
+  </table>
+</section>
+
+<!-- ============================================ -->
+<!-- 11. BUTTONS -->
+<!-- ============================================ -->
+<section class="ds-section" id="buttons">
+  <h2 class="ds-section-title">11. Buttons</h2>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Primary &amp; Secondary</h3>
+    <div class="ds-comp-row">
+      <button class="noir-btn-primary">Primary Action</button>
+      <button class="noir-btn-secondary">Secondary</button>
+      <button class="noir-btn-primary" disabled>Disabled</button>
+    </div>
+    <div class="ds-code">/* Primary: bg #fff, color #0a0a0a, padding 14px 28px, radius 8px */
+/* Hover: box-shadow glow + translateY(-1px) */
+/* Active: scale(0.97) + no shadow */
+/* Secondary: bg transparent, border 1px #333, color #888 */
+/* Hover: border #555, color #fff, bg rgba(255,255,255,0.04) */</div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Icon &amp; Control Buttons</h3>
+    <div class="ds-comp-row">
+      <button class="noir-btn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></button>
+      <button class="noir-btn-control"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg></button>
+      <button class="noir-btn-play"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+      <button class="noir-btn-control" style="width:48px;height:48px;border-color:#fff;color:#fff"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+    </div>
+    <div class="ds-code">/* btn-icon: 28x28, border 1px #333, radius 8px */
+/* btn-control: 44x44, border 2px #333, radius 50% */
+/* btn-play: 38x38, border 2px #333, radius 50%, hover ring ::after */
+/* Active: scale(0.92) */</div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Navigation Items</h3>
+    <div style="width:240px;">
+      <button class="noir-btn-nav active"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> Home</button>
+      <button class="noir-btn-nav"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/></svg> Albums</button>
+      <button class="noir-btn-nav"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg> Tracks</button>
+    </div>
+    <div class="ds-code" style="margin-top:12px">/* Active: gradient bg + 2px white left bar via ::before */
+/* Hover: translateX(2px) + subtle bg */</div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- 12. INPUTS -->
+<!-- ============================================ -->
+<section class="ds-section" id="inputs">
+  <h2 class="ds-section-title">12. Form Elements</h2>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Text Input</h3>
+    <div style="max-width:300px">
+      <input class="noir-input" type="text" placeholder="Search...">
+    </div>
+    <br>
+    <div class="ds-code">/* bg: #111, border: 1px #222, radius: 8px, font: Geist Mono 12px */
+/* focus: border-color #444, box-shadow: 0 0 0 3px rgba(255,255,255,0.04) */</div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Toggle Switch</h3>
+    <div class="ds-comp-row">
+      <label class="noir-toggle"><input type="checkbox"><span class="noir-toggle-slider"></span></label>
+      <span style="color:#888;font-size:11px">Off</span>
+      <label class="noir-toggle"><input type="checkbox" checked><span class="noir-toggle-slider"></span></label>
+      <span style="color:#888;font-size:11px">On</span>
+    </div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Range Slider</h3>
+    <input class="noir-range" type="range" value="75" min="0" max="100">
+    <div class="ds-code">/* height: 3px (hover 5px), bg: #222, thumb: 12px white circle with glow */
+/* box-shadow: 0 0 8px rgba(255,255,255,0.3) on thumb */</div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- 13. BADGES -->
+<!-- ============================================ -->
+<section class="ds-section" id="badges">
+  <h2 class="ds-section-title">13. Badges</h2>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Audio Quality</h3>
+    <div class="ds-comp-row" style="gap:16px">
+      <span class="noir-badge noir-badge-lossless">LOSSLESS</span>
+      <span class="noir-badge noir-badge-hires">HI-RES</span>
+      <span class="noir-badge noir-badge-bp">BIT-PERFECT</span>
+      <span class="noir-badge noir-badge-lossy">MP3</span>
+    </div>
+    <div class="ds-code">/* Lossless: #4ade80 text, green tinted bg */
+/* Hi-Res: #fff text, white tinted bg */
+/* Bit-perfect: shimmer text-shadow animation */
+/* Lossy: dimmed #666, no background */</div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Audio Specs &amp; Status</h3>
+    <div class="ds-comp-row" style="gap:16px">
+      <span class="noir-badge-audio">24-bit / 96kHz</span>
+      <span class="noir-badge-audio">16-bit / 44.1kHz</span>
+      <span class="noir-badge-status noir-badge-status-ok"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block"></span>Playing</span>
+      <span class="noir-badge-status noir-badge-status-error"><span style="width:6px;height:6px;border-radius:50%;background:#ff4444;display:inline-block"></span>Error</span>
+    </div>
+    <div class="ds-code">/* Audio spec: Geist Mono 10px, monochrome (not gold) */
+/* Status: Geist Mono 10px, green/red dot + label */</div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- 14. TOASTS -->
+<!-- ============================================ -->
+<section class="ds-section" id="toasts">
+  <h2 class="ds-section-title">14. Toast Notifications</h2>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;">
+    <div class="noir-toast">Default notification</div>
+    <div class="noir-toast noir-toast-success">Track added to playlist</div>
+    <div class="noir-toast noir-toast-error">Failed to load audio</div>
+  </div>
+  <br>
+  <div class="ds-code">/* Glass: backdrop-filter blur(40px) saturate(1.7) brightness(1.06) */
+/* bg: rgba(30,30,30,0.85), border: 1px rgba(255,255,255,0.06) */
+/* Animation: slideUp 0.3s with spring easing */
+/* Shadow: 0 12px 32px rgba(0,0,0,0.5) + inset highlight */</div>
+</section>
+
+<!-- ============================================ -->
+<!-- 15. LAYOUT STRUCTURE -->
+<!-- ============================================ -->
+<section class="ds-section" id="layout">
+  <h2 class="ds-section-title">15. App Layout</h2>
+  <p class="ds-section-desc">Flexbox layout. Sidebar (280px, resizable 180-400px) + Main content (flex:1) + Fixed player bar (80px). All major surfaces use glass morphism.</p>
+
+  <div class="ds-layout-diagram">
+    <div class="ds-layout-titlebar">
+      <div class="ds-layout-dot" style="background:#ff5f57"></div>
+      <div class="ds-layout-dot" style="background:#febc2e"></div>
+      <div class="ds-layout-dot" style="background:#28c840"></div>
+      <span style="flex:1;text-align:center;font-size:10px;color:#555">Noir</span>
+    </div>
+    <div class="ds-layout-sidebar">
+      <div style="padding:12px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <svg viewBox="0 0 343 232" fill="none" style="height:14px"><circle cx="31.5" cy="117.5" r="31.5" fill="white"/><path d="M69 117C62.2 94.6 42 86 33 86C33.5 103.833 32.6 141.8 33 149C57 149 67 126.5 69 117Z" fill="white"/><circle cx="311.5" cy="117.5" r="31.5" transform="rotate(-180 311.5 117.5)" fill="white"/><path d="M274 118C280.8 140.4 301 149 310 149C309.5 131.167 310.4 93.2 310 86C286 86 276 108.5 274 118Z" fill="white"/><rect x="69" y="48" width="64" height="138" rx="32" fill="white"/><rect x="137" width="69" height="232" rx="32" fill="white"/><rect x="210" y="48" width="64" height="138" rx="32" fill="white"/><circle cx="171.5" cy="117.5" r="38.5" fill="black"/><path d="M70 116.854C75.3 106.115 111.333 91.96 132 116.854C116.315 139.112 76.359 131.985 70 116.854Z" fill="black"/><path d="M211 116.854C216.3 106.115 252.333 91.96 273 116.854C257.315 139.112 217.359 131.985 211 116.854Z" fill="black"/></svg>
+        <span style="font-size:13px;font-weight:600">Noir</span>
+      </div>
+      <div class="ds-layout-nav-item active"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> Home</div>
+      <div class="ds-layout-nav-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/></svg> Albums</div>
+      <div class="ds-layout-nav-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Artists</div>
+      <div class="ds-layout-nav-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg> Tracks</div>
+      <div style="flex:1"></div>
+      <div class="ds-layout-label">Playlists</div>
+      <div style="padding:4px 16px;font-size:10px;color:#444;">My Playlist 1</div>
+      <div style="padding:4px 16px;font-size:10px;color:#444;">Jazz Collection</div>
+      <div style="flex:1"></div>
+    </div>
+    <div class="ds-layout-main">
+      <div style="padding:8px 16px;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;gap:8px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <span style="color:#555;font-size:11px">Search...</span>
+      </div>
+      <div class="ds-layout-content">Main Content Area</div>
+      <div class="ds-layout-player">
+        <div style="width:48px;height:48px;background:#222;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#333;font-size:18px">&#9834;</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500">Track Name</div>
+          <div style="font-family:'DM Sans',sans-serif;font-size:10px;color:#666">Artist</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="color:#555;font-size:14px">&#9198;</span>
+          <span style="color:#fff;font-size:16px;border:2px solid #fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center">&#9654;</span>
+          <span style="color:#555;font-size:14px">&#9197;</span>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;color:#555;font-variant-numeric:tabular-nums">1:23</span>
+          <div style="flex:1;height:3px;background:#222;border-radius:2px;position:relative;overflow:hidden"><div style="position:absolute;left:0;top:0;height:100%;width:35%;background:#fff;border-radius:2px"></div></div>
+          <span style="font-size:10px;color:#555;font-variant-numeric:tabular-nums">4:12</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- 16. SIDEBAR -->
+<!-- ============================================ -->
+<section class="ds-section" id="sidebar">
+  <h2 class="ds-section-title">16. Sidebar Component</h2>
+  <div class="ds-code">/* Width: 280px default (resizable 180-400px via drag handle) */
+/* Background: glass morphism (rgba(10,10,10,0.50), blur 44px, saturate 1.6, brightness 1.05) */
+/* Border-right: 1px solid rgba(255,255,255,0.04) */
+/* Nav active: gradient bg + 2px white left bar (scaleY entrance animation) */
+/* Nav hover: translateX(2px) + subtle bg */
+/* Playlist active: same 2px white left bar */
+/* Logo: drop-shadow on hover */</div>
+</section>
+
+<!-- ============================================ -->
+<!-- 17. PLAYER BAR -->
+<!-- ============================================ -->
+<section class="ds-section" id="player">
+  <h2 class="ds-section-title">17. Player Bar</h2>
+  <p class="ds-section-desc">Fixed bottom. CSS Grid: 4 columns x 2 rows. Height ~80px. Glass morphism (blur 52px, alpha 0.50).</p>
+
+  <div class="ds-player-preview">
+    <div class="ds-player-cover">&#9834;</div>
+    <div class="ds-player-info">
+      <div class="ds-player-title">Clair de Lune</div>
+      <div class="ds-player-artist">Claude Debussy</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="noir-btn-control" style="width:32px;height:32px"><span style="font-size:12px">&#9198;</span></button>
+      <button class="noir-btn-play" style="width:40px;height:40px;border-color:#fff"><span style="font-size:14px">&#9654;</span></button>
+      <button class="noir-btn-control" style="width:32px;height:32px"><span style="font-size:12px">&#9197;</span></button>
+    </div>
+    <div class="ds-progress-bar">
+      <span class="ds-progress-time">1:23</span>
+      <div class="ds-progress-track"><div class="ds-progress-fill"></div></div>
+      <span class="ds-progress-time">5:12</span>
+    </div>
+    <input class="noir-range" type="range" value="80" min="0" max="100" style="width:80px">
+  </div>
+
+  <br>
+  <div class="ds-code">/* Glass: backdrop-filter blur(52px) saturate(1.9) brightness(1.10) */
+/* Cover art halo: ::after with blur(16px), opacity 0.35 */
+/* Progress bar: 3px track, expand to 5px on hover, glowing thumb */
+/* Play button: hover ring effect via ::after */</div>
+</section>
+
+<!-- ============================================ -->
+<!-- 18. CAROUSELS -->
+<!-- ============================================ -->
+<section class="ds-section" id="carousel">
+  <h2 class="ds-section-title">18. Carousels (Home Page)</h2>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Album Carousel (Square Covers)</h3>
+    <div class="ds-carousel-wrap">
+      <div class="ds-carousel-item"><div class="ds-carousel-cover">&#9834;</div><div class="ds-carousel-title">Kind of Blue</div><div class="ds-carousel-sub">Miles Davis</div></div>
+      <div class="ds-carousel-item"><div class="ds-carousel-cover">&#9835;</div><div class="ds-carousel-title">A Love Supreme</div><div class="ds-carousel-sub">John Coltrane</div></div>
+      <div class="ds-carousel-item"><div class="ds-carousel-cover">&#9833;</div><div class="ds-carousel-title">Blue Train</div><div class="ds-carousel-sub">John Coltrane</div></div>
+      <div class="ds-carousel-item"><div class="ds-carousel-cover">&#9839;</div><div class="ds-carousel-title">Head Hunters</div><div class="ds-carousel-sub">Herbie Hancock</div></div>
+      <div class="ds-carousel-item"><div class="ds-carousel-cover">&#9837;</div><div class="ds-carousel-title">Mingus Ah Um</div><div class="ds-carousel-sub">Charles Mingus</div></div>
+    </div>
+    <div class="ds-code">/* Hover: translateY(-6px) scale(1.02), --shadow-lg, brightness(1.08) on image */
+/* Inner border: ::after with box-shadow inset 0 0 0 1px rgba(255,255,255,0.04) */
+/* Easing: 0.3s cubic-bezier(0.16, 1, 0.3, 1) */</div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Artist Carousel (Circle Covers)</h3>
+    <div class="ds-carousel-wrap">
+      <div class="ds-carousel-item" style="text-align:center"><div class="ds-carousel-cover circle">&#9834;</div><div class="ds-carousel-title" style="text-align:center">Miles Davis</div></div>
+      <div class="ds-carousel-item" style="text-align:center"><div class="ds-carousel-cover circle">&#9835;</div><div class="ds-carousel-title" style="text-align:center">John Coltrane</div></div>
+      <div class="ds-carousel-item" style="text-align:center"><div class="ds-carousel-cover circle">&#9833;</div><div class="ds-carousel-title" style="text-align:center">Herbie Hancock</div></div>
+      <div class="ds-carousel-item" style="text-align:center"><div class="ds-carousel-cover circle">&#9839;</div><div class="ds-carousel-title" style="text-align:center">Charles Mingus</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- 19. TRACK LIST -->
+<!-- ============================================ -->
+<section class="ds-section" id="tracklist">
+  <h2 class="ds-section-title">19. Track List (Virtual Scroll)</h2>
+  <p class="ds-section-desc">Virtual scroll with 60-node DOM pool. Item height: 48px. Left accent bar on hover (white) and playing (green pulse).</p>
+
+  <div class="ds-preview">
+    <div class="ds-preview-header">Track List</div>
+    <div>
+      <div class="ds-track-row"><span class="ds-track-num">1</span><span class="ds-track-title">So What</span><span class="ds-track-artist">Miles Davis</span><span class="ds-track-dur">9:22</span></div>
+      <div class="ds-track-row playing" style="background:rgba(255,255,255,0.04)"><span class="ds-track-num" style="color:#4ade80">2</span><span class="ds-track-title" style="color:#fff">Freddie Freeloader</span><span class="ds-track-artist">Miles Davis</span><span class="ds-track-dur">9:46</span></div>
+      <div class="ds-track-row"><span class="ds-track-num">3</span><span class="ds-track-title">Blue in Green</span><span class="ds-track-artist">Miles Davis</span><span class="ds-track-dur">5:37</span></div>
+      <div class="ds-track-row"><span class="ds-track-num">4</span><span class="ds-track-title">All Blues</span><span class="ds-track-artist">Miles Davis</span><span class="ds-track-dur">11:33</span></div>
+      <div class="ds-track-row"><span class="ds-track-num">5</span><span class="ds-track-title">Flamenco Sketches</span><span class="ds-track-artist">Miles Davis</span><span class="ds-track-dur">9:26</span></div>
+    </div>
+  </div>
+  <br>
+  <div class="ds-code">/* Row: 48px height, padding 10px 12px, radius 4px */
+/* Hover: bg rgba(255,255,255,0.04) + 2px white left bar */
+/* Playing: green left bar with pulse animation (2s, infinite) */
+/* Action buttons: staggered reveal at 0/30/60ms on hover */
+/* Font: DM Sans for title/artist, tabular-nums for duration */</div>
+</section>
+
+<!-- ============================================ -->
+<!-- 20. CONTEXT MENU -->
+<!-- ============================================ -->
+<section class="ds-section" id="contextmenu">
+  <h2 class="ds-section-title">20. Context Menu</h2>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;">
+    <div class="ds-ctx-menu">
+      <button class="ds-ctx-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Play</button>
+      <button class="ds-ctx-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 5H3"/><path d="M16 12H3"/><path d="M9 19H3"/><path d="m16 16-3 3 3 3"/><path d="M21 5v12a2 2 0 0 1-2 2h-6"/></svg> Add to queue</button>
+      <div class="ds-ctx-separator"></div>
+      <button class="ds-ctx-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> Info</button>
+      <div class="ds-ctx-separator"></div>
+      <button class="ds-ctx-item ds-ctx-danger"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Remove</button>
+    </div>
+  </div>
+  <br>
+  <div class="ds-code">/* Glass: backdrop-filter blur(52px) saturate(1.9) brightness(1.10) */
+/* bg: rgba(22,22,22,0.72), radius: 8px */
+/* Animation: scale(0.96) translateY(-4px) -> 1,0, 0.15s expo-out */
+/* Separators: gradient transparent -> rgba(255,255,255,0.08) -> transparent */
+/* Hover: rgba(255,255,255,0.08), radius 4px */</div>
+</section>
+
+<!-- ============================================ -->
+<!-- 21. MODALS -->
+<!-- ============================================ -->
+<section class="ds-section" id="modals">
+  <h2 class="ds-section-title">21. Modals</h2>
+
+  <div class="ds-modal-preview">
+    <div class="ds-modal-header">
+      <span class="ds-modal-title">Create Playlist</span>
+      <button class="noir-btn-icon" style="border:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg></button>
+    </div>
+    <div class="ds-modal-body">
+      <input class="noir-input" type="text" placeholder="Playlist name..." style="margin-bottom:12px">
+      <p style="font-size:11px;color:#555">Enter a name for your new playlist.</p>
+    </div>
+    <div class="ds-modal-footer">
+      <button class="noir-btn-secondary" style="padding:6px 16px">Cancel</button>
+      <button class="noir-btn-primary" style="padding:6px 16px">Create</button>
+    </div>
+  </div>
+  <br>
+  <div class="ds-code">/* Backdrop: backdrop-filter blur(16px), bg rgba(0,0,0,0.7) */
+/* Content: glass blur(44px) saturate(1.6) brightness(1.05), bg rgba(20,20,20,0.78) */
+/* Radius: 12px, shadow: --shadow-lg doubled */
+/* Inset highlight: 0 1px 0 rgba(255,255,255,0.04) */</div>
+</section>
+
+<!-- ============================================ -->
+<!-- 22. ANIMATIONS -->
+<!-- ============================================ -->
+<section class="ds-section" id="animations">
+  <h2 class="ds-section-title">22. Animations</h2>
+
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
+    <div class="ds-anim-box ds-anim-fadein" style="cursor:pointer">fadeIn<br>0.3s</div>
+    <div class="ds-anim-box ds-anim-slideup" style="cursor:pointer">slideUp<br>spring</div>
+    <div class="ds-anim-box ds-anim-scale" style="cursor:pointer">context<br>expo-out</div>
+    <div class="ds-anim-box ds-anim-toast" style="cursor:pointer">toast<br>spring</div>
+    <div class="ds-anim-box" style="cursor:pointer;position:relative;overflow:hidden">
+      <div style="position:absolute;inset:4px;border:1px solid #333;border-radius:50%;animation:pulse-ring 2s ease-in-out infinite"></div>
+      pulse
+    </div>
+    <div class="ds-anim-box" style="position:relative">
+      <div style="position:absolute;left:8px;top:50%;width:2px;height:20px;background:#4ade80;border-radius:1px;animation:pulse-bar 2s ease-in-out infinite;transform:translateY(-50%)"></div>
+      <span style="margin-left:8px">playing<br>bar</span>
+    </div>
+  </div>
+  <p style="color:#555;font-size:10px;margin-bottom:16px">Hover to trigger animation previews</p>
+
+  <div class="ds-code">/* Key animations used in Noir:
+ * fadeIn:        opacity 0 -> 1
+ * slideUp:       translateY(20px) + opacity 0 -> 0,1 (spring easing)
+ * contextMenuIn: scale(0.96) translateY(-4px) -> 1,0 (expo-out easing)
+ * toastSlideIn:  translateY(20px) + opacity 0 -> 0,1 (spring easing)
+ * pulse-bar:     opacity 1 -> 0.4 -> 1 (green playing indicator)
+ * pulse-ring:    scale + opacity (onboarding scan ring)
+ * shimmer:       background-position sweep (bit-perfect badge)
+ * view-fade:     opacity + translateY(6px) (page transitions)
+ */</div>
+</section>
+
+<!-- ============================================ -->
+<!-- 23. 2026 DESIGN TRENDS -->
+<!-- ============================================ -->
+<section class="ds-section" id="trends2026">
+  <h2 class="ds-section-title">23. 2026 Design Trends</h2>
+  <p style="color:#888;margin-bottom:24px;">Four design trends implemented in Noir for a modern, immersive music player experience.</p>
+
+  <!-- TREND 1: AMBIENT COLOR THEMING -->
+  <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;color:#fff;">Trend 1 — Album-Art Color Theming</h3>
+  <p style="color:#888;font-size:11px;margin-bottom:16px;">Dominant color extracted from artwork via kMeans (5 clusters), applied as ambient wash on album/artist pages. Smart vibrancy scoring skips dark and desaturated colors.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+    <!-- Ambient demo: warm -->
+    <div style="position:relative;height:180px;border-radius:8px;overflow:hidden;border:1px solid #222;">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 150% 55% at 15% 60%,rgba(210,120,60,0.40) 0%,rgba(210,120,60,0.22) 25%,rgba(210,120,60,0.10) 50%,rgba(210,120,60,0.03) 70%,transparent 90%);"></div>
+      <div style="position:relative;padding:16px;z-index:1;">
+        <div style="font-size:11px;color:#666;margin-bottom:8px;letter-spacing:0.1em;text-transform:uppercase;">Warm Amber</div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-0.04em;font-family:'DM Sans',sans-serif;">Album Title</div>
+        <div style="font-size:10px;color:#888;margin-top:4px;">ARTIST NAME</div>
+        <div style="margin-top:16px;display:flex;gap:6px;">
+          <div style="width:48px;height:48px;background:rgba(210,120,60,0.3);border-radius:4px;"></div>
+          <div style="flex:1;padding:4px 0;">
+            <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;margin-bottom:6px;width:80%"></div>
+            <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;width:50%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Ambient demo: cool -->
+    <div style="position:relative;height:180px;border-radius:8px;overflow:hidden;border:1px solid #222;">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 150% 55% at 15% 60%,rgba(80,140,220,0.40) 0%,rgba(80,140,220,0.22) 25%,rgba(80,140,220,0.10) 50%,rgba(80,140,220,0.03) 70%,transparent 90%);"></div>
+      <div style="position:relative;padding:16px;z-index:1;">
+        <div style="font-size:11px;color:#666;margin-bottom:8px;letter-spacing:0.1em;text-transform:uppercase;">Cool Blue</div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-0.04em;font-family:'DM Sans',sans-serif;">Album Title</div>
+        <div style="font-size:10px;color:#888;margin-top:4px;">ARTIST NAME</div>
+        <div style="margin-top:16px;display:flex;gap:6px;">
+          <div style="width:48px;height:48px;background:rgba(80,140,220,0.3);border-radius:4px;"></div>
+          <div style="flex:1;padding:4px 0;">
+            <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;margin-bottom:6px;width:80%"></div>
+            <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;width:50%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-code">/* CSS Custom Properties (set via JS) */
+:root {
+  --color-ambient-r: 0;   /* Default: black (invisible) */
+  --color-ambient-g: 0;
+  --color-ambient-b: 0;
+}
+
+/* Ambient wash — only on album/artist pages (.ambient-active) */
+.albums-view.ambient-active {
+  background:
+    radial-gradient(
+      ellipse 150% 55% at 15% 220px,
+      rgba(var(--color-ambient-r), var(--color-ambient-g), var(--color-ambient-b), 0.40) 0%,
+      rgba(var(--color-ambient-r), var(--color-ambient-g), var(--color-ambient-b), 0.22) 25%,
+      rgba(var(--color-ambient-r), var(--color-ambient-g), var(--color-ambient-b), 0.10) 50%,
+      rgba(var(--color-ambient-r), var(--color-ambient-g), var(--color-ambient-b), 0.03) 70%,
+      transparent 90%
+    ) !important;
+  transition: background 1.5s ease !important;
+}
+
+/* Search bar transparent to let ambient bleed through */
+.search-bar { background: transparent !important; }
+
+/* Player glassmorphism with ambient tint */
+.player {
+  background: linear-gradient(0deg,
+    rgba(var(--color-ambient-r), var(--color-ambient-g), var(--color-ambient-b), 0.07) 0%,
+    rgba(var(--color-ambient-r), var(--color-ambient-g), var(--color-ambient-b), 0.02) 100%
+  ), rgba(8, 8, 8, 0.40) !important;
+  backdrop-filter: blur(64px) saturate(2.0) brightness(1.12) !important;
+  -webkit-backdrop-filter: blur(64px) saturate(2.0) brightness(1.12) !important;
+}</div>
+
+  <div class="ds-code" style="margin-top:12px;">/* JS — Color extraction pipeline */
+// 1. extractColorsFromImg(imgElement)  — direct from visible &lt;img&gt;
+// 2. extractColorsFromBase64(dataUri)  — fallback via Rust backend
+// 3. pickAmbientColor(colors)          — vibrancy scoring
+
+function pickAmbientColor(colors) {
+  // Score: saturation × 3 + brightness
+  // Skip: brightness &lt; 120 (invisible on dark bg)
+  // Skip: saturation &lt; 30  (boring gray)
+  // → Always picks the most vibrant, visible color
+}
+
+// watchForCoverAndApplyAmbient(container, fallbackPath, label)
+// MutationObserver watches for cover &lt;img&gt; to load
+// Guarantees: if image is visible → ambient color is extracted</div>
+
+  <table class="ds-token-table" style="margin-top:16px;">
+    <tr><th>Rule</th><th>Implementation</th></tr>
+    <tr><td class="ds-token-name">Scope</td><td class="ds-token-desc">Album page + Artist page only. Home and Albums grid stay clean.</td></tr>
+    <tr><td class="ds-token-name">Black artwork</td><td class="ds-token-desc">If dominant color R+G+B &lt; 120, skip to next cluster. Score by vibrancy: saturation×3 + brightness.</td></tr>
+    <tr><td class="ds-token-name">Navigation reset</td><td class="ds-token-desc"><code>--color-ambient-r/g/b</code> reset to 0 + <code>.ambient-active</code> removed on every view change.</td></tr>
+    <tr><td class="ds-token-name">Gradient shape</td><td class="ds-token-desc">Radial ellipse centered at 15% horizontal, 220px vertical (artwork position). Peak opacity 0.40.</td></tr>
+    <tr><td class="ds-token-name">Transition</td><td class="ds-token-desc">1.5s ease on background — smooth color shift when navigating between albums.</td></tr>
+  </table>
+
+  <!-- TREND 2: PROGRESSIVE DISCLOSURE -->
+  <h3 style="font-size:14px;font-weight:600;margin:32px 0 12px;color:#fff;">Trend 2 — Progressive Disclosure</h3>
+  <p style="color:#888;font-size:11px;margin-bottom:16px;">Fullscreen player controls auto-hide after 3s idle for an immersive experience. Mouse movement restores them instantly.</p>
+
+  <div class="ds-code">/* Fullscreen player — idle state */
+.fullscreen-player.fs-idle .fs-controls {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.fullscreen-player.fs-idle { cursor: none; }
+
+.fullscreen-player.fs-active .fs-controls {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* JS: 3s idle timer, toggle fs-idle/fs-active classes */</div>
+
+  <!-- TREND 3: SPRING PHYSICS -->
+  <h3 style="font-size:14px;font-weight:600;margin:32px 0 12px;color:#fff;">Trend 3 — Spring Physics</h3>
+  <p style="color:#888;font-size:11px;margin-bottom:16px;">Overshoot animations for modals, context menus, toasts, and interactive elements. Creates an organic, physical feel.</p>
+
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+    <div class="ds-anim-box" style="cursor:pointer;animation:ds-spring-demo 2s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;">Modal<br>spring</div>
+    <div class="ds-anim-box" style="cursor:pointer;animation:ds-spring-demo 1.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite 0.2s;">Context<br>menu</div>
+    <div class="ds-anim-box" style="cursor:pointer;animation:ds-spring-demo 1.6s cubic-bezier(0.34, 1.56, 0.64, 1) infinite 0.4s;">Toast<br>spring</div>
+    <div class="ds-anim-box" style="cursor:pointer;animation:ds-spring-demo 2.2s cubic-bezier(0.34, 1.56, 0.64, 1) infinite 0.6s;">Card<br>hover</div>
+  </div>
+
+  <div class="ds-code">/* Spring easing — used across all interactive elements */
+--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+@keyframes modalInSpring {
+  0%   { opacity: 0; transform: scale(0.92) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes contextMenuSpring {
+  0%   { opacity: 0; transform: scale(0.95) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes toastSpring {
+  0%   { opacity: 0; transform: translateY(20px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Applied to: .modal, .context-menu, .toast,
+   .queue-panel, .album-card:hover, .carousel-item */</div>
+
+  <!-- TREND 4: KINETIC TYPOGRAPHY -->
+  <h3 style="font-size:14px;font-weight:600;margin:32px 0 12px;color:#fff;">Trend 4 — Kinetic Typography</h3>
+  <p style="color:#888;font-size:11px;margin-bottom:16px;">Subtle motion on text elements — floating titles, drifting watermarks, staggered reveals. Creates depth without distraction.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+    <div style="background:#111;border:1px solid #222;border-radius:8px;padding:20px;position:relative;overflow:hidden;height:100px;">
+      <div style="font-family:'DM Sans',sans-serif;font-size:24px;font-weight:800;letter-spacing:-0.04em;animation:ds-float 6s ease-in-out infinite;">Title Float</div>
+      <div style="font-size:9px;color:#555;margin-top:8px;">translateY(0 → -2px) · 6s · infinite</div>
+    </div>
+    <div style="background:#111;border:1px solid #222;border-radius:8px;padding:20px;position:relative;overflow:hidden;height:100px;">
+      <div style="font-family:'DM Sans',sans-serif;font-size:48px;font-weight:900;color:rgba(255,255,255,0.055);letter-spacing:-0.06em;animation:ds-drift 20s ease-in-out infinite;white-space:nowrap;">Watermark</div>
+      <div style="font-size:9px;color:#555;position:absolute;bottom:12px;left:20px;">translateX(0 → -10px) · 20s · infinite</div>
+    </div>
+  </div>
+
+  <div class="ds-code">/* Title float — album page title subtle vertical motion */
+@keyframes title-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+.album-page-title { animation: title-float 6s ease-in-out infinite; }
+
+/* Watermark drift — giant ghost text behind content */
+@keyframes watermark-drift {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(-10px); }
+}
+.artist-page-container::before { animation: watermark-drift 20s ease-in-out infinite; }
+
+/* Section title staggered fade-in */
+@keyframes section-title-in {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.home-section-title { animation: section-title-in 0.5s ease-out both; }
+.home-section:nth-child(1) .home-section-title { animation-delay: 0s; }
+.home-section:nth-child(2) .home-section-title { animation-delay: 0.08s; }
+/* ... stagger continues */
+
+/* Watermark text opacity */
+.artist-page-container::before { color: rgba(255, 255, 255, 0.055); }
+.album-detail::before          { color: rgba(255, 255, 255, 0.05); }
+
+/* ALL kinetic animations disabled for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .album-page-title,
+  .artist-page-container::before,
+  .home-section-title { animation: none !important; }
+}</div>
+
+</section>
+
+<!-- ============================================ -->
+<!-- 24. SCREENS REFERENCE -->
+<!-- ============================================ -->
+<section class="ds-section" id="screens">
+  <h2 class="ds-section-title">24. Screen Reference</h2>
+
+  <table class="ds-token-table">
+    <tr><th>Screen</th><th>Layout</th><th>Key Specs</th></tr>
+    <tr><td class="ds-token-name">Home</td><td>Vertical scroll</td><td class="ds-token-desc">3 carousels. Section titles: DM Sans 22px/600, -0.02em, 32px accent underline.</td></tr>
+    <tr><td class="ds-token-name">Albums Grid</td><td>CSS Grid auto-fill</td><td class="ds-token-desc">minmax(220px, 1fr). Card hover: translateY(-6px) scale(1.02) + --shadow-lg.</td></tr>
+    <tr><td class="ds-token-name">Artists Grid</td><td>CSS Grid auto-fill</td><td class="ds-token-desc">minmax(160px, 1fr). Circular covers (50%). Centered text.</td></tr>
+    <tr><td class="ds-token-name">Tracks List</td><td>Virtual scroll</td><td class="ds-token-desc">Pool: 60 nodes, 48px rows. Left accent bar on hover/playing.</td></tr>
+    <tr><td class="ds-token-name">Album Detail</td><td>Header + tracklist</td><td class="ds-token-desc">Cover with vignette + hover scale(1.03). Title: DM Sans 28px/700, -0.03em.</td></tr>
+    <tr><td class="ds-token-name">Artist Detail</td><td>Header + albums + tracks</td><td class="ds-token-desc">Cover 280x280px circular. Name: DM Sans 32px/600.</td></tr>
+    <tr><td class="ds-token-name">Fullscreen Player</td><td>Centered vertical</td><td class="ds-token-desc">Cover 220px (expanded), DM Sans bold title, play button ring, particles.</td></tr>
+    <tr><td class="ds-token-name">Settings Panel</td><td>Slide-in right (380px)</td><td class="ds-token-desc">Glass (blur 44px). Sections: Audio, Library, Network, Playback, Shortcuts.</td></tr>
+    <tr><td class="ds-token-name">Queue Panel</td><td>Slide-in right (320px)</td><td class="ds-token-desc">Glass (blur 44px). Green dot on now-playing. Drag-to-reorder.</td></tr>
+    <tr><td class="ds-token-name">EQ Panel</td><td>Slide-in right</td><td class="ds-token-desc">Glass (blur 44px). 8-band parametric EQ. Vertical sliders.</td></tr>
+    <tr><td class="ds-token-name">Lyrics Panel</td><td>Slide-in right</td><td class="ds-token-desc">Glass (blur 44px). Synced lyrics, current line white, others #555.</td></tr>
+    <tr><td class="ds-token-name">DAP Sync</td><td>3-screen flow</td><td class="ds-token-desc">Album selection -> Sync progress -> Complete. Monochrome accent (no gold).</td></tr>
+  </table>
+</section>
+
+<!-- ============================================ -->
+<!-- 25. ANTI-PATTERNS -->
+<!-- ============================================ -->
+<section class="ds-section" id="antipatterns">
+  <h2 class="ds-section-title">25. Anti-patterns</h2>
+  <p class="ds-section-desc">What we NEVER do in Noir. These rules protect the monochrome audiophile identity.</p>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Colors</h3>
+    <div class="ds-anti"><strong>NEVER:</strong> Colored gradients (blue-violet, rainbow, gold, etc.)</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Color accents other than white, green (playing), red (errors)</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Colored badge backgrounds (except green for playing state)</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Gold accent (#C9A962) &mdash; this was removed in v1.0.0</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Colored shadows (box-shadow with blue, green, etc.) except green glow for --color-green</div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Layout</h3>
+    <div class="ds-anti"><strong>NEVER:</strong> 3-column symmetric grids with icons in colored circles</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Hero sections with full-screen images and overlay</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Automatic carousels</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Emoji in titles or buttons</div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Typography</h3>
+    <div class="ds-anti"><strong>NEVER:</strong> Fonts other than Geist Mono and DM Sans (no Inter, no JetBrains Mono)</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Centered text (except fullscreen player)</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Positive letter-spacing on lowercase text (only on uppercase labels)</div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Effects</h3>
+    <div class="ds-anti"><strong>NEVER:</strong> Decorative blobs, floating circles, or wavy SVGs</div>
+    <div class="ds-anti"><strong>NEVER:</strong> <code>transition: all</code></div>
+    <div class="ds-anti"><strong>NEVER:</strong> Animating width, height, top, left (use transform/opacity)</div>
+    <div class="ds-anti"><strong>NEVER:</strong> border-radius > 12px on non-circular elements</div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">UX</h3>
+    <div class="ds-anti"><strong>NEVER:</strong> Empty state with just text ("No items") &mdash; always message + primary action</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Generic buttons ("Submit", "Continue") &mdash; always specific verbs</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Confirmation modals without cancel option</div>
+    <div class="ds-anti"><strong>NEVER:</strong> Loading without feedback (use shimmer/skeleton)</div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- 25. ACCESSIBILITY -->
+<!-- ============================================ -->
+<section class="ds-section" id="accessibility">
+  <h2 class="ds-section-title">26. Accessibility</h2>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Focus States</h3>
+    <div class="ds-code">:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+:focus:not(:focus-visible) {
+  outline: none;   /* mouse click = no ring */
+}</div>
+    <div class="ds-anti"><strong>NEVER:</strong> <code>outline: none</code> without a :focus-visible replacement for keyboard users</div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Touch Targets</h3>
+    <table class="ds-token-table">
+      <tr><th>Element</th><th>Minimum Size</th></tr>
+      <tr><td>Player controls (play, prev, next)</td><td class="ds-token-name">44x44px</td></tr>
+      <tr><td>Secondary actions in lists</td><td class="ds-token-name">28x28px</td></tr>
+    </table>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Reduced Motion</h3>
+    <div class="ds-code">@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}</div>
+    <div class="ds-do"><strong>ALWAYS:</strong> Test every animation with reduced-motion enabled before shipping</div>
+  </div>
+
+  <div class="ds-subsection">
+    <h3 class="ds-subsection-title">Contrast Ratios</h3>
+    <table class="ds-token-table">
+      <tr><th>Combination</th><th>Ratio</th><th>WCAG Level</th></tr>
+      <tr><td>#fff on #0a0a0a</td><td class="ds-token-name">19.3:1</td><td>AAA</td></tr>
+      <tr><td>#888 on #0a0a0a</td><td class="ds-token-name">5.3:1</td><td>AA</td></tr>
+      <tr><td>#666 on #0a0a0a</td><td class="ds-token-name">3.5:1</td><td class="ds-token-desc">Non-essential labels only</td></tr>
+      <tr><td>#555 on #0a0a0a</td><td class="ds-token-name">2.7:1</td><td class="ds-token-desc">Decorative only, never for critical content</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<!-- 26. NEW COMPONENT CHECKLIST -->
+<!-- ============================================ -->
+<section class="ds-section" id="checklist">
+  <h2 class="ds-section-title">27. New Component Checklist</h2>
+  <p class="ds-section-desc">Before merging any new CSS component, verify every item below.</p>
+
+  <ul class="ds-checklist">
+    <li>Uses only CSS tokens (<code>--color-*</code>, <code>--sp-*</code>, <code>--fs-*</code>, <code>--radius-*</code>, <code>--shadow-*</code>, <code>--transition-*</code>)</li>
+    <li>No direct hex/rgb color values (except in <code>rgba()</code> for glass/overlay)</li>
+    <li>No direct <code>font-family</code> &mdash; uses <code>var(--font-body)</code> or <code>var(--font-sans)</code></li>
+    <li>No <code>transition: all</code></li>
+    <li>No animation on width/height/top/left</li>
+    <li><code>:focus-visible</code> state present on interactive elements</li>
+    <li>Touch target >= 44px (controls) or >= 28px (secondary actions)</li>
+    <li>Hover state defined</li>
+    <li>Active/pressed state: <code>scale(0.92-0.97)</code></li>
+    <li>Works with <code>prefers-reduced-motion: reduce</code></li>
+    <li>Glass morphism follows section 7 parameters</li>
+    <li>Glass borders use <code>rgba(255,255,255,0.04-0.10)</code></li>
+    <li><code>backdrop-filter</code> doubled with <code>-webkit-backdrop-filter</code></li>
+    <li>Numbers use <code>font-variant-numeric: tabular-nums</code></li>
+    <li>Correct font: Geist Mono for UI, DM Sans for musical content</li>
+  </ul>
+</section>
+
+<!-- ============================================ -->
+<!-- 27. CSS VARIABLES DUMP -->
+<!-- ============================================ -->
+<section class="ds-section" id="variables">
+  <h2 class="ds-section-title">28. CSS Variables (Copy-Paste)</h2>
+  <div class="ds-code">:root {
+  /* === Colors: Backgrounds === */
+  --color-bg: #0a0a0a;
+  --color-bg-light: #111;
+  --color-bg-lighter: #151515;
+  --color-bg-surface: #1a1a1a;
+  --color-bg-hover: #222;
+  --color-bg-active: #2a2a2a;
+  --color-bg-elevated: #333;
+  --color-bg-muted: #444;
+
+  /* === Colors: Text === */
+  --color-text: #fff;
+  --color-text-muted: #888;
+  --color-text-dimmed: #666;
+  --color-text-faint: #555;
+
+  /* === Colors: Accent (monochrome) === */
+  --color-accent: #fff;
+  --color-accent-hover: #ccc;
+  --color-accent-muted: #888;
+
+  /* === Colors: Borders === */
+  --color-border: #222;
+  --color-border-light: #333;
+  --color-border-muted: #444;
+
+  /* === Colors: Semantic === */
+  --color-green: #4ade80;       /* playing state only */
+  --color-error: #ff4444;       /* errors, destructive */
+  --color-error-muted: #ff6b6b;
+  --color-success: #fff;
+
+  /* === Transitions === */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+
+  /* === Easing === */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* === Ambient Color (2026 Trend 1 — set via JS) === */
+  --color-ambient-r: 0;
+  --color-ambient-g: 0;
+  --color-ambient-b: 0;
+
+  /* === Border Radius === */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* === Shadows === */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+
+  /* === Typography === */
+  --font-body: 'Geist Mono', 'SF Mono', 'Monaco', 'Menlo', monospace;
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+
+  /* === Font Sizes === */
+  --fs-caption: 9px;
+  --fs-small: 10px;
+  --fs-body: 11px;
+  --fs-label: 12px;
+  --fs-subheading: 13px;
+  --fs-title: 14px;
+  --fs-heading: 16px;
+  --fs-section-title: 22px;
+  --fs-page-title: 28px;
+  --fs-hero: 48px;
+
+  /* === Spacing === */
+  --sp-xs: 4px;
+  --sp-sm: 8px;
+  --sp-md: 12px;
+  --sp-base: 16px;
+  --sp-lg: 20px;
+  --sp-xl: 24px;
+  --sp-2xl: 32px;
+  --sp-3xl: 40px;
+}</div>
+</section>
+
+<footer style="text-align:center;padding:48px 0;border-top:1px solid #222;color:#555;font-size:10px;">
+  Noir Design System &mdash; v1.1.0 &mdash; Geist Mono + DM Sans &middot; Glass Morphism &middot; Monochrome &middot; Ambient Color &middot; April 2026
+</footer>
+
+</div>
+</body>
+</html>

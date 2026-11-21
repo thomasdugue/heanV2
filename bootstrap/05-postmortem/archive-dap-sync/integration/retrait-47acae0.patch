@@ -1,0 +1,3701 @@
+commit 47acae0ec1dade9d525cc0ce8c17be8b99f53865
+Author: thomasdugue <thomas.dugue@gmail.com>
+Date:   Sun Apr 26 15:48:34 2026 +0200
+
+    chore(dap-sync): retrait de la feature pour la beta + archivage complet
+    
+    La feature DAP Sync (synchronisation Mass Storage / MTP / SMB vers DAP) accumulait des bugs d'instabilité non résolus depuis plusieurs semaines : Transaction ID mismatch MTP, timeouts sur albums longs (Paco De Lucia), InvalidObjectHandle sur deletes, recovery difficile sur déconnexion mid-sync. Décision : retirer la feature avant la beta tout en préservant le code et la mémoire du projet pour une réintégration future.
+    
+    ## Archivage code (pour réimport facile)
+    
+    - Branche : `archive/dap-sync-v1` (pushée sur origin)
+    - Tag annoté : `dap-sync-archive-2026-04`
+    
+    ## Rapport de mémoire — `docs/archive/dap-sync/`
+    
+    - `README.md` : vue d'ensemble + accès au code archivé
+    - `OVERVIEW.md` : architecture frontend + backend, 15 commandes Tauri, schémas SQLite, format manifest `.hean-sync.json`
+    - `DECISIONS.md` : 36 décisions techniques avec leur justification (perf, exFAT, MTP, SMB)
+    - `KNOWN_ISSUES.md` : 5 bugs ouverts + chronologie des commits
+    - `REINTEGRATION.md` : procédure pas-à-pas pour reprendre la feature
+    - `TEST_PROTOCOL.md` + `TEST_EXECUTION_LOG.md` : protocoles de test déplacés depuis la racine
+    
+    ## Code retiré
+    
+    - Backend : 8 modules Rust (`dap_sync/db.rs`, `manifest.rs`, `mtp.rs`, `sync_engine.rs`, `sync_plan.rs`, `volumes.rs`, `watcher.rs`, `mod.rs`) + 22 commandes Tauri + dépendances exclusives (`mtp-rs`, `notify`, `rusqlite`, `sha2`, `unicode-normalization`, `deunicode`, `futures`, `bytes`, `tempfile`)
+    - Frontend : `dap-sync.js` (2 957 lignes) + intégrations dans `renderer.js`, `app.js`, `views.js`, `panels.js` + 33 lignes HTML (sidebar + top bar) + 2 408 lignes CSS
+    
+    ## Code conservé (partagé)
+    
+    - `smb_utils.rs` déplacé de `dap_sync/` vers `network/smb_utils.rs` — utilisé par `audio_play` et `audio_preload_next` pour le fallback mount local SMB. Logs renommés `[DAP-SYNC]` → `[SMB]`.
+    
+    ## DB utilisateur
+    
+    Tables `dap_destinations` et `dap_sync_selection` **laissées en place** dans `dap_sync.db` — préserve les configurations des beta-testers existants pour la future réintégration. Plus lues tant que la feature n'est pas restaurée.
+    
+    ## Fix bonus — message d'erreur SMB indisponible
+    
+    `playback.js` : ajout d'un `showToast('NAS injoignable — vérifie que le serveur est allumé')` quand `audio_play` échoue avec un fichier SMB. Avant, l'erreur était uniquement loguée dans la console DevTools — l'utilisateur attendait 10 s sans feedback puis le bouton play revenait. Symptôme ressenti comme un crash alors que l'app tournait bien.
+    
+    ## Diff
+    
+    26 fichiers modifiés, +82 / –13 525 lignes.
+    
+    ## Validation
+    
+    - `cargo check` ✓, `cargo clippy` ✓, `cargo test --all` : 106 passed / 19 ignored / 0 failed
+    - `node --check` sur 19 modules JS ✓
+    - `npm test` (Jest) : 137 passed / 14 skipped / 0 failed
+    - Streaming SMB audio testé (la feature qui partage `smb_utils`) : retry SMB et fallback mount local fonctionnent
+    
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    
+    Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+
+diff --git a/noir-tauri/src-tauri/Cargo.toml b/noir-tauri/src-tauri/Cargo.toml
+index 75220f3..b45535c 100644
+--- a/noir-tauri/src-tauri/Cargo.toml
++++ b/noir-tauri/src-tauri/Cargo.toml
+@@ -64,28 +64,7 @@ mdns-sd = "0.11"
+ # UUIDs pour identifiants de sources réseau
+ uuid = { version = "1", features = ["v4"] }
+ 
+-# === DAP Sync (SD Card / USB sync) ===
+-# MTP (Media Transfer Protocol) — pure Rust, async, for DAP sync via USB
+-# Bypasses macOS exFAT driver entirely (no ghost dirs, no data corruption)
+-mtp-rs = { git = "https://github.com/vdavid/mtp-rs.git", branch = "main" }
+-# Async stream + bytes for MTP file upload
+-futures = "0.3"
+-bytes = "1.5"
+-# SQLite embarqué pour persistance destinations + sélections
+-rusqlite = { version = "0.31", features = ["bundled"] }
+-# Filesystem watcher pour détection montage/démontage volumes
+-notify = { version = "6", features = ["macos_fsevent"] }
+-# SHA-256 pour quick hash des fichiers (détection modifications)
+-sha2 = "0.10"
+-# Unicode NFC normalization — exFAT requires NFC, macOS metadata often provides NFD
+-unicode-normalization = "0.1"
+-# ASCII transliteration — macOS exFAT driver corrupts dirs with accented chars (ô, ã, é)
+-deunicode = "1"
+-# tempfile pour tests unitaires sync engine
+-tempfile = { version = "3", optional = true }
+ 
+-[dev-dependencies]
+-tempfile = "3"
+ 
+ # === RELEASE PROFILE (Anti-reverse-engineering + Performance) ===
+ [profile.release]
+diff --git a/noir-tauri/src-tauri/src/lib.rs b/noir-tauri/src-tauri/src/lib.rs
+index 009627d..e04bf35 100644
+--- a/noir-tauri/src-tauri/src/lib.rs
++++ b/noir-tauri/src-tauri/src/lib.rs
+@@ -32,9 +32,6 @@ mod media_controls;
+ // === NETWORK / NAS MODULES ===
+ mod network;
+ 
+-// === DAP SYNC (SD Card / USB sync) ===
+-mod dap_sync;
+-
+ // Structure pour un fichier audio
+ #[derive(Serialize, Deserialize, Clone)]
+ struct AudioTrack {
+@@ -3290,9 +3287,9 @@ async fn audio_play(path: String) -> Result<(), String> {
+         // Before attempting SMB direct streaming, check if the file is accessible
+         // via a local mount (AFP, NFS, or SMB Finder mount). This is faster, more
+         // reliable, and handles cases where SMB credentials are unavailable.
+-        let local_path = dap_sync::smb_utils::resolve_smb_path(
++        let local_path = network::smb_utils::resolve_smb_path(
+             &path,
+-            &dap_sync::smb_utils::build_smb_mount_map(),
++            &network::smb_utils::build_smb_mount_map(),
+         );
+         if local_path != path && std::path::Path::new(&local_path).exists() {
+             println!("[SMB FALLBACK] Playing via local mount: {}", &local_path[..local_path.len().min(100)]);
+@@ -3487,9 +3484,9 @@ async fn audio_preload_next(path: String) -> Result<(), String> {
+         use std::sync::atomic::Ordering as AOrdering;
+ 
+         // LOCAL MOUNT FALLBACK — same as audio_play
+-        let local_path = dap_sync::smb_utils::resolve_smb_path(
++        let local_path = network::smb_utils::resolve_smb_path(
+             &path,
+-            &dap_sync::smb_utils::build_smb_mount_map(),
++            &network::smb_utils::build_smb_mount_map(),
+         );
+         if local_path != path && std::path::Path::new(&local_path).exists() {
+             println!("[SMB FALLBACK] Preloading via local mount: {}", &local_path[..local_path.len().min(100)]);
+@@ -4504,566 +4501,6 @@ fn noir_response_with_headers(mime: &str, data: Vec<u8>) -> tauri::http::Respons
+         .expect("valid HTTP response with known headers")
+ }
+ 
+-// === DAP SYNC — Tauri Commands ===
+-
+-/// Global cancel flag for DAP sync operations.
+-static DAP_SYNC_CANCEL: Lazy<Arc<AtomicBool>> = Lazy::new(|| Arc::new(AtomicBool::new(false)));
+-
+-#[tauri::command]
+-fn dap_list_external_volumes() -> Result<Vec<dap_sync::volumes::ExternalVolume>, String> {
+-    dap_sync::volumes::list_external_volumes()
+-}
+-
+-#[tauri::command]
+-fn dap_get_volume_info(path: String) -> Result<dap_sync::volumes::VolumeInfo, String> {
+-    dap_sync::volumes::get_volume_info(&path)
+-}
+-
+-#[tauri::command]
+-fn dap_save_destination(dest: dap_sync::db::DapDestination) -> Result<i64, String> {
+-    dap_sync::db::save_destination(&dest)
+-}
+-
+-#[tauri::command]
+-fn dap_get_destinations() -> Result<Vec<dap_sync::db::DapDestination>, String> {
+-    dap_sync::db::get_destinations()
+-}
+-
+-#[tauri::command]
+-fn dap_get_destination(id: i64) -> Result<Option<dap_sync::db::DapDestination>, String> {
+-    dap_sync::db::get_destination(id)
+-}
+-
+-#[tauri::command]
+-fn dap_delete_destination(id: i64) -> Result<(), String> {
+-    dap_sync::db::delete_destination(id)
+-}
+-
+-#[tauri::command]
+-fn dap_eject_volume(path: String) -> Result<(), String> {
+-    use std::process::Command;
+-    let output = Command::new("diskutil")
+-        .args(["eject", &path])
+-        .output()
+-        .map_err(|e| format!("Failed to run diskutil: {}", e))?;
+-    if output.status.success() {
+-        Ok(())
+-    } else {
+-        let stderr = String::from_utf8_lossy(&output.stderr);
+-        Err(format!("Eject failed: {}", stderr.trim()))
+-    }
+-}
+-
+-#[tauri::command]
+-fn dap_save_selection(destination_id: i64, album_id: i64, selected: bool) -> Result<(), String> {
+-    dap_sync::db::save_selection(destination_id, album_id, selected)
+-}
+-
+-#[tauri::command]
+-fn dap_save_selections_batch(destination_id: i64, selections: Vec<(i64, bool)>) -> Result<(), String> {
+-    dap_sync::db::save_selections_batch(destination_id, &selections)
+-}
+-
+-#[derive(Serialize, Deserialize, Clone)]
+-#[serde(rename_all = "camelCase")]
+-struct DapSelection {
+-    album_id: i64,
+-    selected: bool,
+-}
+-
+-#[tauri::command]
+-fn dap_get_selections(destination_id: i64) -> Result<Vec<DapSelection>, String> {
+-    let sels = dap_sync::db::get_selections(destination_id)?;
+-    Ok(sels.into_iter().map(|(album_id, selected)| DapSelection { album_id, selected }).collect())
+-}
+-
+-#[tauri::command]
+-fn dap_read_manifest(dest_path: String) -> Result<Option<dap_sync::manifest::SyncManifest>, String> {
+-    dap_sync::manifest::read_manifest(&dest_path)
+-}
+-
+-#[tauri::command]
+-async fn dap_compute_sync_plan(
+-    tracks: Vec<dap_sync::sync_plan::TrackForSync>,
+-    dest_path: String,
+-    folder_structure: String,
+-    mirror_mode: bool,
+-) -> Result<dap_sync::sync_plan::SyncPlan, String> {
+-    let cmd_start = std::time::Instant::now();
+-    #[cfg(debug_assertions)]
+-    eprintln!("[PERF-RS] dap_compute_sync_plan called with {} tracks, dest={}", tracks.len(), dest_path);
+-
+-    let is_mtp = dest_path.starts_with("mtp://");
+-
+-    // Skip filesystem migration for MTP — no local filesystem to migrate
+-    if !is_mtp {
+-        let migrated = dap_sync::sync_plan::migrate_dap_filesystem(&dest_path);
+-        if migrated > 0 {
+-            eprintln!("[DAP-SYNC] Migrated {} manifest entries to match current sanitization rules", migrated);
+-        }
+-    }
+-
+-    let t0 = std::time::Instant::now();
+-    // For MTP, manifest is stored locally (not on device)
+-    let manifest = if is_mtp {
+-        let mtp_path = dap_sync::manifest::mtp_manifest_path(&dest_path);
+-        dap_sync::manifest::read_manifest_file(&mtp_path)?
+-    } else {
+-        dap_sync::manifest::read_manifest(&dest_path)?
+-    };
+-    #[cfg(debug_assertions)]
+-    eprintln!("[PERF-RS] read_manifest: {:?} ({} files)", t0.elapsed(),
+-        manifest.as_ref().map(|m| m.files.len()).unwrap_or(0));
+-
+-    // For MTP, scan actual device files to validate manifest against reality.
+-    // Without this, a formatted SD card would still show "ON DAP" for all albums
+-    // because the local manifest has no way to know the device was wiped.
+-    let mtp_device_files = if is_mtp {
+-        let parts: Vec<&str> = dest_path.trim_start_matches("mtp://").split('/').collect();
+-        let storage_idx: usize = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(1);
+-        let t_mtp = std::time::Instant::now();
+-        match dap_sync::mtp::scan_mtp_device_files(storage_idx).await {
+-            Ok(files) => {
+-                #[cfg(debug_assertions)]
+-                eprintln!("[PERF-RS] MTP device scan: {:?} ({} files)", t_mtp.elapsed(), files.len());
+-                // Clean the local manifest: remove entries for files no longer on the device.
+-                // This handles ghost directories (folder created but files never written).
+-                if let Err(e) = dap_sync::mtp::clean_mtp_manifest(&dest_path, &files) {
+-                    eprintln!("[MTP] Warning: manifest cleanup failed: {}", e);
+-                }
+-                Some(files)
+-            }
+-            Err(e) => {
+-                eprintln!("[MTP] Warning: device scan failed ({}), falling back to manifest only", e);
+-                None
+-            }
+-        }
+-    } else {
+-        None
+-    };
+-
+-    let t1 = std::time::Instant::now();
+-    // For MTP, get volume info from the cached MTP detection (not filesystem df)
+-    let vol_info = if is_mtp {
+-        // Parse storage index from mtp://serial/index
+-        let parts: Vec<&str> = dest_path.trim_start_matches("mtp://").split('/').collect();
+-        let _storage_idx: usize = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(1);
+-        // Use a large default — actual free space was shown in sidebar from detect_mtp_devices
+-        dap_sync::volumes::VolumeInfo {
+-            name: "MTP Device".into(),
+-            path: dest_path.clone(),
+-            free_bytes: 2_000_000_000_000, // 2TB default for MTP
+-            total_bytes: 2_147_000_000_000,
+-            is_mounted: true,
+-        }
+-    } else {
+-        dap_sync::volumes::get_volume_info(&dest_path)?
+-    };
+-    #[cfg(debug_assertions)]
+-    eprintln!("[PERF-RS] get_volume_info: {:?}", t1.elapsed());
+-
+-    // Clone cover cache entries (brief lock) for cover art resolution
+-    let cover_entries = COVER_CACHE.lock()
+-        .map(|c| c.entries.clone())
+-        .unwrap_or_default();
+-    let covers_dir = get_cover_cache_dir();
+-
+-    let result = dap_sync::sync_plan::compute_sync_plan(
+-        &tracks,
+-        &manifest,
+-        &folder_structure,
+-        mirror_mode,
+-        mtp_device_files,
+-        vol_info.free_bytes,
+-        vol_info.total_bytes,
+-        &cover_entries,
+-        &covers_dir,
+-        &dest_path,
+-    );
+-    #[cfg(debug_assertions)]
+-    eprintln!("[PERF-RS] dap_compute_sync_plan TOTAL: {:?}", cmd_start.elapsed());
+-    Ok(result)
+-}
+-
+-#[tauri::command]
+-fn dap_execute_sync(
+-    app_handle: tauri::AppHandle,
+-    tracks: Vec<dap_sync::sync_plan::TrackForSync>,
+-    dest_path: String,
+-    folder_structure: String,
+-    mirror_mode: bool,
+-) {
+-    use tauri::Emitter;
+-
+-    // Reset cancel flag
+-    DAP_SYNC_CANCEL.store(false, std::sync::atomic::Ordering::SeqCst);
+-    let cancel_flag = DAP_SYNC_CANCEL.clone();
+-
+-    std::thread::spawn(move || {
+-        // Compute plan fresh
+-        let manifest = match if dest_path.starts_with("mtp://") {
+-            // MTP: no manifest on device — start fresh (manifest will be stored locally later)
+-            Ok(None)
+-        } else {
+-            dap_sync::manifest::read_manifest(&dest_path)
+-        } {
+-            Ok(m) => m,
+-            Err(e) => {
+-                let _ = app_handle.emit("dap_sync_complete", dap_sync::sync_engine::SyncComplete {
+-                    success: false,
+-                    files_copied: 0,
+-                    files_deleted: 0,
+-                    total_bytes_copied: 0,
+-                    duration_ms: 0,
+-                    errors: vec![format!("Failed to read manifest: {}", e)],
+-                });
+-                return;
+-            }
+-        };
+-
+-        let is_mtp = dest_path.starts_with("mtp://");
+-        let vol_info = if is_mtp {
+-            // MTP: use large defaults (actual space checked by device firmware)
+-            Ok(dap_sync::volumes::VolumeInfo {
+-                name: "MTP Device".into(),
+-                path: dest_path.clone(),
+-                free_bytes: 2_000_000_000_000,
+-                total_bytes: 2_147_000_000_000,
+-                is_mounted: true,
+-            })
+-        } else {
+-            dap_sync::volumes::get_volume_info(&dest_path)
+-        };
+-        let vol_info = match vol_info {
+-            Ok(v) => v,
+-            Err(e) => {
+-                let _ = app_handle.emit("dap_sync_complete", dap_sync::sync_engine::SyncComplete {
+-                    success: false,
+-                    files_copied: 0,
+-                    files_deleted: 0,
+-                    total_bytes_copied: 0,
+-                    duration_ms: 0,
+-                    errors: vec![format!("Failed to get volume info: {}", e)],
+-                });
+-                return;
+-            }
+-        };
+-
+-        // Clone cover cache entries (brief lock) for cover art resolution
+-        let cover_entries = COVER_CACHE.lock()
+-            .map(|c| c.entries.clone())
+-            .unwrap_or_default();
+-        let covers_dir = get_cover_cache_dir();
+-
+-        let plan = dap_sync::sync_plan::compute_sync_plan(
+-            &tracks,
+-            &manifest,
+-            &folder_structure,
+-            mirror_mode,
+-            None, // No external device files for regular volume sync
+-            vol_info.free_bytes,
+-            vol_info.total_bytes,
+-            &cover_entries,
+-            &covers_dir,
+-            &dest_path,
+-        );
+-
+-        if !plan.enough_space {
+-            let _ = app_handle.emit("dap_sync_complete", dap_sync::sync_engine::SyncComplete {
+-                success: false,
+-                files_copied: 0,
+-                files_deleted: 0,
+-                total_bytes_copied: 0,
+-                duration_ms: 0,
+-                errors: vec!["Not enough space on destination".into()],
+-            });
+-            return;
+-        }
+-
+-        // Build network source list for UUID → hostname SMB resolution
+-        let net_sources: Vec<(String, String)> = NETWORK_SOURCES
+-            .lock()
+-            .map(|sources| sources.iter().map(|s| (s.id.clone(), s.host.clone())).collect())
+-            .unwrap_or_default();
+-
+-        match dap_sync::sync_engine::execute_sync(
+-            &app_handle,
+-            &dest_path,
+-            &plan,
+-            &manifest,
+-            &folder_structure,
+-            cancel_flag,
+-            net_sources,
+-        ) {
+-            Ok(_) => {} // SyncComplete already emitted by execute_sync
+-            Err(e) => {
+-                let _ = app_handle.emit("dap_sync_complete", dap_sync::sync_engine::SyncComplete {
+-                    success: false,
+-                    files_copied: 0,
+-                    files_deleted: 0,
+-                    total_bytes_copied: 0,
+-                    duration_ms: 0,
+-                    errors: vec![e],
+-                });
+-            }
+-        }
+-    });
+-}
+-
+-#[tauri::command]
+-async fn dap_execute_mtp_sync(
+-    app_handle: tauri::AppHandle,
+-    files: Vec<(String, String)>,          // (source_path, dest_relative_path) — files to copy
+-    files_to_delete: Vec<String>,          // dest_relative_paths to delete from device
+-    storage_index: usize,
+-    dest_path: String,                     // mtp://serial/index — for manifest storage
+-    folder_structure: String,
+-) -> Result<(), String> {
+-    use tauri::Emitter;
+-
+-    let start = std::time::Instant::now();
+-    let total_copy = files.len();
+-    let total_delete = files_to_delete.len();
+-    eprintln!("[MTP-SYNC] Starting MTP sync: {} files to copy, {} to delete on storage {}",
+-        total_copy, total_delete, storage_index);
+-
+-    // Resolve SMB paths before passing to MTP
+-    let smb_map = dap_sync::smb_utils::build_smb_mount_map();
+-    let resolved_files: Vec<(String, String)> = files.iter().map(|(src, dest)| {
+-        let resolved = dap_sync::smb_utils::resolve_smb_path(src, &smb_map);
+-        (resolved, dest.clone())
+-    }).collect();
+-    // Keep ORIGINAL (non-resolved) source paths for manifest
+-    // (resolved paths are session-specific /Volumes/... mounts that change between reboots;
+-    //  original paths are stable smb:// URIs that match library.tracks[].path in JS)
+-    let original_files_for_manifest: Vec<(String, String)> = files.into_iter().collect();
+-
+-    // Reset cancel flag
+-    DAP_SYNC_CANCEL.store(false, std::sync::atomic::Ordering::SeqCst);
+-    let cancel_flag = DAP_SYNC_CANCEL.clone();
+-
+-    let mut all_errors: Vec<String> = Vec::new();
+-    let mut total_files_deleted: usize = 0;
+-
+-    // --- Phase 0: Purge ghost (empty) folders on the device ---
+-    // Ghost folders are created when MTP uploads fail mid-way: the folder exists
+-    // but contains no files. The JM21 firmware ignores them but they waste space
+-    // and confuse the sync plan.
+-    match dap_sync::mtp::mtp_purge_empty_folders(storage_index).await {
+-        Ok(count) if count > 0 => {
+-            eprintln!("[MTP-SYNC] Pre-sync ghost purge: {} empty folders deleted", count);
+-        }
+-        Ok(_) => {} // no ghosts found
+-        Err(e) => {
+-            eprintln!("[MTP-SYNC] Ghost purge failed (non-fatal): {}", e);
+-        }
+-    }
+-
+-    // --- Phase 1: Delete files no longer in selection ---
+-    if !files_to_delete.is_empty() {
+-        let app_handle_del = app_handle.clone();
+-        let cancel_del = cancel_flag.clone();
+-
+-        match dap_sync::mtp::mtp_delete_files(
+-            &files_to_delete,
+-            storage_index,
+-            move |current, total, file| {
+-                let _ = app_handle_del.emit("dap_sync_progress", serde_json::json!({
+-                    "phase": "delete",
+-                    "current": current,
+-                    "total": total,
+-                    "currentFile": file,
+-                    "bytesCopied": 0,
+-                    "totalBytes": 0,
+-                    "action": "delete"
+-                }));
+-            },
+-            cancel_del,
+-        ).await {
+-            Ok((deleted, errors)) => {
+-                total_files_deleted = deleted;
+-                eprintln!("[MTP-SYNC] Delete phase: {}/{} deleted, {} errors",
+-                    deleted, total_delete, errors.len());
+-                all_errors.extend(errors);
+-            }
+-            Err(e) => {
+-                eprintln!("[MTP-SYNC] Delete phase failed: {}", e);
+-                all_errors.push(format!("Delete phase failed: {}", e));
+-            }
+-        }
+-    }
+-
+-    // --- Phase 2: Copy new files ---
+-    let app_handle_copy = app_handle.clone();
+-    let cancel_copy = cancel_flag.clone();
+-
+-    let app_handle_replug = app_handle.clone();
+-    let result = dap_sync::mtp::mtp_sync_batch(
+-        resolved_files.clone(),
+-        storage_index,
+-        move |current, total, file| {
+-            let _ = app_handle_copy.emit("dap_sync_progress", serde_json::json!({
+-                "phase": "copy",
+-                "current": current,
+-                "total": total,
+-                "currentFile": file,
+-                "bytesCopied": 0,
+-                "totalBytes": 0,
+-                "action": "copy"
+-            }));
+-        },
+-        cancel_copy,
+-        Some(app_handle_replug),
+-    ).await;
+-
+-    let (files_copied, total_bytes_copied) = match result {
+-        Ok((copied, bytes, errors)) => {
+-            all_errors.extend(errors);
+-            (copied, bytes)
+-        }
+-        Err(e) => {
+-            all_errors.push(e);
+-            (0, 0)
+-        }
+-    };
+-
+-    // --- Phase 3: Write manifest locally ---
+-    // Build manifest from the files that should now be on the device:
+-    // = files we just copied + files that were already on device (unchanged from plan)
+-    let manifest_path = dap_sync::manifest::mtp_manifest_path(&dest_path);
+-    let old_manifest = dap_sync::manifest::read_manifest_file(&manifest_path)
+-        .unwrap_or(None);
+-
+-    // Start with unchanged files from old manifest (not deleted)
+-    let deleted_set: std::collections::HashSet<String> = files_to_delete.iter().cloned().collect();
+-    let mut manifest_files: Vec<dap_sync::manifest::SyncedFile> = Vec::new();
+-
+-    if let Some(old) = &old_manifest {
+-        for f in &old.files {
+-            if !deleted_set.contains(&f.dest_relative_path) {
+-                manifest_files.push(f.clone());
+-            }
+-        }
+-    }
+-
+-    // Add newly copied files — exclude files that failed (in error list).
+-    // Build a set of dest_relative_paths that had errors to exclude from manifest.
+-    let error_dest_paths: std::collections::HashSet<String> = all_errors.iter()
+-        .filter_map(|e| {
+-            // Error format: "dest_rel — error message"
+-            e.split(" — ").next().map(|s| s.to_string())
+-        })
+-        .collect();
+-
+-    let existing_dest_paths: std::collections::HashSet<String> =
+-        manifest_files.iter().map(|f| f.dest_relative_path.clone()).collect();
+-
+-    // Build resolved source map for size lookup (original path → resolved path)
+-    let resolved_map: std::collections::HashMap<&str, &str> = original_files_for_manifest.iter()
+-        .zip(resolved_files.iter())
+-        .map(|((orig, _), (resolved, _))| (orig.as_str(), resolved.as_str()))
+-        .collect();
+-
+-    for (original_src, dest_rel) in &original_files_for_manifest {
+-        if !existing_dest_paths.contains(dest_rel) && !error_dest_paths.contains(dest_rel) {
+-            let fallback = original_src.as_str();
+-            let resolved_src = resolved_map.get(original_src.as_str()).unwrap_or(&fallback);
+-            manifest_files.push(dap_sync::manifest::SyncedFile {
+-                source_path: original_src.clone(),  // Store ORIGINAL smb:// path, not resolved /Volumes/
+-                dest_relative_path: dest_rel.clone(),
+-                size_bytes: std::fs::metadata(resolved_src).map(|m| m.len()).unwrap_or(0),
+-                modified_at: String::new(),
+-                quick_hash: String::new(),
+-            });
+-        }
+-    }
+-
+-    let now = {
+-        let secs = std::time::SystemTime::now()
+-            .duration_since(std::time::UNIX_EPOCH)
+-            .unwrap_or_default()
+-            .as_secs();
+-        format!("{}", secs)
+-    };
+-
+-    let new_manifest = dap_sync::manifest::SyncManifest {
+-        hean_version: "1.0.0".into(),
+-        last_sync: now,
+-        destination_path: dest_path.clone(),
+-        folder_structure,
+-        files: manifest_files,
+-    };
+-
+-    if let Err(e) = dap_sync::manifest::write_manifest_file(&manifest_path, &new_manifest) {
+-        eprintln!("[MTP-SYNC] Failed to write manifest: {}", e);
+-        all_errors.push(format!("Manifest write failed: {}", e));
+-    } else {
+-        eprintln!("[MTP-SYNC] Manifest written: {} files tracked at {}",
+-            new_manifest.files.len(), manifest_path);
+-    }
+-
+-    let duration_ms = start.elapsed().as_millis() as u64;
+-    let success = all_errors.is_empty();
+-
+-    eprintln!("[MTP-SYNC] === SYNC {} === {} copied, {} deleted, {:.1} GB in {:.1}s, {} errors",
+-        if success { "COMPLETE" } else { "FINISHED WITH ERRORS" },
+-        files_copied, total_files_deleted,
+-        total_bytes_copied as f64 / 1_073_741_824.0,
+-        duration_ms as f64 / 1000.0, all_errors.len());
+-
+-    let _ = app_handle.emit("dap_sync_complete", dap_sync::sync_engine::SyncComplete {
+-        success,
+-        files_copied,
+-        files_deleted: total_files_deleted,
+-        total_bytes_copied,
+-        duration_ms,
+-        errors: all_errors,
+-    });
+-
+-    Ok(())
+-}
+-
+-#[tauri::command]
+-fn dap_cancel_sync() {
+-    eprintln!("[DAP-SYNC] *** CANCEL REQUESTED BY USER ***");
+-    DAP_SYNC_CANCEL.store(true, std::sync::atomic::Ordering::SeqCst);
+-}
+-
+-#[tauri::command]
+-fn dap_start_volume_watcher(app_handle: tauri::AppHandle) {
+-    dap_sync::watcher::start_volume_watcher(app_handle);
+-}
+-
+-#[tauri::command]
+-async fn dap_detect_mtp_devices() -> Result<Vec<dap_sync::mtp::MtpDeviceInfo>, String> {
+-    dap_sync::mtp::detect_mtp_devices().await
+-}
+-
+-#[tauri::command]
+-async fn dap_mtp_send_file(source_path: String, dest_folder: String, dest_filename: String, storage_index: usize) -> Result<u64, String> {
+-    dap_sync::mtp::mtp_send_file(&source_path, &dest_folder, &dest_filename, storage_index).await
+-}
+-
+-#[tauri::command]
+-async fn dap_mtp_list_files(storage_index: usize) -> Result<Vec<dap_sync::mtp::MtpFileEntry>, String> {
+-    dap_sync::mtp::mtp_list_files(storage_index).await
+-}
+-
+-#[tauri::command]
+-async fn dap_mtp_test(source_path: String) -> Result<String, String> {
+-    dap_sync::mtp::mtp_test_all(&source_path).await
+-}
+-
+-#[tauri::command]
+-async fn dap_mtp_purge_albums(folder_names: Vec<String>, storage_index: usize) -> Result<(usize, Vec<String>), String> {
+-    dap_sync::mtp::mtp_purge_album_folders(folder_names, storage_index).await
+-}
+-
+-#[tauri::command]
+-async fn dap_mtp_purge_ghosts(storage_index: usize) -> Result<usize, String> {
+-    dap_sync::mtp::mtp_purge_empty_folders(storage_index).await
+-}
+-
+ #[cfg_attr(mobile, tauri::mobile_entry_point)]
+ pub fn run() {
+     tauri::Builder::default()
+@@ -5165,10 +4602,7 @@ pub fn run() {
+             // Enregistre Noir comme propriétaire de MPRemoteCommandCenter
+             // → les media keys (F7/F8/F9 / touches multimédia) sont routées vers Noir
+             //   même quand Apple Music tourne en arrière-plan.
+-            media_controls::init_media_controls(app_handle.clone());
+-
+-            // Lance le watcher de volumes pour détecter montage/démontage USB/SD
+-            dap_sync::watcher::start_volume_watcher(app_handle);
++            media_controls::init_media_controls(app_handle);
+ 
+             Ok(())
+         })
+@@ -5268,29 +4702,6 @@ pub fn run() {
+             // Media Controls (MPRemoteCommandCenter / media keys)
+             update_media_metadata,
+             update_media_playback_state,
+-            // DAP Sync (SD Card / USB sync)
+-            dap_list_external_volumes,
+-            dap_get_volume_info,
+-            dap_save_destination,
+-            dap_get_destinations,
+-            dap_get_destination,
+-            dap_delete_destination,
+-            dap_eject_volume,
+-            dap_save_selection,
+-            dap_save_selections_batch,
+-            dap_get_selections,
+-            dap_read_manifest,
+-            dap_compute_sync_plan,
+-            dap_execute_sync,
+-            dap_cancel_sync,
+-            dap_start_volume_watcher,
+-            dap_detect_mtp_devices,
+-            dap_execute_mtp_sync,
+-            dap_mtp_send_file,
+-            dap_mtp_list_files,
+-            dap_mtp_test,
+-            dap_mtp_purge_albums,
+-            dap_mtp_purge_ghosts,
+             // Application
+             quit_app
+         ])
+diff --git a/noir-tauri/src-tauri/src/network/mod.rs b/noir-tauri/src-tauri/src/network/mod.rs
+index 89b43a0..31d8e70 100644
+--- a/noir-tauri/src-tauri/src/network/mod.rs
++++ b/noir-tauri/src-tauri/src/network/mod.rs
+@@ -2,6 +2,7 @@
+ 
+ pub mod credentials;
+ pub mod smb;
++pub mod smb_utils;
+ pub mod discovery;
+ pub mod scanner;
+ 
+diff --git a/noir-tauri/src/app.js b/noir-tauri/src/app.js
+index 0320df3..8f6e537 100644
+--- a/noir-tauri/src/app.js
++++ b/noir-tauri/src/app.js
+@@ -108,15 +108,6 @@ export const app = {
+   // === Network / NAS ===
+   populateNetworkSources: null,
+ 
+-  // === DAP Sync ===
+-  openSyncPanel: null,
+-  closeSyncPanel: null,
+-  loadDapDestinations: null,
+-  refreshMountedVolumes: null,
+-  displayDapSyncView: null,
+-  hideDapTopBar: null,
+-  renderSidebarDestinations: null,
+-
+   // === Onboarding ===
+   showOnboarding: null,
+   hideOnboarding: null,
+diff --git a/noir-tauri/src/index.html b/noir-tauri/src/index.html
+index 66fb37b..f63f54a 100644
+--- a/noir-tauri/src/index.html
++++ b/noir-tauri/src/index.html
+@@ -106,26 +106,6 @@
+         </div>
+       </div>
+ 
+-      <!-- Section DAP Sync (SD Card / USB sync) -->
+-      <div class="sb-dap-section">
+-        <div class="sb-dap-header open" id="dap-sync-header-toggle">
+-          <span class="sb-dap-title">DAP Sync</span>
+-
+-          <!-- Toggle arrow -->
+-          <button class="btn-toggle-indexation sb-dap-toggle" id="btn-toggle-dap" title="Show/hide devices">
+-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+-              <path d="M6 9l6 6 6-6"/>
+-            </svg>
+-          </button>
+-        </div>
+-        <div class="sb-dap-list" id="dap-sync-destinations">
+-          <!-- Mass-storage devices populated dynamically -->
+-        </div>
+-        <div class="sb-dap-list" id="dap-mtp-devices">
+-          <!-- MTP devices populated dynamically -->
+-        </div>
+-      </div>
+-
+       <!-- Module Indexation (en bas de la sidebar) -->
+       <div id="indexation-module" class="indexation-module">
+         <!-- Header (toujours visible, cliquable pour toggle) -->
+@@ -226,9 +206,6 @@
+           </div>
+         </div>
+ 
+-        <!-- DAP Sync top bar — shown only in DAP sync view -->
+-        <div class="dap-sync-bar hidden" id="dap-sync-bar"></div>
+-
+         <div class="search-bar-actions">
+           <button id="feedback-btn" class="feedback-header-btn" title="Give Feedback">
+             Give feedback <span class="beta-badge">BETA</span>
+@@ -314,16 +291,6 @@
+       <span>Edit Metadata</span>
+     </button>
+     <div class="context-menu-separator"></div>
+-    <button class="context-menu-item" data-action="toggle-dap-track">
+-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+-        <rect x="5" y="1" width="14" height="22" rx="2.5"/>
+-        <rect x="7" y="3" width="10" height="8" rx="1"/>
+-        <circle cx="12" cy="17" r="3.5"/>
+-        <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/>
+-      </svg>
+-      <span>Add to my DAP</span>
+-    </button>
+-    <div class="context-menu-separator"></div>
+     <button class="context-menu-item context-menu-item-danger" data-action="remove-from-library">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+         <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+diff --git a/noir-tauri/src/panels.js b/noir-tauri/src/panels.js
+index 0517e47..148deef 100644
+--- a/noir-tauri/src/panels.js
++++ b/noir-tauri/src/panels.js
+@@ -392,22 +392,6 @@ export function showAlbumContextMenu(e, albumKey) {
+       </svg>
+       <span>Create playlist from this album</span>
+     </button>
+-    ${(() => {
+-      const hasDap = app.hasDapDestination && app.hasDapDestination()
+-      const isOnDap = hasDap && app.isAlbumSelectedForDap ? app.isAlbumSelectedForDap(albumKey) : false
+-      const dapLabel = isOnDap ? 'Remove from my DAP' : 'Add to my DAP'
+-      return `
+-        <div class="context-menu-separator"></div>
+-        <button class="context-menu-item ${!hasDap ? 'disabled' : ''}" data-action="toggle-dap-album">
+-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+-            <rect x="5" y="1" width="14" height="22" rx="2.5"/>
+-            <rect x="7" y="3" width="10" height="8" rx="1"/>
+-            <circle cx="12" cy="17" r="3.5"/>
+-            <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/>
+-          </svg>
+-          <span>${dapLabel}</span>
+-        </button>`
+-    })()}
+   `
+ 
+   // Position
+@@ -451,20 +435,6 @@ export function showAlbumContextMenu(e, albumKey) {
+     menu.remove()
+   })
+ 
+-  // DAP toggle handler
+-  const dapBtn = menu.querySelector('[data-action="toggle-dap-album"]')
+-  if (dapBtn) {
+-    dapBtn.addEventListener('click', () => {
+-      if (app.hasDapDestination && app.hasDapDestination()) {
+-        app.showDapSyncModal({
+-          albumKeys: [albumKey],
+-        })
+-      } else {
+-        showToast('No DAP device connected')
+-      }
+-      menu.remove()
+-    })
+-  }
+ 
+   // Close on click outside
+   const closeHandler = (ev) => {
+@@ -487,10 +457,6 @@ export function showArtistContextMenu(e, artistKey) {
+   document.querySelectorAll('.album-context-menu').forEach(m => m.remove())
+   hideContextMenu()
+ 
+-  const hasDap = app.hasDapDestination && app.hasDapDestination()
+-  const allOnDap = hasDap && app.isArtistFullySelectedForDap ? app.isArtistFullySelectedForDap(artistKey) : false
+-  const dapLabel = allOnDap ? 'Remove from my DAP' : 'Add to my DAP'
+-
+   const menu = document.createElement('div')
+   menu.className = 'context-menu album-context-menu'
+   menu.innerHTML = `
+@@ -504,16 +470,6 @@ export function showArtistContextMenu(e, artistKey) {
+       </svg>
+       <span>Add to queue</span>
+     </button>
+-    <div class="context-menu-separator"></div>
+-    <button class="context-menu-item ${!hasDap ? 'disabled' : ''}" data-action="toggle-dap-artist">
+-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+-        <rect x="5" y="1" width="14" height="22" rx="2.5"/>
+-        <rect x="7" y="3" width="10" height="8" rx="1"/>
+-        <circle cx="12" cy="17" r="3.5"/>
+-        <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/>
+-      </svg>
+-      <span>${dapLabel}</span>
+-    </button>
+   `
+ 
+   // Position
+@@ -547,22 +503,6 @@ export function showArtistContextMenu(e, artistKey) {
+     menu.remove()
+   })
+ 
+-  // DAP toggle
+-  const dapBtn = menu.querySelector('[data-action="toggle-dap-artist"]')
+-  if (dapBtn) {
+-    dapBtn.addEventListener('click', () => {
+-      if (hasDap) {
+-        app.showDapSyncModal({
+-          albumKeys: artist.albums || [],
+-          artistName: artist.name,
+-        })
+-      } else {
+-        showToast('No DAP device connected')
+-      }
+-      menu.remove()
+-    })
+-  }
+-
+   // Close on click outside
+   const closeHandler = (ev) => {
+     if (!ev.target.closest('.album-context-menu')) {
+@@ -638,31 +578,6 @@ export function showContextMenu(e, track, trackIndex, selectedTrackPaths = null)
+   if (showInfoBtn) {
+     showInfoBtn.style.display = isMulti ? 'none' : 'flex'
+   }
+-
+-  // DAP toggle button — update label and visibility
+-  const dapBtn = menu.querySelector('[data-action="toggle-dap-track"]')
+-  if (dapBtn) {
+-    const hasDap = app.hasDapDestination && app.hasDapDestination()
+-    if (!hasDap) {
+-      dapBtn.classList.add('disabled')
+-      dapBtn.querySelector('span').textContent = 'Add to my DAP'
+-    } else {
+-      dapBtn.classList.remove('disabled')
+-      // For tracks, check if the track's album is selected for DAP
+-      const trackAlbum = contextMenu.tracks[0]?.metadata?.album
+-      if (trackAlbum) {
+-        // Find the albumKey for this track
+-        const albumKey = Object.keys(library.albums).find(k => library.albums[k].tracks.some(t => t.path === contextMenu.tracks[0].path))
+-        if (albumKey && app.isAlbumSelectedForDap(albumKey)) {
+-          dapBtn.querySelector('span').textContent = isMulti ? `Remove ${contextMenu.tracks.length} tracks from my DAP` : 'Remove from my DAP'
+-        } else {
+-          dapBtn.querySelector('span').textContent = isMulti ? `Add ${contextMenu.tracks.length} tracks to my DAP` : 'Add to my DAP'
+-        }
+-      } else {
+-        dapBtn.querySelector('span').textContent = 'Add to my DAP'
+-      }
+-    }
+-  }
+ }
+ 
+ // Update context menu labels based on the number of tracks
+@@ -770,24 +685,6 @@ function handleContextMenuAction(action) {
+       }
+       break
+ 
+-    case 'toggle-dap-track': {
+-      if (!app.hasDapDestination || !app.hasDapDestination()) {
+-        showToast('No DAP destination configured')
+-        break
+-      }
+-      // Collect unique album keys from all tracks in context
+-      const albumKeys = new Set()
+-      for (const t of contextMenu.tracks) {
+-        const key = Object.keys(library.albums).find(k => library.albums[k].tracks.some(tr => tr.path === t.path))
+-        if (key) albumKeys.add(key)
+-      }
+-      if (albumKeys.size === 0) break
+-      app.showDapSyncModal({
+-        albumKeys: [...albumKeys],
+-      })
+-      break
+-    }
+-
+     case 'remove-from-library': {
+       const tracks = [...contextMenu.tracks]
+       const count = tracks.length
+diff --git a/noir-tauri/src/playback.js b/noir-tauri/src/playback.js
+index fa33e98..e997224 100644
+--- a/noir-tauri/src/playback.js
++++ b/noir-tauri/src/playback.js
+@@ -214,6 +214,14 @@ export async function playTrack(index, context) {
+       console.error('Rust audio_play error:', e)
+       playback.audioIsPlaying = false
+       dom.playPauseBtn.textContent = '▶'
++      const msg = String(e ?? '')
++      if (isSmb && (msg.includes('SMB download failed') || msg.includes('Timeout: SMB') || msg.includes('SMB credentials'))) {
++        showToast('NAS injoignable — vérifie que le serveur est allumé')
++      } else if (msg.includes('File not found')) {
++        showToast('Fichier introuvable')
++      } else {
++        showToast('Lecture impossible')
++      }
+     })
+     .finally(() => {
+       if (progressContainer) progressContainer.classList.remove('smb-buffering')
+diff --git a/noir-tauri/src/renderer.js b/noir-tauri/src/renderer.js
+index ce28b22..2bf36b8 100644
+--- a/noir-tauri/src/renderer.js
++++ b/noir-tauri/src/renderer.js
+@@ -26,8 +26,6 @@ import { initNetworkUI, populateNetworkSources } from './network.js'
+ // Onboarding
+ import { initOnboarding } from './onboarding.js'
+ 
+-// DAP Sync
+-import { initDapSync, openSyncPanel, closeSyncPanel, loadDestinations as loadDapDestinations, refreshMountedVolumes, displayDapSyncView, hideDapTopBar, renderSidebarDestinations, hasDapDestination, getMountedDestinations, isAlbumSelectedForDap, isArtistFullySelectedForDap, toggleAlbumDapSelection, toggleArtistDapSelection, toggleAlbumsOnDest, showDapSyncModal, getDapDestinationName, startSync as startDapSync } from './dap-sync.js'
+ 
+ // EQ
+ import {
+@@ -206,25 +204,6 @@ app.selectFolder = selectFolder
+ // Network / NAS
+ app.populateNetworkSources = populateNetworkSources
+ 
+-// DAP Sync
+-app.openSyncPanel = openSyncPanel
+-app.closeSyncPanel = closeSyncPanel
+-app.loadDapDestinations = loadDapDestinations
+-app.refreshMountedVolumes = refreshMountedVolumes
+-app.displayDapSyncView = displayDapSyncView
+-app.hideDapTopBar = hideDapTopBar
+-app.renderSidebarDestinations = renderSidebarDestinations
+-app.hasDapDestination = hasDapDestination
+-app.getMountedDestinations = getMountedDestinations
+-app.isAlbumSelectedForDap = isAlbumSelectedForDap
+-app.isArtistFullySelectedForDap = isArtistFullySelectedForDap
+-app.toggleAlbumDapSelection = toggleAlbumDapSelection
+-app.toggleArtistDapSelection = toggleArtistDapSelection
+-app.toggleAlbumsOnDest = toggleAlbumsOnDest
+-app.showDapSyncModal = showDapSyncModal
+-app.getDapDestinationName = getDapDestinationName
+-app.startDapSync = startDapSync
+-
+ // Playback
+ app.playTrack = playTrack
+ app.playAlbum = playAlbum
+@@ -965,9 +944,6 @@ document.addEventListener('DOMContentLoaded', () => {
+   // Network / NAS UI
+   initNetworkUI()
+ 
+-  // DAP Sync
+-  initDapSync()
+-
+   // Onboarding
+   initOnboarding()
+ 
+diff --git a/noir-tauri/src/styles.css b/noir-tauri/src/styles.css
+index 4bf57b0..28bfb36 100644
+--- a/noir-tauri/src/styles.css
++++ b/noir-tauri/src/styles.css
+@@ -6644,260 +6644,16 @@ body:not(.player-visible) .track-info-panel {
+   line-height: 1.5;
+ }
+ 
+-/* DAP Sync Modal */
+-.dap-modal-content {
+-  max-width: 400px;
+-  width: 100%;
+-  padding: 28px;
+-  border-radius: 16px;
+-  background: #141414;
+-  border: 1px solid #252525;
+-}
+-
+ /* Hero section: centered icon + title */
+-.dap-modal-hero {
+-  text-align: center;
+-  margin-bottom: 20px;
+-}
+-
+-.dap-modal-icon-centered {
+-  position: relative;
+-  display: inline-flex;
+-  align-items: center;
+-  justify-content: center;
+-  width: 56px;
+-  height: 56px;
+-  border-radius: 50%;
+-  background: rgba(255, 255, 255, 0.06);
+-  color: var(--color-text);
+-  margin-bottom: 14px;
+-}
+-
+ /* Animated sync arrows ring */
+-.dap-modal-sync-ring {
+-  position: absolute;
+-  top: 50%;
+-  left: 50%;
+-  width: 72px;
+-  height: 72px;
+-  margin: -36px 0 0 -36px;
+-  animation: dapSyncRingSpin 6s linear infinite;
+-  pointer-events: none;
+-}
+-
+-@keyframes dapSyncRingSpin {
+-  from { transform: rotate(0deg); }
+-  to   { transform: rotate(360deg); }
+-}
+-
+ @media (prefers-reduced-motion: reduce) {
+-  .dap-modal-sync-ring { animation: none; }
+-}
+-
+-.dap-modal-title {
+-  font-size: 16px;
+-  font-weight: 600;
+-  color: var(--color-text);
+-  letter-spacing: -0.01em;
+-}
+-
+-.dap-modal-subtitle {
+-  font-size: 12px;
+-  color: var(--color-text-faint);
+-  margin-top: 3px;
+ }
+ 
+ /* Content card: album artwork + info */
+-.dap-modal-content-card {
+-  display: flex;
+-  align-items: center;
+-  gap: 12px;
+-  padding: 10px 12px;
+-  background: rgba(255, 255, 255, 0.03);
+-  border: 1px solid #1e1e1e;
+-  border-radius: 10px;
+-  margin-bottom: 16px;
+-}
+-
+ /* Album artwork in modal */
+-.dap-modal-artwork {
+-  position: relative;
+-  width: 40px;
+-  height: 40px;
+-  border-radius: var(--radius-md);
+-  background: rgba(255, 255, 255, 0.05);
+-  flex-shrink: 0;
+-  overflow: hidden;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  color: var(--color-text-faint);
+-}
+-.dap-modal-artwork-img {
+-  width: 100%;
+-  height: 100%;
+-  object-fit: cover;
+-  border-radius: var(--radius-md);
+-}
+-.dap-modal-artwork-placeholder {
+-  opacity: 0.5;
+-}
+-
+-.dap-modal-content-info {
+-  flex: 1;
+-  min-width: 0;
+-}
+-
+-.dap-modal-content-name {
+-  font-size: 13px;
+-  font-weight: 500;
+-  color: #ddd;
+-  white-space: nowrap;
+-  overflow: hidden;
+-  text-overflow: ellipsis;
+-}
+-
+-.dap-modal-content-sub {
+-  font-size: 11px;
+-  color: var(--color-text-dimmed);
+-  margin-top: 1px;
+-  white-space: nowrap;
+-  overflow: hidden;
+-  text-overflow: ellipsis;
+-}
+-
+ /* Section label */
+-.dap-modal-section-label {
+-  font-size: 10px;
+-  font-weight: 600;
+-  color: var(--color-text-faint);
+-  text-transform: uppercase;
+-  letter-spacing: 0.06em;
+-  margin-bottom: 8px;
+-}
+-
+ /* Destination card selector (NAS-discovery inspired) */
+-.dap-modal-dest-list {
+-  display: flex;
+-  flex-direction: column;
+-  gap: 4px;
+-  margin-bottom: 20px;
+-}
+-
+-.dap-modal-dest-card {
+-  display: flex;
+-  align-items: center;
+-  gap: 10px;
+-  padding: 8px 10px;
+-  border-radius: var(--radius-md);
+-  border: 1px solid transparent;
+-  background: rgba(255, 255, 255, 0.02);
+-  cursor: pointer;
+-  transition: all 0.15s;
+-}
+-.dap-modal-dest-card:hover {
+-  background: rgba(255, 255, 255, 0.05);
+-}
+-.dap-modal-dest-card.active {
+-  background: rgba(255, 255, 255, 0.05);
+-  border-color: var(--color-border-muted);
+-}
+-
+-.dap-modal-dest-card-icon {
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  width: 32px;
+-  height: 32px;
+-  border-radius: var(--radius-md);
+-  background: rgba(255, 255, 255, 0.05);
+-  color: var(--color-text-muted);
+-  flex-shrink: 0;
+-}
+-.dap-modal-dest-card.active .dap-modal-dest-card-icon {
+-  color: var(--color-text);
+-}
+-
+-.dap-modal-dest-card-info {
+-  flex: 1;
+-  min-width: 0;
+-}
+-
+-.dap-modal-dest-card-name {
+-  font-size: 12.5px;
+-  font-weight: 500;
+-  color: #aaa;
+-}
+-.dap-modal-dest-card.active .dap-modal-dest-card-name {
+-  color: var(--color-text);
+-}
+-
+-.dap-modal-dest-card-space {
+-  font-size: 10.5px;
+-  color: var(--color-text-faint);
+-  margin-top: 1px;
+-}
+-
+-.dap-modal-dest-card-check {
+-  width: 20px;
+-  height: 20px;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  color: transparent;
+-  flex-shrink: 0;
+-}
+-.dap-modal-dest-card.active .dap-modal-dest-card-check {
+-  color: var(--color-text);
+-}
+-
+ /* Actions */
+-.dap-modal-actions {
+-  display: flex;
+-  gap: 10px;
+-}
+-
+-.dap-modal-btn-secondary {
+-  flex: 1;
+-  padding: 10px 16px;
+-  border-radius: 10px;
+-  border: 1px solid #2a2a2a;
+-  background: transparent;
+-  color: #aaa;
+-  font-size: 13px;
+-  font-weight: 500;
+-  cursor: pointer;
+-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+-}
+-.dap-modal-btn-secondary:hover {
+-  background: rgba(255, 255, 255, 0.04);
+-  color: var(--color-accent-hover);
+-  border-color: #3a3a3a;
+-}
+-
+-.dap-modal-btn-primary {
+-  flex: 1;
+-  padding: 10px 16px;
+-  border-radius: 10px;
+-  border: none;
+-  background: var(--color-accent);
+-  color: var(--color-bg);
+-  font-size: 13px;
+-  font-weight: 600;
+-  cursor: pointer;
+-  display: inline-flex;
+-  align-items: center;
+-  justify-content: center;
+-  gap: 6px;
+-  transition: background 0.15s, transform 0.1s;
+-}
+-.dap-modal-btn-primary:hover {
+-  background: #e5e5e5;
+-}
+-.dap-modal-btn-primary:active {
+-  transform: scale(0.97);
+-}
+-
+ /* === BOUTON AJOUTER À PLAYLIST (sur les tracks) === */
+ .track-add-playlist,
+ .tracks-list-add-playlist {
+@@ -9026,2255 +8782,89 @@ body:not(.player-visible) .track-info-panel {
+   margin-top: auto;
+ }
+ 
+-/* === DAP SYNC === */
+ 
+-/* Sidebar section */
+-/* ============================================================
+-   DAP SYNC — Sidebar Section
+-   ============================================================ */
+-
+-.sb-dap-section {
+-  border-top: 1px solid var(--color-border);
+-  flex-shrink: 0;
+-}
+-
+-.sb-dap-header {
+-  display: flex;
+-  align-items: center;
+-  padding: 10px 16px;
+-  gap: 8px;
+-  cursor: pointer;
+-  user-select: none;
+-  transition: background var(--transition-fast);
++/* Device name — large editorial headline */
++/* Storage info — monospace tech feel */
++/* Storage bar — wider, with colored gradient */
++/* Tabs — segmented control style */
++/* Search */
++/* Select all row */
++.sort-menu-separator {
++  height: 1px;
++  background: var(--color-bg-elevated);
++  margin: 4px 0;
+ }
+ 
+-.sb-dap-header:hover {
+-  background: var(--color-bg-surface);
+-}
++/* Checkbox (custom) */
++/* Album rows */
++/* Sync-in-progress banner */
++/* Artist avatar (for Artists tab) */
++/* Track number (for Tracks tab) */
++/* Dimmed row (unselected in Tracks tab) */
++/* Partial checkbox state (Artists tab) */
++/* Destination details panel (collapsible, under dest-bar) */
++/* Toggle button inside dest-bar */
++/* Summary box */
++/* Footer */
++/* --- Screen 3: Syncing --- */
+ 
+-.sb-dap-title {
+-  font-size: 11px;
+-  font-weight: 400;
+-  letter-spacing: 2px;
+-  text-transform: uppercase;
+-  color: var(--color-text-faint);
+-  flex-shrink: 0;
++/* Phase indicator (replaces stepper dots) */
++@media (prefers-reduced-motion: reduce) {
+ }
+ 
+-/* Toggle arrow — push to right, reuse indexation pattern */
+-.sb-dap-toggle {
+-  margin-left: auto;
+-}
++/* --- Screen 4: Complete --- */
+ 
+-.sb-dap-header .btn-toggle-indexation svg {
+-  transition: transform var(--transition-normal);
++@media (prefers-reduced-motion: reduce) {
+ }
+ 
+-.sb-dap-header.open .btn-toggle-indexation svg {
+-  transform: rotate(180deg);
+-}
++/* Complete view — error report for partial sync */
++/* --- Screen 7: Disconnected --- */
+ 
+-.sb-dap-add-cta {
+-  display: block;
+-  width: calc(100% - 16px);
+-  margin: 6px 8px 4px;
+-  padding: 5px 0;
+-  background: none;
+-  border: 1px dashed var(--color-border);
+-  border-radius: 5px;
+-  color: var(--color-text-faint);
+-  font-size: 11px;
+-  cursor: pointer;
+-  transition: border-color 0.15s, color 0.15s;
++@media (prefers-reduced-motion: reduce) {
+ }
+ 
+-.sb-dap-add-cta:hover {
+-  border-color: var(--color-text-muted);
+-  color: var(--color-text-muted);
+-}
++/* --- Screen: Sync Error --- */
+ 
+-.sb-dap-list {
+-  padding: 0 8px;
+-  overflow: hidden;
+-}
+-
+-.sb-dap-device {
+-  display: flex;
+-  align-items: center;
+-  gap: 8px;
+-  padding: 6px 8px;
+-  border-radius: 5px;
+-  cursor: pointer;
+-  transition: all 0.12s;
+-  font-size: 12px;
+-  color: var(--color-text-muted);
+-}
+-
+-.sb-dap-device:hover {
+-  background: var(--color-bg-surface);
+-  color: var(--color-text);
+-}
+-
+-.sb-dap-device.active {
+-  background: rgba(255, 255, 255, 0.12);
+-  color: var(--color-text);
+-  font-weight: 500;
+-}
+-
+-.sb-dap-device .dev-icon {
+-  width: 20px;
+-  height: 20px;
+-  border-radius: var(--radius-sm);
+-  background: var(--color-bg-surface);
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  font-size: 10px;
+-  flex-shrink: 0;
+-}
+-
+-.sb-dap-device.active .dev-icon {
+-  background: rgba(255, 255, 255, 0.18);
+-}
+-
+-.sb-dap-device .dev-info {
+-  flex: 1;
+-  min-width: 0;
+-}
+-
+-.sb-dap-device .dev-name {
+-  font-size: 12px;
+-  white-space: nowrap;
+-  overflow: hidden;
+-  text-overflow: ellipsis;
+-}
+-
+-.sb-dap-device .dev-space {
+-  font-size: 9.5px;
+-  color: var(--color-text-faint);
+-  font-family: 'Geist Mono', monospace;
+-}
+-
+-.mtp-badge {
+-  display: inline-block;
+-  font-size: 8px;
+-  font-weight: 600;
+-  letter-spacing: 0.5px;
+-  padding: 1px 4px;
+-  border-radius: var(--radius-sm);
+-  background: rgba(74, 222, 128, 0.15);
+-  color: #4ade80;
+-  vertical-align: middle;
+-  margin-left: 2px;
+-}
+-
+-.sb-mtp-device .dev-icon {
+-  background: rgba(74, 222, 128, 0.1);
+-}
+-
+-/* MTP Parent — expandable with chevron */
+-.sb-mtp-parent {
+-  position: relative;
+-}
+-
+-.sb-mtp-chevron {
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  flex-shrink: 0;
+-  color: var(--color-text-faint);
+-  margin-left: auto;
+-}
+-
+-.sb-mtp-chevron svg {
+-  transition: transform var(--transition-normal);
+-}
+-
+-.sb-mtp-chevron.open svg {
+-  transform: rotate(90deg);
+-}
+-
+-/* MTP storage sub-items container */
+-.sb-mtp-storages {
+-  padding-left: 12px;
+-}
+-
+-/* MTP storage sub-item */
+-.sb-mtp-storage {
+-  padding: 4px 8px 4px 16px;
+-}
+-
+-.sb-mtp-storage .dev-name {
+-  font-size: 11.5px;
+-}
+-
+-.sb-mtp-storage .dev-space {
+-  font-size: 9px;
+-}
+-
+-/* Smaller icon for storage sub-items */
+-.sb-mtp-storage-icon {
+-  width: 16px;
+-  height: 16px;
+-  background: rgba(74, 222, 128, 0.08);
+-}
+-
+-/* Active storage sub-item */
+-.sb-mtp-storage.active {
+-  background: rgba(255, 255, 255, 0.12);
+-  color: var(--color-text);
+-  font-weight: 500;
+-}
+-
+-.sb-mtp-storage.active .dev-icon {
+-  background: rgba(255, 255, 255, 0.18);
+-}
+-
+-.sb-dap-device .dev-eject {
+-  background: none;
+-  border: none;
+-  padding: 2px;
+-  color: var(--color-text-faint);
+-  opacity: 0;
+-  transition: opacity 0.1s;
+-  cursor: pointer;
+-  flex-shrink: 0;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-}
+-
+-.sb-dap-device:hover .dev-eject {
+-  opacity: 1;
+-}
+-
+-.sb-dap-device .dev-eject:hover {
+-  color: var(--color-text);
+-}
+-
+-.sb-dap-empty {
+-  font-size: 11px;
+-  color: var(--color-text-faint);
+-  padding: 8px 10px;
+-  font-style: italic;
+-}
+-
+-
+-@keyframes dapPulse {
+-  0%, 100% { opacity: 1; }
+-  50% { opacity: 0.4; }
+-}
+-
+-.pulsing {
+-  animation: dapPulse 1.5s infinite;
+-}
+-
+-/* ============================================================
+-   DAP SYNC — Main Content View
+-   ============================================================ */
+-
+-.dap-sync-view {
+-  display: flex;
+-  flex-direction: column;
+-  height: 100%;
+-}
+-
+-.albums-view:has(.dap-sync-view) {
+-  overflow-y: hidden;
+-  padding: 0;
+-}
+-
+-@keyframes dapFadeIn {
+-  from { opacity: 0; transform: translateY(6px); }
+-  to { opacity: 1; transform: translateY(0); }
+-}
+-
+-.dap-fade-in {
+-  animation: dapFadeIn 0.25s ease;
+-}
+-
+-/* Tab content transition */
+-@keyframes dapTabIn {
+-  from { opacity: 0; transform: translateY(4px); }
+-  to { opacity: 1; transform: translateY(0); }
+-}
+-
+-.dap-tab-enter {
+-  animation: dapTabIn 0.18s ease-out;
+-}
+-
+-@media (prefers-reduced-motion: reduce) {
+-  .dap-fade-in,
+-  .dap-tab-enter {
+-    animation: none;
+-  }
+-}
+-
+-/* --- Shared Buttons --- */
+-
+-.dap-btn-primary {
+-  padding: 8px 18px;
+-  border-radius: 5px;
+-  font-family: 'Geist Mono', monospace;
+-  font-size: 12px;
+-  font-weight: 600;
+-  cursor: pointer;
+-  border: none;
+-  background: var(--color-accent);
+-  color: var(--color-bg);
+-  transition: background var(--transition-fast);
+-}
+-
+-.dap-btn-primary:hover {
+-  background: #e0e0e0;
+-}
+-
+-.dap-btn-primary:disabled {
+-  opacity: 0.4;
+-  cursor: not-allowed;
+-}
+-
+-.dap-btn-secondary {
+-  padding: 8px 18px;
+-  border-radius: 5px;
+-  font-family: 'Geist Mono', monospace;
+-  font-size: 12px;
+-  font-weight: 600;
+-  cursor: pointer;
+-  background: #1c1c22;
+-  color: var(--color-text-muted);
+-  border: 1px solid var(--color-border);
+-  transition: all 0.15s;
+-}
+-
+-.dap-btn-secondary:hover {
+-  border-color: var(--color-border-light);
+-  color: var(--color-text);
+-}
+-
+-/* --- Screen 1: Setup --- */
+-
+-.dap-setup-center {
+-  display: flex;
+-  flex-direction: column;
+-  align-items: center;
+-  justify-content: center;
+-  min-height: 420px;
+-  text-align: center;
+-  padding: 40px;
+-  flex: 1;
+-}
+-
+-.dap-setup-icon {
+-  font-size: 40px;
+-  margin-bottom: 16px;
+-  opacity: 0.85;
+-}
+-
+-.dap-setup-title {
+-  font-size: 18px;
+-  font-weight: 600;
+-  margin-bottom: 6px;
+-  color: var(--color-text);
+-}
+-
+-.dap-setup-desc {
+-  font-size: 13px;
+-  color: var(--color-text-muted);
+-  max-width: 380px;
+-  line-height: 1.6;
+-  margin-bottom: 24px;
+-}
+-
+-.dap-setup-btn {
+-  display: inline-flex;
+-  align-items: center;
+-  gap: 8px;
+-  padding: 11px 24px;
+-  background: var(--color-bg-hover);
+-  border: 1px dashed var(--color-border-light);
+-  border-radius: var(--radius-md);
+-  font-size: 12.5px;
+-  font-family: 'Geist Mono', monospace;
+-  color: var(--color-text-muted);
+-  cursor: pointer;
+-  transition: all 0.15s;
+-}
+-
+-.dap-setup-btn:hover {
+-  border-color: var(--color-text);
+-  color: var(--color-text);
+-  background: rgba(255, 255, 255, 0.1);
+-}
+-
+-/* --- Screen 2: Albums / Sync Panel --- */
+-
+-.dap-content {
+-  padding: 24px 28px;
+-  flex: 1;
+-  overflow-y: auto;
+-}
+-
+-/* Destination card (bar + details as one unified block) */
+-.dap-dest-card {
+-  margin-bottom: 24px;
+-}
+-
+-/* === Device Header — Hi-Fi premium card === */
+-.dap-dest-bar {
+-  display: flex;
+-  align-items: center;
+-  gap: 20px;
+-  padding: 28px 28px 24px;
+-  background: #111113;
+-  border: 1px solid rgba(255, 255, 255, 0.05);
+-  border-radius: 16px;
+-  margin-bottom: 0;
+-  cursor: pointer;
+-  transition: border-color var(--transition-normal), border-radius 0.2s ease, box-shadow var(--transition-slow);
+-  position: relative;
+-  overflow: hidden;
+-}
+-
+-/* No accent line — clean minimal look */
+-
+-.dap-dest-bar.details-open {
+-  border-bottom-left-radius: 0;
+-  border-bottom-right-radius: 0;
+-  border-bottom-color: rgba(255, 255, 255, 0.03);
+-}
+-
+-.dap-dest-bar:hover {
+-  border-color: rgba(255, 255, 255, 0.08);
+-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+-}
+-
+-/* Device icon — DAP silhouette */
+-.dap-dest-icon {
+-  flex-shrink: 0;
+-  width: 52px;
+-  height: 52px;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  background: linear-gradient(135deg, #1a1a1e, #141416);
+-  border-radius: 14px;
+-  border: 1px solid rgba(255, 255, 255, 0.06);
+-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+-}
+-
+-.dap-dest-icon svg {
+-  width: 24px;
+-  height: 24px;
+-  opacity: 0.7;
+-}
+-
+-.dap-dest-info {
+-  flex: 1;
+-  min-width: 0;
+-}
+-
+-/* Device name — large editorial headline */
+-.dap-dest-path {
+-  font-size: 20px;
+-  font-family: var(--font-sans);
+-  font-weight: 700;
+-  color: var(--color-text);
+-  white-space: nowrap;
+-  overflow: hidden;
+-  text-overflow: ellipsis;
+-  letter-spacing: -0.5px;
+-  line-height: 1.1;
+-}
+-
+-/* Storage info — monospace tech feel */
+-.dap-dest-space {
+-  font-size: 11px;
+-  font-family: var(--font-body);
+-  color: rgba(255, 255, 255, 0.35);
+-  margin-top: 10px;
+-  display: flex;
+-  align-items: center;
+-  gap: 12px;
+-  letter-spacing: 0.3px;
+-}
+-
+-/* Storage bar — wider, with colored gradient */
+-.dap-storage-bar {
+-  height: 4px;
+-  background: rgba(255, 255, 255, 0.04);
+-  border-radius: 2px;
+-  overflow: hidden;
+-  margin-top: 12px;
+-  width: 100%;
+-  max-width: none;
+-}
+-
+-.dap-storage-fill {
+-  height: 100%;
+-  background: linear-gradient(90deg, #4ade80, rgba(74, 222, 128, 0.3));
+-  border-radius: 2px;
+-  transition: width 0.4s ease;
+-}
+-
+-/* Tabs — segmented control style */
+-.dap-sync-tabs {
+-  display: inline-flex;
+-  align-items: center;
+-  gap: 2px;
+-  background: rgba(255, 255, 255, 0.04);
+-  border-radius: 10px;
+-  padding: 3px;
+-  margin-bottom: 18px;
+-}
+-
+-.dap-sync-tab {
+-  display: inline-flex;
+-  align-items: center;
+-  gap: 6px;
+-  padding: 7px 16px;
+-  font-size: 12.5px;
+-  font-weight: 500;
+-  color: var(--color-text-faint);
+-  cursor: pointer;
+-  border: none;
+-  border-radius: 7px;
+-  transition: all 0.15s ease;
+-  background: none;
+-  font-family: var(--font-sans);
+-  white-space: nowrap;
+-}
+-
+-.dap-sync-tab svg {
+-  flex-shrink: 0;
+-  opacity: 0.5;
+-  transition: opacity 0.15s ease;
+-}
+-
+-.dap-sync-tab:hover {
+-  color: var(--color-text-muted);
+-  background: rgba(255, 255, 255, 0.04);
+-}
+-
+-.dap-sync-tab:hover svg {
+-  opacity: 0.7;
+-}
+-
+-.dap-sync-tab.active {
+-  color: var(--color-text);
+-  background: rgba(255, 255, 255, 0.08);
+-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.06);
+-}
+-
+-.dap-sync-tab.active svg {
+-  opacity: 1;
+-}
+-
+-/* Search */
+-.dap-search-sort-row {
+-  display: flex;
+-  align-items: center;
+-  gap: 10px;
+-  margin-bottom: 14px;
+-}
+-
+-.dap-search-box {
+-  position: relative;
+-  flex: 1;
+-  min-width: 0;
+-}
+-
+-.dap-sort-select {
+-  padding: 8px 10px;
+-  background: var(--color-bg-light);
+-  border: 1px solid var(--color-border);
+-  border-radius: 5px;
+-  font-family: 'Geist Mono', monospace;
+-  font-size: 11px;
+-  color: var(--color-text);
+-  outline: none;
+-  cursor: pointer;
+-  flex-shrink: 0;
+-  transition: border-color 0.15s;
+-}
+-
+-.dap-sort-select:focus {
+-  border-color: rgba(255, 255, 255, 0.3);
+-}
+-
+-.dap-search-box input {
+-  width: 100%;
+-  padding: 9px 14px;
+-  background: var(--color-bg-light);
+-  border: 1px solid var(--color-border);
+-  border-radius: 7px;
+-  font-family: var(--font-sans);
+-  font-size: 12.5px;
+-  color: var(--color-text);
+-  outline: none;
+-  transition: border-color 0.15s;
+-}
+-
+-.dap-search-box input:focus {
+-  border-color: rgba(255, 255, 255, 0.3);
+-}
+-
+-.dap-search-box input::placeholder {
+-  color: var(--color-text-faint);
+-}
+-
+-/* Select all row */
+-.dap-select-all-row {
+-  display: flex;
+-  align-items: center;
+-  gap: 12px;
+-  padding: 8px 10px;
+-  padding-bottom: 8px;
+-  border-bottom: 1px solid var(--color-bg-surface);
+-  margin-bottom: 6px;
+-}
+-
+-.dap-select-all-label {
+-  font-size: 12px;
+-  font-weight: 600;
+-  color: var(--color-text-faint);
+-  font-family: var(--font-sans);
+-  flex: 1;
+-}
+-
+-.dap-select-dropdown {
+-  position: relative;
+-  margin-left: auto;
+-}
+-
+-.dap-select-dropdown .btn-sort-icon {
+-  padding: 4px;
+-  width: 26px;
+-  height: 26px;
+-}
+-
+-.dap-select-dropdown .sort-menu {
+-  right: 0;
+-  min-width: 140px;
+-}
+-
+-.sort-menu-separator {
+-  height: 1px;
+-  background: var(--color-bg-elevated);
+-  margin: 4px 0;
+-}
+-
+-/* Checkbox (custom) */
+-.dap-chk {
+-  width: 15px;
+-  height: 15px;
+-  border: 1.5px solid var(--color-border-light);
+-  border-radius: var(--radius-sm);
+-  flex-shrink: 0;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  cursor: pointer;
+-  transition: all 0.1s;
+-}
+-
+-.dap-chk.on {
+-  background: var(--color-accent);
+-  border-color: var(--color-text);
+-}
+-
+-.dap-chk.on::after {
+-  content: '\2713';
+-  font-size: 10px;
+-  color: #000;
+-  font-weight: 700;
+-}
+-
+-/* Album rows */
+-.dap-albums-list {
+-  flex: 1;
+-  overflow-y: auto;
+-  min-height: 200px;
+-}
+-
+-.dap-album-row {
+-  display: flex;
+-  align-items: center;
+-  gap: 12px;
+-  padding: 9px 10px;
+-  border-radius: var(--radius-md);
+-  cursor: pointer;
+-  transition: background 0.1s;
+-}
+-
+-.dap-album-row:hover {
+-  background: var(--color-bg-surface);
+-}
+-
+-.dap-alb-art {
+-  width: 40px;
+-  height: 40px;
+-  border-radius: 5px;
+-  flex-shrink: 0;
+-  background: var(--color-bg-surface);
+-  object-fit: cover;
+-  overflow: hidden;
+-  position: relative;
+-}
+-
+-.dap-alb-art-img {
+-  width: 100%;
+-  height: 100%;
+-  object-fit: cover;
+-  border-radius: 5px;
+-}
+-
+-.dap-alb-info {
+-  flex: 1;
+-  min-width: 0;
+-}
+-
+-.dap-alb-name {
+-  font-size: 13.5px;
+-  font-weight: 500;
+-  font-family: var(--font-sans);
+-  white-space: nowrap;
+-  overflow: hidden;
+-  text-overflow: ellipsis;
+-  color: var(--color-text);
+-  line-height: 1.3;
+-}
+-
+-.dap-alb-artist {
+-  font-size: 12px;
+-  font-family: var(--font-sans);
+-  color: var(--color-text-muted);
+-  margin-top: 1px;
+-  line-height: 1.3;
+-}
+-
+-.dap-alb-badges {
+-  display: flex;
+-  gap: 5px;
+-  align-items: center;
+-  flex-shrink: 0;
+-  width: 72px;
+-  justify-content: flex-end;
+-}
+-
+-.dap-badge {
+-  font-size: 9px;
+-  font-weight: 600;
+-  color: var(--color-text);
+-  background: rgba(255, 255, 255, 0.12);
+-  padding: 2px 7px;
+-  border-radius: var(--radius-sm);
+-  letter-spacing: 0.03em;
+-  display: inline-flex;
+-  align-items: center;
+-  gap: 3px;
+-  white-space: nowrap;
+-}
+-
+-.dap-status-tag {
+-  font-size: 10px;
+-  font-weight: 500;
+-  font-family: var(--font-sans);
+-  padding: 3px 8px;
+-  border-radius: var(--radius-sm);
+-  white-space: nowrap;
+-}
+-
+-.dap-status-tag.on-dap {
+-  background: rgba(136, 136, 160, 0.08);
+-  color: var(--color-text-faint);
+-}
+-
+-.dap-status-tag.to-add {
+-  background: rgba(74, 222, 128, 0.1);
+-  color: #4ade80;
+-}
+-
+-.dap-status-tag.to-remove {
+-  background: rgba(248, 113, 113, 0.1);
+-  color: #f87171;
+-}
+-
+-/* Sync-in-progress banner */
+-.dap-sync-banner {
+-  display: flex;
+-  align-items: center;
+-  justify-content: space-between;
+-  padding: 10px 16px;
+-  background: rgba(255, 255, 255, 0.04);
+-  border-bottom: 1px solid var(--color-border);
+-  color: var(--color-text-faint);
+-  font-size: 12px;
+-}
+-
+-.dap-btn-link {
+-  background: none;
+-  border: none;
+-  color: var(--color-text-faint);
+-  text-decoration: underline;
+-  cursor: pointer;
+-  font-size: 12px;
+-}
+-
+-/* Artist avatar (for Artists tab) */
+-.dap-artist-avatar {
+-  width: 40px;
+-  height: 40px;
+-  border-radius: 50%;
+-  flex-shrink: 0;
+-  background: var(--color-bg-hover);
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  font-size: 15px;
+-  font-weight: 600;
+-  font-family: var(--font-sans);
+-  color: var(--color-text-muted);
+-}
+-
+-/* Track number (for Tracks tab) */
+-.dap-track-num {
+-  width: 30px;
+-  font-size: 12px;
+-  font-family: 'Geist Mono', monospace;
+-  color: var(--color-text-faint);
+-  text-align: center;
+-  flex-shrink: 0;
+-}
+-
+-/* Dimmed row (unselected in Tracks tab) */
+-.dap-album-row.dap-row-dimmed {
+-  opacity: 0.4;
+-}
+-
+-/* Partial checkbox state (Artists tab) */
+-.dap-chk.partial {
+-  border-color: var(--color-text);
+-  background: rgba(255, 255, 255, 0.3);
+-}
+-
+-.dap-chk.partial::after {
+-  content: '\2014';
+-  font-size: 9px;
+-  color: var(--color-text);
+-  font-weight: 700;
+-}
+-
+-/* Quality tag in DAP sync (inherits from .quality-tag) */
+-.dap-album-row .quality-tag {
+-  flex-shrink: 0;
+-}
+-
+-/* Destination details panel (collapsible, under dest-bar) */
+-.dap-dest-details {
+-  background: linear-gradient(180deg, rgba(22, 22, 26, 0.98) 0%, rgba(18, 18, 22, 0.95) 100%);
+-  border: 1px solid rgba(255, 255, 255, 0.06);
+-  border-top: none;
+-  border-radius: 0 0 14px 14px;
+-  padding: 16px 24px;
+-  margin-top: 0;
+-  margin-bottom: 0;
+-  display: flex;
+-  flex-direction: column;
+-  gap: 6px;
+-}
+-
+-.dap-det-row {
+-  display: flex;
+-  justify-content: space-between;
+-  align-items: baseline;
+-  gap: 10px;
+-}
+-
+-.dap-det-label {
+-  font-size: 12px;
+-  font-family: var(--font-sans);
+-  color: var(--color-text-faint);
+-  flex-shrink: 0;
+-}
+-
+-.dap-det-val {
+-  font-size: 11.5px;
+-  font-weight: 600;
+-  font-family: 'Geist Mono', monospace;
+-  color: var(--color-text-muted);
+-}
+-
+-.dap-det-val.g { color: #4ade80; }
+-.dap-det-val.r { color: #f87171; }
+-
+-.dap-det-bar-row {
+-  display: flex;
+-  align-items: center;
+-  gap: 10px;
+-  margin-top: 4px;
+-}
+-
+-.dap-det-bar-row .dap-storage-bar {
+-  flex: 1;
+-  margin: 0;
+-}
+-
+-.dap-det-after {
+-  font-size: 10px;
+-  color: var(--color-text-faint);
+-  white-space: nowrap;
+-}
+-
+-.dap-det-section {
+-  display: flex;
+-  flex-direction: column;
+-  gap: 4px;
+-}
+-
+-.dap-det-grid {
+-  display: grid;
+-  grid-template-columns: 1fr 1fr;
+-  gap: 0 24px;
+-}
+-
+-.dap-det-col {
+-  display: flex;
+-  flex-direction: column;
+-  gap: 3px;
+-}
+-
+-.dap-det-col-title {
+-  font-size: 9px;
+-  font-weight: 600;
+-  color: var(--color-text-faint);
+-  text-transform: uppercase;
+-  letter-spacing: 0.06em;
+-  margin-bottom: 2px;
+-  opacity: 0.6;
+-}
+-
+-.dap-det-footer {
+-  display: flex;
+-  align-items: center;
+-  gap: 8px;
+-  margin-top: 8px;
+-  padding-top: 7px;
+-  border-top: 1px solid var(--color-border);
+-  font-size: 10.5px;
+-  color: var(--color-text-faint);
+-}
+-
+-.dap-det-footer strong {
+-  font-weight: 600;
+-  color: var(--color-text-muted);
+-  font-family: 'Geist Mono', monospace;
+-}
+-
+-.dap-det-footer-sep {
+-  opacity: 0.35;
+-}
+-
+-.dap-det-separator {
+-  height: 1px;
+-  background: var(--color-border);
+-  margin: 4px 0;
+-}
+-
+-/* Toggle button inside dest-bar */
+-.dap-dest-toggle {
+-  background: none;
+-  border: none;
+-  color: var(--color-text-faint);
+-  font-size: 11px;
+-  cursor: pointer;
+-  padding: 2px 4px;
+-  line-height: 1;
+-  transition: transform 0.15s ease, opacity 0.15s ease;
+-  opacity: 0.6;
+-  flex-shrink: 0;
+-}
+-
+-.dap-dest-toggle:hover {
+-  opacity: 1;
+-}
+-
+-.dap-dest-toggle.open {
+-  transform: rotate(180deg);
+-}
+-
+-/* Summary box */
+-.dap-summary-box {
+-  background: var(--color-bg-lighter);
+-  border: 1px solid var(--color-border);
+-  border-radius: var(--radius-md);
+-  padding: 14px 18px;
+-  margin-top: 16px;
+-}
+-
+-.dap-summary-loading {
+-  font-size: 12px;
+-  color: var(--color-text-faint);
+-}
+-
+-.dap-summary-error {
+-  font-size: 12px;
+-  color: #f87171;
+-}
+-
+-.dap-summary-grid {
+-  display: grid;
+-  grid-template-columns: 1fr 1fr;
+-  gap: 6px 20px;
+-}
+-
+-.dap-sum-label {
+-  font-size: 11px;
+-  color: var(--color-text-faint);
+-}
+-
+-.dap-sum-val {
+-  font-size: 12px;
+-  font-weight: 600;
+-  font-family: 'Geist Mono', monospace;
+-  color: var(--color-text);
+-}
+-
+-.dap-sum-val.g { color: #4ade80; }
+-.dap-sum-val.r { color: #f87171; }
+-.dap-sum-val.o { color: var(--color-text-muted); }
+-
+-.dap-sum-footer-text {
+-  font-size: 10px;
+-  color: var(--color-text-faint);
+-  margin-top: 3px;
+-}
+-
+-.dap-sum-error {
+-  font-size: 11px;
+-  color: #f87171;
+-  margin-top: 8px;
+-}
+-
+-/* Footer */
+-.dap-footer {
+-  display: flex;
+-  justify-content: flex-end;
+-  gap: 8px;
+-  padding: 14px 24px;
+-  border-top: 1px solid var(--color-border);
+-  background: var(--color-bg-lighter);
+-  flex-shrink: 0;
+-}
+-
+-/* --- Screen 3: Syncing --- */
+-
+-.dap-syncing-label {
+-  font-size: 11px;
+-  font-weight: 600;
+-  color: var(--color-text);
+-  letter-spacing: 0.1em;
+-  text-transform: uppercase;
+-  margin-bottom: 20px;
+-}
+-
+-/* Phase indicator (replaces stepper dots) */
+-.dap-phase-indicator {
+-  display: flex;
+-  align-items: center;
+-  gap: 8px;
+-  justify-content: center;
+-  margin-bottom: 24px;
+-  padding: 6px 14px;
+-  background: rgba(255, 255, 255, 0.04);
+-  border-radius: var(--radius-md);
+-  border: 1px solid #1e1e1e;
+-}
+-
+-.dap-phase-dot {
+-  width: 6px;
+-  height: 6px;
+-  border-radius: 50%;
+-  background: var(--color-accent);
+-  flex-shrink: 0;
+-  animation: dapPhasePulse 1.5s ease-in-out infinite;
+-}
+-
+-@keyframes dapPhasePulse {
+-  0%, 100% { opacity: 0.4; transform: scale(0.85); }
+-  50% { opacity: 1; transform: scale(1.15); }
+-}
+-
+-@media (prefers-reduced-motion: reduce) {
+-  .dap-phase-dot { animation: none; opacity: 0.8; }
+-}
+-
+-.dap-phase-text {
+-  font-size: 12px;
+-  font-weight: 500;
+-  color: var(--color-accent-hover);
+-  letter-spacing: 0.01em;
+-}
+-
+-.dap-sync-progress-area {
+-  width: 100%;
+-  max-width: 400px;
+-}
+-
+-.dap-prog-bar {
+-  height: 6px;
+-  background: #1c1c22;
+-  border-radius: var(--radius-sm);
+-  overflow: hidden;
+-}
+-
+-.dap-prog-fill {
+-  height: 100%;
+-  background: var(--color-accent);
+-  border-radius: var(--radius-sm);
+-  transition: width 0.3s;
+-}
+-
+-.dap-prog-stats {
+-  display: flex;
+-  justify-content: space-between;
+-  margin-top: 6px;
+-  font-size: 11px;
+-  color: var(--color-text-muted);
+-}
+-
+-.dap-prog-stats span:last-child {
+-  font-family: 'Geist Mono', monospace;
+-}
+-
+-.dap-prog-file {
+-  font-family: 'Geist Mono', monospace;
+-  font-size: 10.5px;
+-  color: var(--color-text-faint);
+-  margin-top: 10px;
+-  white-space: nowrap;
+-  overflow: hidden;
+-  text-overflow: ellipsis;
+-}
+-
+-.dap-prog-time {
+-  font-size: 11px;
+-  color: var(--color-text-faint);
+-  margin-top: 12px;
+-}
+-
+-/* --- Screen 4: Complete --- */
+-
+-.dap-complete-icon {
+-  font-size: 40px;
+-  margin-bottom: 14px;
+-}
+-
+-/* Animated DAP completion icon */
+-@keyframes dapCompleteFloat {
+-  0%, 100% { transform: translateY(0); }
+-  50% { transform: translateY(-4px); }
+-}
+-
+-@keyframes dapCompleteGlow {
+-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0), 0 4px 20px rgba(0, 0, 0, 0.3); }
+-  50% { box-shadow: 0 0 24px 6px rgba(255, 255, 255, 0.06), 0 4px 20px rgba(0, 0, 0, 0.3); }
+-}
+-
+-@keyframes dapCheckDraw {
+-  from { stroke-dashoffset: 20; opacity: 0; }
+-  to { stroke-dashoffset: 0; opacity: 1; }
+-}
+-
+-@keyframes dapParticle {
+-  0% { transform: translate(0, 0) scale(1); opacity: 0.7; }
+-  100% { opacity: 0; }
+-}
+-
+-.dap-complete-dap-icon {
+-  position: relative;
+-  width: 76px;
+-  height: 76px;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  background: rgba(255, 255, 255, 0.05);
+-  border: 1px solid rgba(255, 255, 255, 0.12);
+-  border-radius: 18px;
+-  margin-bottom: 18px;
+-  animation: dapCompleteFloat 3s ease-in-out infinite, dapCompleteGlow 3s ease-in-out infinite;
+-}
+-
+-.dap-complete-dap-icon svg {
+-  color: var(--color-text);
+-}
+-
+-.dap-complete-dap-icon .dap-check-badge {
+-  position: absolute;
+-  bottom: -4px;
+-  right: -4px;
+-  width: 22px;
+-  height: 22px;
+-  background: #4ade80;
+-  border-radius: 50%;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  border: 2px solid var(--color-bg);
+-}
+-
+-.dap-complete-dap-icon .dap-check-badge svg {
+-  color: var(--color-bg);
+-}
+-
+-.dap-complete-dap-icon .dap-warn-badge {
+-  position: absolute;
+-  bottom: -4px;
+-  right: -4px;
+-  width: 22px;
+-  height: 22px;
+-  background: #f8a171;
+-  border-radius: 50%;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  border: 2px solid var(--color-bg);
+-}
+-
+-.dap-complete-dap-icon .dap-warn-badge svg {
+-  color: var(--color-bg);
+-}
+-
+-.dap-complete-dap-icon .dap-check-badge .dap-check-path {
+-  stroke-dasharray: 20;
+-  animation: dapCheckDraw 0.5s ease-out 0.3s both;
+-}
+-
+-/* Micro-particles emanating from DAP icon */
+-.dap-particle {
+-  position: absolute;
+-  width: 3px;
+-  height: 3px;
+-  border-radius: 50%;
+-  background: rgba(255, 255, 255, 0.5);
+-  pointer-events: none;
+-  animation: dapParticle var(--dur, 1.8s) ease-out var(--delay, 0s) infinite;
+-  transform-origin: center;
+-  --tx: 0px;
+-  --ty: -30px;
+-}
+-
+-@keyframes dapParticle {
+-  0% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+-  100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+-}
+-
+-@media (prefers-reduced-motion: reduce) {
+-  .dap-complete-dap-icon {
+-    animation: none;
+-  }
+-  .dap-complete-dap-icon .dap-check-badge .dap-check-path {
+-    animation: none;
+-    stroke-dashoffset: 0;
+-    opacity: 1;
+-  }
+-  .dap-particle {
+-    display: none;
+-  }
+-}
+-
+-.dap-complete-title {
+-  font-size: 18px;
+-  font-weight: 600;
+-  margin-bottom: 4px;
+-  color: var(--color-text);
+-}
+-
+-.dap-complete-subtitle {
+-  font-size: 12.5px;
+-  color: var(--color-text-faint);
+-  margin-bottom: 24px;
+-}
+-
+-.dap-complete-stats {
+-  width: 100%;
+-  max-width: 320px;
+-  text-align: left;
+-}
+-
+-.dap-complete-row {
+-  display: flex;
+-  justify-content: space-between;
+-  padding: 5px 0;
+-  font-size: 13px;
+-}
+-
+-.dap-complete-row span:first-child {
+-  color: var(--color-text-muted);
+-}
+-
+-.dap-complete-row .g {
+-  color: #4ade80;
+-  font-weight: 600;
+-}
+-
+-.dap-complete-row .r {
+-  color: #f87171;
+-  font-weight: 600;
+-}
+-
+-.dap-complete-divider {
+-  height: 1px;
+-  background: var(--color-border);
+-  margin: 10px 0;
+-}
+-
+-.dap-eject-msg {
+-  display: inline-flex;
+-  align-items: center;
+-  gap: 8px;
+-  margin-top: 16px;
+-  padding: 10px 18px;
+-  background: rgba(74, 222, 128, 0.08);
+-  border-radius: 5px;
+-  font-size: 12px;
+-  color: #4ade80;
+-}
+-
+-.dap-complete-actions {
+-  display: flex;
+-  flex-direction: column;
+-  align-items: center;
+-  gap: 0;
+-  margin-top: 32px;
+-}
+-
+-/* Complete view — error report for partial sync */
+-.dap-complete-error-report {
+-  width: 100%;
+-  max-width: 420px;
+-  margin-top: 16px;
+-}
+-
+-.dap-complete-error-header {
+-  font-size: 11px;
+-  font-weight: 600;
+-  color: #f8a171;
+-  text-transform: uppercase;
+-  letter-spacing: 0.5px;
+-  margin: 0 0 8px;
+-}
+-
+-/* --- Screen 7: Disconnected --- */
+-
+-.dap-disc-icon {
+-  position: relative;
+-  width: 76px;
+-  height: 76px;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  background: rgba(255, 255, 255, 0.03);
+-  border: 1px solid rgba(255, 255, 255, 0.08);
+-  border-radius: 18px;
+-  margin-bottom: 20px;
+-  animation: dapDiscPulse 3s ease-in-out infinite;
+-}
+-
+-.dap-disc-icon svg {
+-  color: rgba(255, 255, 255, 0.35);
+-}
+-
+-.dap-disc-badge {
+-  position: absolute;
+-  bottom: -4px;
+-  right: -4px;
+-  width: 22px;
+-  height: 22px;
+-  background: #f87171;
+-  border-radius: 50%;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  border: 2px solid var(--color-bg);
+-}
+-
+-.dap-disc-badge svg {
+-  color: var(--color-bg);
+-}
+-
+-.dap-particle-muted {
+-  background: rgba(255, 255, 255, 0.2);
+-}
+-
+-@keyframes dapDiscPulse {
+-  0%, 100% { opacity: 1; border-color: rgba(255, 255, 255, 0.08); }
+-  50% { opacity: 0.7; border-color: rgba(248, 113, 113, 0.15); }
+-}
+-
+-@media (prefers-reduced-motion: reduce) {
+-  .dap-disc-icon { animation: none; }
+-  .dap-disc-icon .dap-particle-muted { display: none; }
+-}
+-
+-.dap-disc-title {
+-  font-size: 18px;
+-  font-weight: 600;
+-  margin-bottom: 8px;
+-  color: var(--color-text);
+-}
+-
+-.dap-disc-text {
+-  font-size: 13px;
+-  color: var(--color-text-muted);
+-  line-height: 1.6;
+-  margin: 0 0 4px;
+-}
+-
+-.dap-disc-path-inline {
+-  font-family: 'Geist Mono', monospace;
+-  font-size: 11px;
+-  color: var(--color-text-faint);
+-  background: rgba(255, 255, 255, 0.04);
+-  padding: 2px 8px;
+-  border-radius: var(--radius-sm);
+-}
+-
+-.dap-disc-hint {
+-  font-size: 12px;
+-  color: var(--color-text-faint);
+-  margin: 0 0 12px;
+-}
+-
+-.dap-disc-status {
+-  min-height: 20px;
+-  font-size: 12px;
+-  margin: 0 0 16px;
+-  transition: opacity 0.3s ease;
+-}
+-
+-.dap-disc-status-error {
+-  color: #f87171;
+-  animation: dapDiscStatusIn 0.3s ease;
+-}
+-
+-@keyframes dapDiscStatusIn {
+-  from { opacity: 0; transform: translateY(-4px); }
+-  to { opacity: 1; transform: translateY(0); }
+-}
+-
+-.dap-disc-shake {
+-  animation: dapDiscShake 0.4s ease;
+-}
+-
+-@keyframes dapDiscShake {
+-  0%, 100% { transform: translateX(0); }
+-  20% { transform: translateX(-6px); }
+-  40% { transform: translateX(6px); }
+-  60% { transform: translateX(-4px); }
+-  80% { transform: translateX(4px); }
+-}
+-
+-.dap-disc-actions {
+-  display: flex;
+-  gap: 10px;
+-}
+-
+-.dap-disc-actions .dap-btn-primary {
+-  display: inline-flex;
+-  align-items: center;
+-  gap: 6px;
+-}
+-
+-/* --- Screen: Sync Error --- */
+-
+-.dap-error-icon {
+-  position: relative;
+-  width: 64px;
+-  height: 64px;
+-  border-radius: 50%;
+-  background: rgba(248, 113, 113, 0.1);
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  margin: 0 auto 20px;
+-}
+-
+-.dap-error-icon svg {
+-  color: rgba(255, 255, 255, 0.35);
+-}
+-
+-.dap-error-badge {
+-  position: absolute;
+-  bottom: -4px;
+-  right: -4px;
+-  width: 22px;
+-  height: 22px;
+-  background: #f87171;
+-  border-radius: 50%;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  border: 2px solid var(--color-bg);
+-}
+-
+-.dap-error-badge svg {
+-  color: var(--color-bg);
+-}
+-
+-.dap-error-title {
+-  font-size: 18px;
+-  font-weight: 600;
+-  color: #f87171;
+-  margin: 0 0 6px;
+-  text-align: center;
+-}
+-
+-.dap-error-subtitle {
+-  font-size: 13px;
+-  color: #aaa;
+-  margin: 0 0 16px;
+-  text-align: center;
+-}
+-
+-.dap-error-reason {
+-  font-size: 12px;
+-  color: #f8a171;
+-  background: rgba(248, 113, 113, 0.08);
+-  border: 1px solid rgba(248, 113, 113, 0.15);
+-  border-radius: var(--radius-md);
+-  padding: 10px 14px;
+-  margin: 0 0 16px;
+-  text-align: center;
+-  max-width: 420px;
+-}
+-
+-.dap-error-details {
+-  width: 100%;
+-  max-width: 420px;
+-  margin: 0 0 20px;
+-}
+-
+-.dap-error-details-header {
+-  font-size: 11px;
+-  font-weight: 600;
+-  color: var(--color-text-muted);
+-  text-transform: uppercase;
+-  letter-spacing: 0.5px;
+-  margin: 0 0 8px;
+-}
+-
+-.dap-error-list {
+-  background: rgba(255, 255, 255, 0.03);
+-  border: 1px solid rgba(255, 255, 255, 0.06);
+-  border-radius: var(--radius-md);
+-  max-height: 160px;
+-  overflow-y: auto;
+-}
+-
+-.dap-error-textarea {
+-  width: 100%;
+-  max-width: 480px;
+-  min-height: 120px;
+-  max-height: 240px;
+-  background: rgba(255, 255, 255, 0.03);
+-  border: 1px solid rgba(255, 255, 255, 0.08);
+-  border-radius: var(--radius-md);
+-  color: var(--color-accent-hover);
+-  font-family: 'SF Mono', 'Menlo', monospace;
+-  font-size: 11px;
+-  line-height: 1.5;
+-  padding: 10px 12px;
+-  resize: vertical;
+-  cursor: text;
+-  -webkit-user-select: text;
+-  user-select: text;
+-}
+-
+-/* Error report — retry message + toggle details */
+-.dap-complete-error-report {
+-  width: 100%;
+-  max-width: 480px;
+-  margin-top: 20px;
+-}
+-
+-.dap-complete-retry-msg {
+-  font-size: 13px;
+-  color: #f87171;
+-  text-align: center;
+-  margin-bottom: 16px;
+-  font-weight: 500;
+-}
+-
+-.dap-err-details {
+-  width: 100%;
+-}
+-
+-.dap-err-summary {
+-  font-size: 11.5px;
+-  color: var(--color-text-muted, #888);
+-  cursor: pointer;
+-  padding: 8px 12px;
+-  border-radius: var(--radius-md);
+-  background: rgba(255, 255, 255, 0.03);
+-  border: 1px solid rgba(255, 255, 255, 0.06);
+-  list-style: none;
+-  display: flex;
+-  align-items: center;
+-  gap: 6px;
+-  user-select: none;
+-  transition: background var(--transition-fast);
+-}
+-
+-.dap-err-summary:hover {
+-  background: rgba(255, 255, 255, 0.06);
+-}
+-
+-.dap-err-summary::before {
+-  content: '▶';
+-  font-size: 8px;
+-  transition: transform 0.15s;
+-}
+-
+-.dap-err-details[open] > .dap-err-summary::before {
+-  transform: rotate(90deg);
+-}
+-
+-.dap-err-summary::-webkit-details-marker {
+-  display: none;
+-}
+-
+-.dap-btn-secondary {
+-  background: transparent;
+-  color: var(--color-text-muted, #888);
+-  border: 1px solid var(--color-border, #333);
+-  padding: 8px 24px;
+-  border-radius: var(--radius-md);
+-  font-size: 13px;
+-  cursor: pointer;
+-  transition: all 0.15s;
+-}
+-
+-.dap-btn-secondary:hover {
+-  color: var(--color-text);
+-  border-color: var(--color-border-light, #444);
+-  background: rgba(255, 255, 255, 0.05);
+-}
+-
+-/* Error report — grouped by album */
+-.dap-err-list {
+-  width: 100%;
+-  max-height: 280px;
+-  overflow-y: auto;
+-  display: flex;
+-  flex-direction: column;
+-  gap: 6px;
+-  margin-top: 10px;
+-}
+-
+-.dap-err-album {
+-  background: rgba(255, 255, 255, 0.03);
+-  border: 1px solid rgba(255, 255, 255, 0.06);
+-  border-radius: var(--radius-md);
+-  padding: 10px 12px;
+-}
+-
+-.dap-err-album-header {
+-  display: flex;
+-  justify-content: space-between;
+-  align-items: center;
+-  margin-bottom: 4px;
+-}
+-
+-.dap-err-album-name {
+-  font-size: 12px;
+-  font-weight: 600;
+-  color: var(--color-text);
+-  white-space: nowrap;
+-  overflow: hidden;
+-  text-overflow: ellipsis;
+-  max-width: 320px;
+-}
+-
+-.dap-err-album-count {
+-  font-size: 10.5px;
+-  color: #f87171;
+-  font-weight: 500;
+-  white-space: nowrap;
+-  margin-left: 8px;
+-}
+-
+-.dap-err-reason {
+-  font-size: 11px;
+-  color: #f87171;
+-  opacity: 0.85;
+-  margin-bottom: 6px;
+-}
+-
+-.dap-err-tracks {
+-  display: flex;
+-  flex-direction: column;
+-  gap: 1px;
+-}
+-
+-.dap-err-track {
+-  font-size: 10.5px;
+-  color: var(--color-text-muted);
+-  white-space: nowrap;
+-  overflow: hidden;
+-  text-overflow: ellipsis;
+-}
+-
+-.dap-err-more {
+-  color: var(--color-text-dimmed);
+-  font-style: italic;
+-}
+-
+-.dap-error-item {
+-  font-size: 11px;
+-  color: var(--color-accent-hover);
+-  padding: 6px 12px;
+-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+-  word-break: break-all;
+-}
+-
+-.dap-error-item:last-child {
+-  border-bottom: none;
+-}
+-
+-.dap-error-more {
+-  color: var(--color-text-muted);
+-  font-style: italic;
+-}
+-
+-.dap-error-actions {
+-  display: flex;
+-  gap: 10px;
+-  margin-top: 4px;
+-}
+-
+-.dap-error-actions .dap-btn-primary {
+-  display: inline-flex;
+-  align-items: center;
+-  gap: 6px;
+-}
+-
+-/* --- Screen 8: Settings --- */
+-
+-.dap-settings-header {
+-  display: flex;
+-  align-items: center;
+-  gap: 14px;
+-  margin-bottom: 18px;
+-}
+-
+-.dap-settings-title {
+-  font-size: 17px;
+-  font-weight: 600;
+-  color: var(--color-text);
+-  margin-bottom: 3px;
+-}
+-
+-.dap-settings-subtitle {
+-  font-size: 12px;
+-  color: var(--color-text-faint);
+-}
+-
+-.dap-set-row {
+-  display: flex;
+-  align-items: center;
+-  justify-content: space-between;
+-  padding: 11px 0;
+-  border-bottom: 1px solid var(--color-bg-surface);
+-}
+-
+-.dap-set-row.last {
+-  border-bottom: none;
+-}
+-
+-.dap-set-label {
+-  font-size: 12.5px;
+-  font-weight: 500;
+-  color: var(--color-text);
+-}
+-
+-.dap-set-desc {
+-  font-size: 11px;
+-  color: var(--color-text-faint);
+-  margin-top: 1px;
+-  font-family: 'Geist Mono', monospace;
+-}
+-
+-.dap-set-val {
+-  font-size: 12px;
+-  color: var(--color-text);
+-  cursor: pointer;
+-}
+-
+-.dap-set-val:hover {
+-  text-decoration: underline;
+-}
+-
+-.dap-set-select {
+-  background: var(--color-bg-light);
+-  border: 1px solid var(--color-border);
+-  color: var(--color-text);
+-  font-size: 11px;
+-  font-family: 'Geist Mono', monospace;
+-  padding: 6px 10px;
+-  border-radius: 5px;
+-  cursor: pointer;
+-}
+-
+-/* Toggle switch */
+-.dap-toggle {
+-  width: 34px;
+-  height: 18px;
+-  border-radius: 9px;
+-  background: var(--color-border-light);
+-  cursor: pointer;
+-  position: relative;
+-  transition: background var(--transition-normal);
+-  flex-shrink: 0;
+-}
+-
+-.dap-toggle.on {
+-  background: var(--color-accent);
+-}
+-
+-.dap-toggle::after {
+-  content: '';
+-  width: 14px;
+-  height: 14px;
+-  background: var(--color-accent);
+-  border-radius: 50%;
+-  position: absolute;
+-  top: 2px;
+-  left: 2px;
+-  transition: transform var(--transition-normal);
+-}
+-
+-.dap-toggle.on::after {
+-  transform: translateX(16px);
+-}
+-
+-/* --- Screen 6: First Sync --- */
+-
+-.dap-first-sync {
+-  padding: 28px 32px;
+-  max-width: 500px;
+-  margin: 0 auto;
+-}
+-
+-.dap-warn-box {
+-  background: rgba(255, 255, 255, 0.08);
+-  border: 1px solid rgba(255, 255, 255, 0.2);
+-  border-radius: var(--radius-md);
+-  padding: 14px 18px;
+-  margin-bottom: 16px;
+-}
+-
+-.dap-warn-title {
+-  font-size: 12.5px;
+-  font-weight: 600;
+-  color: var(--color-text);
+-  margin-bottom: 4px;
+-}
+-
+-.dap-warn-text {
+-  font-size: 12px;
+-  color: var(--color-text-muted);
+-  line-height: 1.5;
+-}
+-
+-.dap-first-sync-question {
+-  font-size: 13.5px;
+-  font-weight: 600;
+-  margin: 18px 0 10px;
+-  color: var(--color-text);
+-}
+-
+-.dap-radio-group {
+-  display: flex;
+-  flex-direction: column;
+-  gap: 6px;
+-}
+-
+-.dap-radio-opt {
+-  display: flex;
+-  gap: 10px;
+-  padding: 10px 14px;
+-  border: 1px solid var(--color-border);
+-  border-radius: 5px;
+-  cursor: pointer;
+-  transition: all 0.12s;
+-}
+-
+-.dap-radio-opt:hover {
+-  border-color: var(--color-border-light);
+-  background: var(--color-bg-surface);
+-}
+-
+-.dap-radio-opt.sel {
+-  border-color: var(--color-text);
+-  background: rgba(255, 255, 255, 0.08);
+-}
+-
+-.dap-radio-circle {
+-  width: 15px;
+-  height: 15px;
+-  border: 2px solid var(--color-border-light);
+-  border-radius: 50%;
+-  flex-shrink: 0;
+-  margin-top: 1px;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-}
+-
+-.dap-radio-opt.sel .dap-radio-circle {
+-  border-color: var(--color-text);
+-}
+-
+-.dap-radio-opt.sel .dap-radio-circle::after {
+-  content: '';
+-  width: 7px;
+-  height: 7px;
+-  background: var(--color-accent);
+-  border-radius: 50%;
+-}
+-
+-.dap-r-label {
+-  font-size: 12.5px;
+-  font-weight: 500;
+-  color: var(--color-text);
+-}
+-
+-.dap-r-desc {
+-  font-size: 11px;
+-  color: var(--color-text-faint);
+-  margin-top: 2px;
+-}
+-
+-.dap-rec-tag {
+-  font-size: 9px;
+-  font-weight: 600;
+-  color: var(--color-text);
+-  background: rgba(255, 255, 255, 0.12);
+-  padding: 1px 6px;
+-  border-radius: var(--radius-sm);
+-  margin-left: 6px;
+-  letter-spacing: 0.04em;
+-  text-transform: uppercase;
+-}
++/* Error report — retry message + toggle details */
++/* Error report — grouped by album */
++/* --- Screen 8: Settings --- */
+ 
+-.dap-first-sync-actions {
+-  display: flex;
+-  justify-content: flex-end;
+-  gap: 8px;
+-  margin-top: 20px;
+-}
++/* Toggle switch */
++/* --- Screen 6: First Sync --- */
+ 
+ /* --- Modal overlay (volume picker) --- */
+ 
+-.dap-modal-overlay {
+-  position: fixed;
+-  inset: 0;
+-  background: rgba(0, 0, 0, 0.6);
+-  z-index: 10000;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-}
+-
+-.dap-modal {
+-  background: var(--color-bg-lighter);
+-  border: 1px solid var(--color-border-light);
+-  border-radius: var(--radius-md);
+-  padding: 24px;
+-  min-width: 320px;
+-  max-width: 400px;
+-}
+-
+-.dap-volume-btn {
+-  display: flex;
+-  align-items: center;
+-  gap: 10px;
+-  width: 100%;
+-  padding: 10px 12px;
+-  background: var(--color-bg-surface);
+-  border: 1px solid var(--color-border-light);
+-  border-radius: var(--radius-md);
+-  color: var(--color-text);
+-  cursor: pointer;
+-  margin-bottom: 8px;
+-  font-size: 12px;
+-  font-family: 'Geist Mono', monospace;
+-  text-align: left;
+-  transition: border-color 0.15s;
+-}
+-
+-.dap-volume-btn:hover {
+-  border-color: var(--color-text);
+-}
+-
+-/* ============================================================
+-   DAP SYNC TOP BAR — hides search bar, keeps feedback/settings
+-   ============================================================ */
+-
+-.dap-sync-bar {
+-  display: none; /* Empty bar — just triggers search-bar-inner hide */
+-}
+-
+-.dap-sync-bar:not(.hidden) {
+-  display: flex;
+-  flex: 0;
+-  min-width: 0;
+-}
+-
+ /* Sync button inside the dest-bar */
+-.dap-dest-sync-btn {
+-  display: inline-flex;
+-  align-items: center;
+-  gap: 6px;
+-  padding: 8px 20px;
+-  border-radius: var(--radius-md);
+-  font-family: var(--font-sans);
+-  font-size: 12px;
+-  font-weight: 600;
+-  letter-spacing: 0.3px;
+-  cursor: pointer;
+-  border: 1px solid rgba(255, 255, 255, 0.12);
+-  background: rgba(255, 255, 255, 0.04);
+-  color: rgba(255, 255, 255, 0.6);
+-  transition: color var(--transition-normal), background-color var(--transition-normal), border-color var(--transition-normal), opacity var(--transition-normal);
+-  flex-shrink: 0;
+-  white-space: nowrap;
+-  backdrop-filter: blur(8px);
+-  letter-spacing: 0.5px;
+-  text-transform: uppercase;
+-}
+-
+-.dap-dest-sync-btn svg {
+-  transition: transform 0.4s ease;
+-}
+-
+-.dap-dest-sync-btn:hover:not(:disabled) {
+-  background: var(--color-accent);
+-  color: var(--color-bg);
+-  border-color: var(--color-text);
+-}
+-
+-.dap-dest-sync-btn:hover:not(:disabled) svg {
+-  animation: syncIconSpin 0.8s ease-in-out infinite;
+-}
+-
+ @keyframes syncIconSpin {
+   0% { transform: rotate(0deg); }
+   100% { transform: rotate(360deg); }
+ }
+ 
+-.dap-dest-sync-btn:active:not(:disabled) {
+-  transform: scale(0.97);
+-}
+-
+-.dap-dest-sync-btn:disabled {
+-  opacity: 0.25;
+-  cursor: not-allowed;
+-}
+-
+ /* Pulse animation when changes are pending */
+-.dap-dest-sync-btn.has-changes {
+-  color: var(--color-text);
+-  border-color: var(--color-text);
+-  animation: syncBtnPulse 2.5s ease-in-out infinite;
+-}
+-
+-.dap-dest-sync-btn.has-changes:hover {
+-  background: var(--color-accent);
+-  color: var(--color-bg);
+-  animation: none;
+-}
+-
+ @keyframes syncBtnPulse {
+   0%, 100% { border-color: rgba(255, 255, 255, 0.3); color: rgba(255, 255, 255, 0.6); }
+   50% { border-color: rgba(255, 255, 255, 0.8); color: #fff; }
+ }
+ 
+ @media (prefers-reduced-motion: reduce) {
+-  .dap-dest-sync-btn:hover:not(:disabled) svg { animation: none; }
+-  .dap-dest-sync-btn.has-changes { animation: none; }
+ }
+ 
+ /* Toggle chevron in dest-bar */
+-.dap-dest-toggle {
+-  background: none;
+-  border: none;
+-  color: var(--color-text-dimmed);
+-  cursor: pointer;
+-  padding: 6px;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  border-radius: var(--radius-md);
+-  transition: color var(--transition-fast), transform var(--transition-normal);
+-  flex-shrink: 0;
+-}
+-
+-.dap-dest-toggle:hover { color: var(--color-text); }
+-.dap-dest-toggle.open { transform: rotate(180deg); }
+-
+ /* Gear button in dest-bar */
+-.dap-dest-gear {
+-  background: none;
+-  border: none;
+-  color: var(--color-text-dimmed);
+-  cursor: pointer;
+-  padding: 6px;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  border-radius: var(--radius-md);
+-  transition: color var(--transition-fast), background var(--transition-fast);
+-  flex-shrink: 0;
+-  opacity: 0.5;
+-}
+-
+-.dap-dest-gear:hover {
+-  color: var(--color-text);
+-  background: rgba(255, 255, 255, 0.06);
+-  opacity: 1;
+-}
+-
+ /* Details panel — smooth expand/collapse */
+-.dap-dest-details {
+-  overflow: hidden;
+-  transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease, border-width 0.1s ease;
+-  max-height: 300px;
+-  opacity: 1;
+-}
+-
+-.dap-dest-details.collapsed {
+-  max-height: 0;
+-  opacity: 0;
+-  padding-top: 0;
+-  padding-bottom: 0;
+-  border-width: 0;
+-}
+-
+ /* Detail panel groups */
+-.dap-det-group {
+-  margin-bottom: 2px;
+-}
+-
+-.dap-det-group-title {
+-  font-size: 9px;
+-  font-weight: 600;
+-  color: var(--color-text-faint);
+-  text-transform: uppercase;
+-  letter-spacing: 1.5px;
+-  margin-bottom: 4px;
+-  opacity: 0.7;
+-}
+-
+-.dap-det-divider {
+-  height: 1px;
+-  background: var(--color-border);
+-  margin: 6px 0;
+-  opacity: 0.5;
+-}
+-
+ /* Storage bar in detail panel */
+-.dap-storage-bar-detail {
+-  height: 4px;
+-  margin-top: 2px;
+-  border-radius: 2px;
+-}
+-
+ /* Error message in panel */
+-.dap-sum-error {
+-  margin-top: 8px;
+-  padding: 6px 10px;
+-  background: rgba(248, 113, 113, 0.08);
+-  border: 1px solid rgba(248, 113, 113, 0.2);
+-  border-radius: var(--radius-sm);
+-  color: #f87171;
+-  font-size: 11px;
+-}
+-
+-/* ============================================================
+-   DAP DEVICE ICON — SVG wireframe replaces emoji
+-   ============================================================ */
+-
+-.sb-dap-device .dev-icon {
+-  color: var(--color-text-faint);
+-}
+-
+-.sb-dap-device.active .dev-icon {
+-  color: var(--color-text);
+-}
+-
+ /* Remove emoji font-size, use SVG dimensions directly */
+-.sb-dap-device .dev-icon svg {
+-  display: block;
+-}
+-
+-.dap-dest-icon {
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  flex-shrink: 0;
+-  color: var(--color-text-muted);
+-}
+-
+-.dap-dest-icon svg {
+-  width: 22px;
+-  height: 22px;
+-}
+-
+ /* ============================================================
+    CHEVRON TOGGLE — use SVG instead of entity
+    ============================================================ */
+ 
+-.dap-dest-toggle {
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-}
+-
+-.dap-dest-toggle svg {
+-  transition: transform var(--transition-normal);
+-}
+-
+-.dap-dest-toggle.open svg {
+-  transform: rotate(180deg);
+-}
+-
+ /* ============================================================
+    TRANSFORMER ANIMATION — sync in progress
+    ============================================================ */
+ 
+-.dap-trf-anim-wrap {
+-  display: flex;
+-  justify-content: center;
+-  align-items: center;
+-  margin-bottom: 24px;
+-}
+-
+-.dap-trf-anim-wrap svg {
+-  width: 96px;
+-  height: 96px;
+-}
+-
+-.dap-trf-icon {
+-  display: block;
+-}
+-
+ /* Override: old rule rotated the whole button, now we rotate only the SVG child */
+-.dap-dest-toggle.open {
+-  transform: none;
+-}
+-
+ /* ============================================================
+    SPLASH SCREEN
+    ============================================================ */
+@@ -11528,17 +9118,6 @@ body:not(.player-visible) .track-info-panel {
+   border-radius: inherit;
+ }
+ 
+-/* 4.6: DAP Sync pulse during transfer */
+-@keyframes syncPulse {
+-  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.15); }
+-  70% { box-shadow: 0 0 0 12px rgba(255, 255, 255, 0); }
+-  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+-}
+-
+-.dap-syncing-icon {
+-  animation: syncPulse 1.5s ease-in-out infinite;
+-}
+-
+ /* 5.4: Typography refinements */
+ .home-section-title {
+   text-wrap: balance;
+@@ -11552,10 +9131,7 @@ body:not(.player-visible) .track-info-panel {
+ .indexation-percent,
+ .player-time,
+ .time-current,
+-.time-total,
+-.dap-sync-bar .sync-percentage,
+-.dap-dest-free,
+-.dap-dest-total {
++.time-total {
+   font-variant-numeric: tabular-nums;
+ }
+ 
+@@ -12426,22 +10002,7 @@ body:not(.player-visible) .track-info-panel {
+   font-weight: 700;
+ }
+ 
+-/* -------------------------------------------
+-   23. DAP SYNC — status glow indicators
+-   ------------------------------------------- */
+-
+-/* DAP section — premium card treatment */
+-.sb-dap-section {
+-  border-radius: var(--radius-md);
+-  overflow: hidden;
+-}
+-
+ /* Device cards — hover lift */
+-.dap-device-card:hover {
+-  transform: translateY(-1px);
+-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+-}
+-
+ /* -------------------------------------------
+    24. CONTENT AREA — refined scroll shadows
+    Top/bottom fade hints for scroll position
+@@ -12587,7 +10148,4 @@ body:not(.player-visible) .track-info-panel {
+     animation: none;
+     height: 8px;
+   }
+-  .dap-syncing-icon {
+-    animation: none;
+-  }
+ }
+diff --git a/noir-tauri/src/views.js b/noir-tauri/src/views.js
+index e92ff9b..c73f653 100644
+--- a/noir-tauri/src/views.js
++++ b/noir-tauri/src/views.js
+@@ -337,12 +337,6 @@ export function displayCurrentView() {
+ 
+   transitionView(async () => {
+     dom.albumsGridDiv.textContent = ''
+-    dom.albumsGridDiv.classList.remove('dap-sync-view') // Remove DAP-specific overflow:hidden on .albums-view
+-    // Restore search bar and deselect DAP sidebar item when leaving DAP sync view
+-    if (ui.currentView !== 'dap-sync') {
+-      app.hideDapTopBar?.()
+-      app.renderSidebarDestinations?.()
+-    }
+     dom.albumsViewDiv.classList.remove('hidden')
+ 
+     dom.albumsViewDiv.classList.toggle('home-visible', ui.currentView === 'home')
+@@ -372,9 +366,6 @@ export function displayCurrentView() {
+       case 'playlist':
+         app.displayPlaylistView()
+         break
+-      case 'dap-sync':
+-        app.displayDapSyncView()
+-        break
+     }
+   })
+ }
+@@ -513,7 +504,7 @@ export function navigateBack() {
+ }
+ 
+ export function switchView(view) {
+-  if (!['home', 'albums', 'artists', 'tracks', 'dap-sync'].includes(view)) return
++  if (!['home', 'albums', 'artists', 'tracks'].includes(view)) return
+ 
+   dom.navItems.forEach(item => {
+     item.classList.toggle('active', item.dataset.view === view)
