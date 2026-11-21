@@ -1,5 +1,11 @@
 # DAP Sync — Archive
 
+> 🔀 **Le successeur de ce chantier existe, et il marchait.** La sync MTP / Mass Storage archivée ici
+> a été remplacée par **WiFi Sync v3** : le DAP se connecte avec son navigateur, plus de câble. Ce
+> code-là était non commité jusqu'au 2026-11-21 et vaut mieux que celui-ci.
+> → [`../chantier-wifi-sync/README.md`](../chantier-wifi-sync/README.md)
+
+
 **Statut** : feature retirée du build actif le **2026-04-22** avant le lancement de la beta de Hean, en raison de bugs d'instabilité non résolus sur le mode MTP (Transaction ID mismatch, timeouts, InvalidObjectHandle).
 
 ## Pourquoi cette archive

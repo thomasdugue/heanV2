@@ -10,12 +10,18 @@ Trois contraintes, dans cet ordre de priorité :
 
 1. **Parité fonctionnelle.** Rien ne disparaît. La référence est
    [`01-produit/FEATURE-SET.md`](01-produit/FEATURE-SET.md) : 124 features cochables.
-2. **Parité visuelle.** Même design. Les références sont
-   [`02-design/tokens.css`](02-design/tokens.css) pour les **valeurs** et
+2. **Parité visuelle.** Même design — mais **lequel** n'était pas évident : il existe trois
+   designs de Hean, et deux sont hors de `main`. La cible est le **redesign v3**, commit `e12a200`
+   ([`../docs/adr/0004`](../docs/adr/0004-cible-de-parite.md)), **pas** la version distribuée aux
+   testeurs. Les références sont [`02-design/tokens.css`](02-design/tokens.css) pour les **valeurs**,
+   [`02-design/reference/views.js`](02-design/reference/views.js) pour le **markup** des écrans
+   refaits, et
    [`02-design/reference/noir-design-system.html`](02-design/reference/noir-design-system.html) pour
-   les **composants et les écrans** (108 Ko, 28 sections, aperçus live — il était hors du dépôt).
-   **Pas** `DESIGN-SYSTEM.md`, qui diverge du code sur 5 couleurs, une ombre et la typographie
-   (voir [`02-design/ECARTS-DESIGN.md`](02-design/ECARTS-DESIGN.md)).
+   les **composants** (108 Ko, 28 sections, aperçus live — il était hors du dépôt, et il précède le
+   redesign de deux mois). **Pas** `DESIGN-SYSTEM.md`, qui diverge du code sur 5 couleurs, une ombre
+   et la typographie. Tout est dans [`02-design/ECARTS-DESIGN.md`](02-design/ECARTS-DESIGN.md) §0.
+   ⚠️ **Ce design n'a jamais été vu** : personne ne l'a lancé. Les captures d'écran sont donc à la
+   fois la référence de V2 et la validation de la cible.
 3. **Base saine.** Les propositions sont dans
    [`05-postmortem/DETTE-TECHNIQUE-V1.md`](05-postmortem/DETTE-TECHNIQUE-V1.md), section 4, classées
    par rendement. Elles demandent des arbitrages — ce sont les tiens.

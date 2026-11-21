@@ -3,42 +3,57 @@
 Marche à suivre pour lancer la phase 0 avec un autre modèle (Fable 5.2 ou autre). Écrit le
 2026-11-21, une fois les six arbitrages pris.
 
+> **Révisé le soir du 2026-11-21.** Deux refontes de design non mergées et un chantier WiFi Sync
+> complet ont été retrouvés hors de `main`, dont deux qui n'étaient commités nulle part. La cible de
+> parité a changé (voir [`adr/0004`](adr/0004-cible-de-parite.md)), et les préalables A1, A2 et A4
+> avec elle.
+
 ---
 
 ## A. Cinq préalables, avant d'écrire du code
 
 Aucun n'est long. Chacun, oublié, coûte cher plus tard.
 
-### A1. Figer la cible de parité 🔴
+### A1. Mettre la cible de parité à l'abri 🔴
 
-**C'est le point le plus important, et il n'était pas dans le plan.**
+**La cible est tranchée** : le commit `e12a200` (redesign v3 porté sur main d'octobre) —
+[`adr/0004`](adr/0004-cible-de-parite.md). Ce n'est **pas** `v0.2.0-beta.1`, comme le disait la
+première version de ce document.
 
-V1 a ~50 beta-testeurs actifs, un Sentry qui remonte des crashs, un dashboard, des issues GitHub. La
-reconstruction va durer des semaines. Pendant ce temps, si V1 continue d'évoluer, **la cible de
-parité bouge pendant qu'on la vise** — et on ne finit jamais.
+Ce qui reste à faire tient en une ligne : **ce commit n'est pas poussé.** Il ne vit que dans le clone
+local `noirdesktop-v1`, sur la branche `thomasdugue/design-migration-audit`. Tant qu'il n'est pas sur
+GitHub, une panne de disque emporte la référence visuelle de V2.
 
-Décision à prendre maintenant, et à écrire dans un ADR :
+```bash
+cd /Users/tsunami25/conductor/workspaces/noirdesktop-v1/yellowknife && git push -u origin thomasdugue/design-migration-audit
+```
 
-> La parité se mesure contre **v0.2.0-beta.1** (tag + le commit `02508ea`), pas contre `main` de
-> `noirdesktop`.
-
-Puis choisir un régime pour V1 pendant la reconstruction :
+Reste aussi à choisir un régime pour V1 pendant la reconstruction — moins urgent qu'il n'y paraît,
+puisque le travail de design sur V1 est arrêté depuis octobre :
 
 | Régime | Conséquence |
 |---|---|
 | **Gel total** | Les testeurs attendent. Le plus simple, le plus honnête, et il faut le leur dire. |
-| **Hotfix critiques seulement** (crash, perte de données) | Raisonnable. Chaque hotfix s'ajoute explicitement au contrat de parité comme une ligne supplémentaire. |
+| **Hotfix critiques seulement** (crash, perte de données) | Raisonnable. Chaque hotfix s'ajoute explicitement au contrat de parité comme une ligne supplémentaire. **L'auto-updater cassé entre dans cette catégorie** : aucun testeur n'a jamais reçu de mise à jour ([`MESURES-V1.md`](MESURES-V1.md) §6). |
 | **V1 continue d'évoluer** | À éviter. La cible bouge, et le travail de parité est à refaire en continu. |
 
-### A2. Capturer V1 visuellement 🔴
+### A2. Capturer la cible visuellement 🔴 **bloquant**
 
-**Aucune capture d'écran n'existe.** Le CSS seul ne dit pas à quoi ressemble le résultat composé, et
-`bootstrap/02-design/reference/noir-design-system.html` §24 donne les specs, pas le rendu. Sans
-captures, la contrainte n°2 du brief — « même design » — n'est **pas vérifiable**.
+**Aucune capture d'écran n'existe** — et le design de référence **n'a jamais été validé
+visuellement**. Le corps de la PR #37 le dit noir sur blanc : *« l'agent ne peut pas lancer l'app
+Tauri […] le rendu visuel est à confirmer sur ton Mac »*. La migration d'octobre n'a pas été lancée
+non plus.
+
+Ces captures sont donc deux choses à la fois : la référence de V2, et **la première fois que
+quiconque regarde la cible de parité**. C'est pour ça que c'est bloquant et pas seulement important.
+
+⚠️ **À prendre sur le bon commit.** Pas sur l'app installée, pas sur `main` : sur `e12a200`.
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
+cd /Users/tsunami25/conductor/workspaces/noirdesktop-v1/yellowknife/noir-tauri && npm run tauri dev
 ```
+
+Vérifier avant de lancer que `git -C .. log -1 --format=%h` vaut bien `e12a200`.
 
 Destination : `bootstrap/02-design/reference/captures/`. La liste des écrans à couvrir est dans
 [`../bootstrap/02-design/reference/README.md`](../bootstrap/02-design/reference/README.md).
@@ -46,6 +61,9 @@ Destination : `bootstrap/02-design/reference/captures/`. La liste des écrans à
 Urgence réelle : ces captures doivent être prises **depuis l'état actuel** de ta machine
 (bibliothèque scannée, caches chauds, NAS configuré, playlists réelles). Cet état est local et
 unique — il n'est pas dans git.
+
+Et si le rendu ne te plaît pas, c'est maintenant qu'il faut le dire : la cible de parité se change
+par un nouvel ADR, pas en cours de route.
 
 ### A3. Mesurer V1 🟠
 
@@ -57,9 +75,18 @@ temps de réponse de la recherche. Noter les chiffres dans
 
 ### A4. Vérifier la typographie 🟠
 
-Dix minutes, et ça débloque le dernier arbitrage. Lancer V1, inspecter la police **calculée** sur le
-corps de texte et sur un titre de section, et regarder la console pour une erreur CSP sur
-`fonts.googleapis.com`. Détail du raisonnement :
+Dix minutes, et ça débloque le dernier arbitrage de design.
+
+**Déjà tranché** par la cible de parité : l'échelle de tailles. Une seule, celle du `:root`
+(10/11/12/13/14/15/18/22/28/48). Le prototype v4 en portait une plus petite, et la migration
+d'octobre a explicitement refusé de l'appliquer — la raison est écrite dans le CSS : *« ils
+rétréciraient de 1-2px tout le texte de l'app (onboarding inclus) »*.
+
+**Reste ouvert** : le partage des rôles entre Geist Mono et DM Sans. Lancer la cible, inspecter la
+police **calculée** sur le corps de texte et sur un titre de section, et regarder la console pour une
+erreur CSP sur `fonts.googleapis.com`. L'hypothèse est que DM Sans ne se charge pas du tout dans
+l'app packagée — or le redesign v3 la charge jusqu'au poids 900 pour le watermark artiste, donc le
+design la suppose présente. Détail du raisonnement :
 [`../bootstrap/02-design/ECARTS-DESIGN.md`](../bootstrap/02-design/ECARTS-DESIGN.md) §2.
 
 ### A5. Rapatrier les secrets 🟢
@@ -106,6 +133,10 @@ quatre fichiers, pas cent quatorze. Le reste se charge à la demande, par zone, 
 > La stack est tranchée, ne la rouvre pas : TypeScript strict + Vite, Svelte 5 (runes uniquement,
 > jamais les stores Svelte 4), tauri-specta pour l'IPC, SQLite via rusqlite, données dans
 > `~/Library/Application Support/hean/` avec migration depuis `noir/`.
+>
+> La cible de parité visuelle est tranchée aussi : le commit `e12a200` (redesign v3), dont le CSS et
+> le markup sont dans `bootstrap/02-design/reference/`. Pas la version distribuée aux testeurs. Ne la
+> rouvre pas non plus — c'est `docs/adr/0004-cible-de-parite.md`.
 >
 > On fait la **phase 0 et rien d'autre** — aucune feature. Dans cet ordre :
 >

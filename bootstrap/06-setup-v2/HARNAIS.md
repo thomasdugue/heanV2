@@ -76,6 +76,14 @@ des règles explicites :
 - aucun secret lu autrement que par le module dédié ;
 - aucune chaîne de couleur en dur dans le CSS hors du fichier de tokens → la dérive design devient
   impossible ;
+- **toute variable `var(--x)` utilisée est définie** → c'est l'invariant 19, et c'est le test qui
+  rend le mieux de toute cette liste. Une variable CSS non définie rend la déclaration invalide « au
+  moment du calcul » : le navigateur l'ignore **sans erreur**, même avec `!important`. Donc ni la
+  relecture, ni les tests de comportement, ni le type-checking ne l'attrapent. En V1, `--glass-lo` /
+  `--glass-md` / `--glass-hi` ont été utilisées **45 fois sans être définies** sur toute une PR de
+  refonte : bordures, survols et état actif de la sidebar invisibles, découverts quatre mois plus
+  tard. Le test tient en vingt lignes : collecter les `--x:` déclarées, collecter les `var(--x)`
+  utilisées, échouer sur la différence (en tolérant les valeurs de repli `var(--x, 100)`) ;
 - aucun fichier > 400 lignes.
 
 **Coût** : faible. **Gain** : énorme, et croissant avec la taille du projet. C'est le seul mécanisme

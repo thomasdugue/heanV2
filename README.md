@@ -31,7 +31,7 @@ Puis, dans une session Claude Code ouverte sur ce dépôt :
 
 | Chemin | Contenu |
 |---|---|
-| `bootstrap/` | **Tout le contexte repris de V1** — brief, contrat de parité (124 features), design system, invariants, postmortem, plan de reconstruction, spécification du harnais. Autonome : [`bootstrap/README.md`](bootstrap/README.md) donne l'ordre de lecture. |
+| `bootstrap/` | **Tout le contexte repris de V1** — brief, contrat de parité (124 features), design de la cible, invariants, postmortem, chantiers repris (MTP + WiFi Sync), plan de reconstruction, spécification du harnais. Autonome : [`bootstrap/README.md`](bootstrap/README.md) donne l'ordre de lecture. |
 | `CLAUDE.md` | Guide de travail, lu en entier à chaque session. Reste **sous 150 lignes** (vérifié par `./check`) : le détail va dans un skill. |
 | `.claude/skills/` | Les 6 skills `hean-*` repris de V1 — le savoir par zone. Leurs chemins de fichiers sont ceux de V1 et sont à adapter au fur et à mesure. |
 | `.claude/agents/` | `test-runner` (lance tout, résumé court) · `invariant-guardian` (relit un diff contre les invariants). |
@@ -69,7 +69,12 @@ de sortie) · distribution directe, licence perpétuelle.
 — avec Tauri v2, Rust et CoreAudio direct qui ne se rouvrent pas.
 Le raisonnement et les alternatives écartées : [`docs/adr/`](docs/adr/).
 
-Reste ouvert : la typographie, et quatre points listés dans [`docs/adr/README.md`](docs/adr/README.md).
+**Cible de parité visuelle** : le redesign v3, commit `e12a200` — pas la version distribuée aux
+testeurs. Trois designs de Hean existent, deux étaient hors de `main` :
+[`docs/adr/0004`](docs/adr/0004-cible-de-parite.md).
+
+Reste ouvert : le partage Geist Mono / DM Sans, et cinq points listés dans
+[`docs/adr/README.md`](docs/adr/README.md).
 
 ## Avant d'écrire du code
 

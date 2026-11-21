@@ -6,6 +6,12 @@ Dossier autonome : il peut être copié tel quel dans un nouveau dépôt `heanV2
 sans jamais rouvrir le dépôt V1. Constitué le **2026-11-21** à partir du dépôt `noirdesktop`,
 branche `claude/refonte-fab-5-2-3901f8`, commit `02508ea` (Hean v0.2.0-beta.1).
 
+> ⚠️ **Révisé le soir du 2026-11-21.** Trois chantiers vivaient hors de `main`, et deux n'étaient
+> commités nulle part. La **cible de parité visuelle a changé** : c'est le redesign v3, commit
+> `e12a200` ([`../docs/adr/0004`](../docs/adr/0004-cible-de-parite.md)), et non la version
+> distribuée. Et un chantier **WiFi Sync** complet a été récupéré :
+> [`05-postmortem/chantier-wifi-sync/`](05-postmortem/chantier-wifi-sync/README.md).
+
 ---
 
 ## Lire dans cet ordre
@@ -16,7 +22,7 @@ branche `claude/refonte-fab-5-2-3901f8`, commit `02508ea` (Hean v0.2.0-beta.1).
 | 2 | [`05-postmortem/DETTE-TECHNIQUE-V1.md`](05-postmortem/DETTE-TECHNIQUE-V1.md) | **Pourquoi on refait.** Les 5 causes racines, chiffrées, et 12 propositions classées par rendement. C'est le document qui demande tes arbitrages. |
 | 3 | [`04-invariants/README.md`](04-invariants/README.md) | **Le savoir qui ne se redécouvre pas.** Les 7 pièges de plateforme. À lire avant d'écrire une ligne. |
 | 4 | [`01-produit/FEATURE-SET.md`](01-produit/FEATURE-SET.md) | **Le contrat de parité.** 124 features à cocher. |
-| 5 | [`02-design/ECARTS-DESIGN.md`](02-design/ECARTS-DESIGN.md) | Avant de reproduire le design : les **4** sources de V1 ne disent pas la même chose, et la meilleure (un design system de 108 Ko) était **hors du dépôt**. |
+| 5 | [`02-design/ECARTS-DESIGN.md`](02-design/ECARTS-DESIGN.md) | ⭐ Avant de reproduire le design : il existe **trois designs** de Hean et **six documents** qui les décrivent. Dit lequel est la cible, et pourquoi la PR #37 est cassée. |
 | 6 | [`06-setup-v2/PLAN-DE-RECONSTRUCTION.md`](06-setup-v2/PLAN-DE-RECONSTRUCTION.md) | Les 6 arbitrages de la phase 0, puis 8 phases avec leurs critères de sortie. |
 | 7 | [`06-setup-v2/HARNAIS.md`](06-setup-v2/HARNAIS.md) | **Le harnais.** Les 12 ajouts qui font qu'un projet ne régresse pas, par rendement, et ce que chaque faiblesse de V1 devient. |
 
@@ -32,6 +38,7 @@ MANIFEST.md                 d'où vient chaque fichier, et ce qui a été volont
 
 01-produit/
   FEATURE-SET.md            ⭐ 124 features cochables, reconstruites depuis le CODE (pas la spec)
+                            + §11 WiFi Sync, hors parité mais à reprendre
   UX-ANTI-REGRESSION.md     24 comportements validés, avec ce qui les avait cassés
   NON-GOALS.md              décisions produit déjà prises (plateformes, formats, features, nom)
   GUIDE-TESTEURS-V1.md      ce qu'on a promis aux ~50 beta-testeurs
@@ -39,13 +46,15 @@ MANIFEST.md                 d'où vient chaque fichier, et ce qui a été volont
   recherche/                marché, pricing, GTM, + l'ancien CLAUDE.md de février
 
 02-design/
-  tokens.css                ⭐ SOURCE DE VÉRITÉ des valeurs : les 60 variables extraites du styles.css réel
-  ECARTS-DESIGN.md          ⭐ les 4 sources du design et laquelle croire, token par token
+  tokens.css                ⭐ SOURCE DE VÉRITÉ des valeurs : 64 variables, extraites des DEUX :root de la cible
+  ECARTS-DESIGN.md          ⭐ les 3 designs, les 6 sources, laquelle croire, et pourquoi la PR #37 est cassée
   DESIGN-SYSTEM.md          l'intention 2026 (glass, ambient glow, watermarks) — fiable sur le concept
   reference/
     README.md               quoi ouvrir, dans quel ordre
+    styles.css, views.js    🎯 LA CIBLE DE PARITÉ (commit e12a200) : valeurs + markup des écrans refaits
     noir-design-system.html ⭐ design system complet 108 Ko / 28 sections — était HORS du dépôt
-    styles.css, index.html  le code réel, référence pixel
+    index.html              la coquille (ids des panels/modals, le <link> Google Fonts problématique)
+    *.beta-v0.2.0           le CSS/markup DISTRIBUÉ, pour mesurer l'écart avec la cible
     GeistMono-Variable.woff2, app_logo.svg
     prototype-onboarding.html, mockup-home.html, splash-preview.html, dmg-window.html
 
@@ -77,6 +86,10 @@ MANIFEST.md                 d'où vient chaque fichier, et ce qui a été volont
   CHANGELOG-V1.md           historique cumulatif, dont les 4 phases de perf
   archive-dap-sync/         ⭐ la feature retirée, CODE COMPLET CONSERVÉ (~12 400 l.) + docs + diff de retrait
     README-CODE.md          inventaire, pourquoi ça cassait, les 5 pistes, comment ressusciter
+  chantier-wifi-sync/       ⭐ le SUCCESSEUR du MTP, et il marchait : 5 677 l. de Rust + 30 tests
+    README.md               ce qui est déjà résolu, l'état réel, ce qui reste
+    DESIGN-PLAN-V3.md       le cahier des charges de l'étape suivante, jamais implémentée
+    TEST-PROTOCOL-V2.2.md   le protocole AVEC les réponses de test écrites par Thomas
 
 06-setup-v2/
   README.md                 ce qui s'installe tel quel, et où

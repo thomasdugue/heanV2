@@ -1,25 +1,66 @@
-# Les 4 sources du design V1, et laquelle croire
+# Quel design reproduire, et dans quelle source le lire
 
-> **À lire avant de reproduire le design.** Il existe **quatre** descriptions du design de Hean, et
-> elles ne disent pas la même chose. Reproduire « à l'identique » en partant de la mauvaise donnerait
-> un résultat visiblement différent de l'app actuelle.
+> **À lire avant de reproduire le design.** Deux pièges, et le second a failli coûter cher :
+> il existe **trois versions du design** de Hean, et **six documents** qui le décrivent, qui ne
+> disent pas la même chose.
 >
-> Relevé fait le 2026-11-21 sur le commit `02508ea`.
+> Premier relevé le 2026-11-21 sur `02508ea`. **Révisé le même jour** après découverte des deux
+> refontes non mergées : la cible de parité a changé.
 
-## Les quatre sources
+## 0. Les trois versions du design, et laquelle est la cible
+
+| Version | Où | Date | Statut |
+|---|---|---|---|
+| **Design « beta »** | `main` de noirdesktop, tag `v0.2.0-beta.1` | mai 2026 | Ce que les ~50 testeurs ont installé. **Pas la cible.** |
+| **Redesign v3** | PR [#37](https://github.com/thomasdugue/noirdesktop/pull/37), branche `claude/kind-cerf-A9weP` | juin 2026 | Ouverte, jamais mergée. Portage du prototype Hean v4. **Visuellement cassée telle quelle** (voir plus bas). |
+| **Migration d'octobre** 🎯 | commit `e12a200` de `thomasdugue/design-migration-audit` (clone `noirdesktop-v1`) | 2026-10-29 | **LA CIBLE DE PARITÉ DE V2.** Le redesign v3 porté sur `main` d'octobre, avec la régression CSS corrigée. |
+
+C'est la troisième qui fait foi. Elle n'existait **que** dans l'arbre de travail d'un workspace
+Conductor jusqu'à sa mise à l'abri le 2026-11-21 ; elle n'est toujours pas poussée sur GitHub.
+Décision et raisonnement : [`../../docs/adr/0004-cible-de-parite.md`](../../docs/adr/0004-cible-de-parite.md).
+
+### Pourquoi la PR #37 ne peut pas servir de référence
+
+`--glass-lo`, `--glass-md` et `--glass-hi` y sont utilisées **45 fois** sans jamais être définies :
+leur définition avait disparu avec le revert des Lots A-H. Une variable CSS non définie rend la
+déclaration invalide « au moment du calcul » — le navigateur l'ignore **en silence**, même avec
+`!important`, et aucun test ne le détecte. Résultat sur la PR #37 : **bordures, survols et état actif
+de la sidebar invisibles**.
+
+La migration d'octobre rétablit les quatre définitions. C'est de là que vient l'invariant n°19
+([`../04-invariants/INVARIANTS.md`](../04-invariants/INVARIANTS.md)) : *toute variable `var(--x)`
+utilisée doit être définie dans `:root`.* En V2, c'est un test d'architecture, pas une règle de
+relecture — il est spécifié dans
+[`../06-setup-v2/HARNAIS.md`](../06-setup-v2/HARNAIS.md).
+
+### Le prototype d'origine est perdu
+
+Le redesign v3 est un *« portage fidèle du prototype Hean v4, fourni dans le bundle design_handoff +
+screenshots v4 »* (commit `8a1308e`). Un commentaire dans le CSS donne son emplacement :
+`/tmp/proto/player_test_1/css/tokens.css + app.css`. **C'était un dossier temporaire** : le bundle
+(des fichiers `.jsx` — `home.jsx` est cité) n'est ni dans le dépôt, ni sur le disque, ni dans aucune
+archive. Recherché le 2026-11-21 : introuvable.
+
+**Conséquence** : le CSS porté **est** devenu la référence du design, faute de mieux. Les écarts de
+fidélité relevés dans les commits de juin (titres de carrousels, eyebrow au-dessus du titre, boutons
+icon-only) ne sont plus vérifiables contre leur source. On reproduit le portage, pas le prototype.
+
+## Les six sources, et leur fiabilité
 
 | Source | Date | Taille | Fiabilité |
 |---|---|---|---|
-| **`reference/styles.css`** | à jour | 10 654 l. | ⭐⭐⭐⭐⭐ **C'est le code servi à l'utilisateur.** Vérité absolue sur les valeurs. |
-| **`tokens.css`** | 2026-11-21 | 116 l. | ⭐⭐⭐⭐⭐ Extrait automatiquement du précédent (`:root` + `@font-face`). À utiliser comme point de départ. |
-| **`reference/noir-design-system.html`** | 2026-04-06 | 108 Ko, 28 sections | ⭐⭐⭐⭐ **La meilleure doc design du projet, et elle était hors du dépôt.** Composants avec aperçus live, anti-patterns, accessibilité, référence écran par écran. Valeurs de couleurs/rayons/ombres **exactes**. Décalée de +1px sur l'échelle typographique et sur le flou du glass. |
+| **`reference/styles.css`** | 2026-10-29 | 12 517 l. | ⭐⭐⭐⭐⭐ **La cible.** Le CSS de la migration d'octobre. Vérité absolue sur les valeurs. |
+| **`tokens.css`** | 2026-11-21 | 64 variables | ⭐⭐⭐⭐⭐ Extrait automatiquement du précédent (les **deux** blocs `:root` + `@font-face` + les 10 variables posées par JS). Point de départ. |
+| **`reference/views.js`** | 2026-10-29 | 3 672 l. | ⭐⭐⭐⭐⭐ **Le markup réel**, classe par classe. Indispensable : le redesign v3 n'est pas « CSS-only », il réécrit la structure HTML (now-strip, page album, page artiste). |
+| **`reference/noir-design-system.html`** | 2026-04-06 | 108 Ko, 28 sections | ⭐⭐⭐⭐ **La meilleure doc design du projet, et elle était hors du dépôt.** Composants avec aperçus live, anti-patterns, accessibilité, référence écran par écran. Exacte sur couleurs/rayons/ombres. **Antérieure au redesign v3** : ne connaît ni la now-strip, ni les nouvelles pages. |
+| **`reference/styles.css.beta-v0.2.0`** | mai 2026 | 10 654 l. | ⭐⭐⭐ Le CSS **distribué**. Gardé pour une seule raison : savoir ce qui change entre ce que les testeurs voient et la cible. Ne pas y prendre de valeurs. |
 | **`DESIGN-SYSTEM.md`** | ~2026-05 | 179 l. | ⭐⭐ Excellente sur les **concepts** 2026 (glass, ambient glow, watermarks). **Fausse sur 5 couleurs, une ombre, et la typographie.** |
 
 > ⚠️ `noir-design-system.html` vivait dans
 > `~/Documents/Thomas/Noir Design System/noir-design-system.html`, **hors du dépôt git**. Il n'était
 > référencé que par une ligne du skill `hean-frontend`. Il est désormais copié dans
 > [`reference/`](reference/) — sans quoi il aurait été perdu. **C'est le document à ouvrir en premier
-> pour reconstruire l'UI.**
+> pour les composants**, en gardant en tête qu'il précède le redesign v3 de deux mois.
 
 ---
 
@@ -108,6 +149,20 @@ Le code porte le commentaire `/* Font sizes (+1 cran pour lisibilité) */`. Rés
 | `--fs-hero` | 48px | 48px |
 
 Les 7 petites tailles ont été augmentées après coup, les 3 grandes sont inchangées. **Le code gagne.**
+
+### Et le redesign v3 a tranché, deux fois, dans des sens opposés
+
+Le prototype Hean v4 portait les petites tailles du design system (9/10/12/13/14/16px). Les deux
+portages n'en ont pas fait la même chose :
+
+- **PR #37 (juin)** les redéfinit dans son bloc `:root` — donc toute l'app rétrécit de 1 à 2px.
+- **Migration d'octobre (la cible)** les laisse de côté, avec la raison écrite dans le CSS :
+  *« Les `--fs-*` du prototype ne sont PAS redéfinis ici : ils rétréciraient de 1-2px tout le texte
+  de l'app (onboarding inclus). »*
+
+**Pour V2, c'est la décision d'octobre qui s'applique** : une seule échelle typographique, celle du
+`:root` (10/11/12/13/14/15/18/22/28/48). L'eyebrow de la home est à 10px, pas 9. Un seul endroit du
+CSS fixe une taille en dur plutôt que par token — c'est à corriger, pas à reproduire.
 `DESIGN-SYSTEM.md`, lui, n'en documente que 7 sur 10 (il ignore section-title, page-title, hero).
 
 ---
@@ -199,17 +254,23 @@ watermark = signature et non décoration, bandeau gradient sur les albums unique
 2. **Prendre les valeurs dans `tokens.css`**, jamais dans un document. En cas de conflit avec le
    design system HTML : le code gagne (c'est le cas sur les 7 petites tailles de police et le flou du
    glass).
+2bis. **Prendre la structure dans `reference/views.js`.** Le design system HTML décrit les composants
+   de mai ; la now-strip, la page album en hero + body + aside, la page artiste avec watermark et le
+   menu contextuel du redesign v3 n'y sont pas. Leur markup n'existe que là.
 3. **Lire `DESIGN-SYSTEM.md`** pour les trois chantiers de mai (ambient glow, watermarks, bandeau) et
    ses 7 règles d'usage. Ignorer ses valeurs de couleurs, son `--shadow-lg` et sa phrase sur DM Sans.
 4. **Garder `reference/styles.css` et `reference/index.html`** comme référence pixel de dernier
-   recours : seul endroit où le design est complet et vrai. À lire comme une maquette, pas comme une
+   recours : seul endroit où le design est complet et vrai. Pour voir ce qui change par rapport à
+   l'app installée chez les testeurs, differ contre `reference/styles.css.beta-v0.2.0`. À lire comme une maquette, pas comme une
    architecture (voir la dette CSS dans
    [`../05-postmortem/DETTE-TECHNIQUE-V1.md`](../05-postmortem/DETTE-TECHNIQUE-V1.md)).
-5. **Trancher la question typographique.** Trois options : (a) Geist Mono partout, comme l'app
-   tourne probablement aujourd'hui ; (b) l'intention du design system — Geist Mono pour le corps et
-   le technique, DM Sans **embarquée** pour les grands titres, cette fois réellement appliquée ;
-   (c) autre chose. C'est le seul écart qui change l'apparence générale : il mérite une décision
-   consciente, prise après avoir regardé l'app.
+5. **Trancher la question Geist Mono / DM Sans.** L'échelle de tailles, elle, est tranchée (voir
+   §2). Reste le partage des rôles : (a) Geist Mono partout, comme l'app tourne probablement
+   aujourd'hui, DM Sans étant vraisemblablement bloquée par la CSP ; (b) l'intention du design
+   system — Geist Mono pour le corps et le technique, DM Sans **embarquée en local** pour les grands
+   titres, cette fois réellement appliquée. Le redesign v3 pousse vers (b) : il charge DM Sans
+   jusqu'au poids 900 pour le watermark artiste. C'est le seul écart qui change l'apparence
+   générale : décision consciente, après avoir regardé l'app.
 6. **Faire les captures d'écran de V1 avant de commencer.** Aucune n'existe dans le dépôt. Le
    §24 Screen Reference en tient lieu sur les specs, pas sur le rendu composé.
    → `reference/captures/`, à créer.

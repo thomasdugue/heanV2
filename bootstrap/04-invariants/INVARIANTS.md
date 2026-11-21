@@ -32,6 +32,7 @@ Source de vérité des invariants (le CLAUDE.md n'en garde qu'un résumé d'une 
 - **`option_env!()` doit être utilisé pour TOUS les secrets compile-time** (`HEAN_SENTRY_DSN`, `NOIR_WORKER_URL`, `NOIR_WORKER_SECRET`). Sans ça, le binaire release est silencieusement privé du secret (pas d'erreur runtime, juste un fallback "save locally" / "no Sentry"). `scripts/release.sh` valide la présence des vars AVANT le build pour éviter ce piège — ne JAMAIS bypass ce script en lançant `npm run tauri build` à nu.
 - **`dylibbundler` doit être suivi du fix LC_RPATH dupliqués.** dylibbundler ajoute systématiquement un `LC_RPATH @executable_path/../Frameworks/` à chaque dylib mais certaines dylibs Samba en avaient déjà un (Homebrew). 66/92 dylibs ont des doublons → macOS dyld refuse depuis Big Sur. Le pipeline doit : (1) `dylibbundler` → (2) boucle sur Frameworks/ qui détecte les doublons et fait `install_name_tool -delete_rpath` une seule fois → (3) re-sign chaque dylib touchée. Ne JAMAIS oublier l'étape 2.
 - **Bouton shuffle : icône fixe, un seul point de mise à jour.** L'icône `⤮` (U+292E, `SHUFFLE_ICON` dans `utils.js`) ne change jamais ; le statut (A = album, ∞ = bibliothèque) s'affiche dans le badge séparé `.shuffle-badge` (position absolue, largeur fixe). Tout changement de mode passe par `cycleShuffleMode()` / `updateShuffleButtonUI()` (`playback.js`, exposés via `app`) — clic souris ET raccourci clavier. Ne JAMAIS réécrire `shuffleBtn.textContent` / `innerHTML` (ça efface l'icône et le badge). Régression constatée 2026-10-29 : le statut collé au texte (`'⤮ᴬ'`) décalait l'icône, et la copie du code dans `shortcuts.js` affichait un autre glyphe (⤢ U+2922). Tests : `ShuffleButton.test.js`.
+- **CSS : toute variable `var(--x)` utilisée doit être définie dans `:root`.** Une variable CSS non définie rend la déclaration invalide « au moment du calcul » : le navigateur l'ignore **sans erreur**, même avec `!important`, et aucun test ne le détecte. Régression constatée 2026-10-29 sur la PR #37 (redesign v3) : `--glass-lo` / `--glass-md` / `--glass-hi` utilisées **45 fois** mais jamais définies — leur définition avait disparu avec le revert des Lots A-H → bordures, survols et état actif de la sidebar **invisibles**. Corrigé par le commit `e12a200` (migration d'octobre), qui est la cible de parité de V2. **En V2 : c'est un test d'architecture, pas une règle de relecture** — voir [`../06-setup-v2/HARNAIS.md`](../06-setup-v2/HARNAIS.md).
 
 ## Gravité (utilisée pour décider si un diff peut être mergé)
 
@@ -59,6 +60,7 @@ Classement décidé par Thomas le 2026-10-27. Critère : ce que vit le testeur s
 - **Playlist mosaic sidebar : rebuild automatique après chargement async**
 - **Boutons 'Add to Queue' / 'Add to Playlist' au survol** (toujours accessibles par clic droit)
 - **Bouton shuffle : icône fixe, un seul point de mise à jour** (défaut visuel, couvert par `ShuffleButton.test.js`)
+- **CSS : toute variable `var(--x)` utilisée définie dans `:root`** (défaut visuel, réparable — mais invisible à la relecture, d'où le test mécanique en V2)
 
 ## Décisions techniques actées
 

@@ -45,3 +45,31 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   **+114 Mo de RSS / +20 Mo de footprint**, concentrés sur `WebKit.WebContent` (+69 Mo) et
   `WebKit.GPU` (+32 Mo), sans trace de scan dans le journal. Cause indéterminée — scan non
   journalisé, caches WebKit, ou fuite.
+- **2026-11-21** (suite 5) : **la cible de parité était la mauvaise.** Thomas signale un écart entre
+  l'app et ses dernières refontes de design. Vérification : **trois chantiers vivaient hors de
+  `main`**, dont deux commités nulle part.
+  1. **PR [#37](https://github.com/thomasdugue/noirdesktop/pull/37)** — redesign v3, 23 commits,
+     +2 416 l., ouverte depuis le 28 mai, jamais mergée. Le checkout principal de Thomas était posé
+     dessus : l'app qu'il lançait n'était pas celle qu'il avait distribuée.
+  2. **WiFi Sync v3** — 5 677 l. de Rust (serveur HTTPS axum, WebUI servie au navigateur du DAP,
+     ZIP streamés, certificat auto-signé, mDNS, token persistant), 30 tests, **non commité depuis
+     avril 2026** et absent de toute branche, de tout stash et du clone de sauvegarde. Mis à l'abri
+     sur `archive/wifi-sync-v3` (`b8c1019`), poussé.
+  3. **Migration d'octobre** — le redesign v3 porté sur `main` d'octobre, **non commité**, dans deux
+     workspaces Conductor. Elle corrige une régression que la PR #37 porte toujours :
+     `--glass-lo/md/hi` utilisées **45 fois sans être définies**, donc ignorées en silence par le
+     navigateur → bordures, survols et état actif de la sidebar invisibles. Commitée (`e12a200`),
+     **pas encore poussée**.
+
+  Conséquences : [`adr/0004`](adr/0004-cible-de-parite.md) fixe la parité sur `e12a200` ;
+  `bootstrap/02-design/` réextrait depuis ce commit (+ `views.js`, parce que le redesign réécrit le
+  markup et pas seulement le CSS) ; `tokens.css` passe à 64 variables sur **deux** blocs `:root` ;
+  `ECARTS-DESIGN.md` réécrit autour des 3 designs et 6 sources ; **invariant 19** ajouté (« toute
+  variable `var(--x)` utilisée doit être définie ») et transformé en test d'architecture dans
+  `HARNAIS.md` §2 ; `chantier-wifi-sync/` créé dans le bootstrap ; préalables A1, A2 et A4 de
+  `DEMARRER.md` réécrits — **A2 (les captures) devient bloquant**, puisque le design de référence
+  n'a jamais été lancé par personne.
+
+  **Et le prototype d'origine est perdu** : le redesign v3 est le portage d'un « prototype Hean v4 »
+  livré dans un bundle `design_handoff`, qui vivait dans `/tmp/proto/player_test_1/`. Introuvable sur
+  le disque. On reproduit le portage, pas le prototype.

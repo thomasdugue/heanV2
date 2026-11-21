@@ -3,6 +3,24 @@
 Traçabilité de chaque fichier du bootstrap. Source : dépôt `noirdesktop`, branche
 `claude/refonte-fab-5-2-3901f8`, commit `02508ea`, le 2026-11-21.
 
+## Révision du soir du 2026-11-21 — deux sources ajoutées
+
+Le bootstrap du matin avait été constitué depuis `main` seul. Une vérification demandée par Thomas a
+révélé trois chantiers hors de `main`, dont deux commités nulle part. D'où deux nouvelles sources :
+
+| Source ajoutée | D'où | Ce qu'elle apporte ici |
+|---|---|---|
+| **commit `e12a200`**, branche `thomasdugue/design-migration-audit`, clone `noirdesktop-v1` | arbre de travail du workspace Conductor `yellowknife`, **non commité** jusqu'au 2026-11-21 | `02-design/reference/styles.css` + `views.js` + `index.html`, et donc `tokens.css`. **C'est la cible de parité** — [`../docs/adr/0004`](../docs/adr/0004-cible-de-parite.md). |
+| **commit `b8c1019`**, branche `archive/wifi-sync-v3` | arbre de travail du worktree `nice-solomon`, **non commité** depuis avril 2026 | tout `05-postmortem/chantier-wifi-sync/` : 5 677 l. de Rust, 30 tests, le plan de design et le protocole de test annoté. |
+
+Ce qui a changé dans les fichiers existants : `00-BRIEF-V2.md` (contrainte 2), `README.md`,
+`01-produit/FEATURE-SET.md` (en-tête + §11), `02-design/ECARTS-DESIGN.md` (réécrit),
+`02-design/reference/README.md` (réécrit), `04-invariants/INVARIANTS.md` (invariant 19),
+`06-setup-v2/HARNAIS.md` (§2), `05-postmortem/archive-dap-sync/README.md` (renvoi).
+
+L'ancien CSS distribué est conservé sous `02-design/reference/styles.css.beta-v0.2.0` — il n'est plus
+la référence, mais il permet de mesurer ce que les testeurs vont voir changer.
+
 ## Documents rédigés pour ce bootstrap (n'existaient pas)
 
 | Fichier | Construit à partir de |
@@ -101,3 +119,6 @@ Traçabilité de chaque fichier du bootstrap. Source : dépôt `noirdesktop`, br
 | `04-invariants/SAVOIR-FRONTEND.md` | Deux chemins faux : les thumbnails et covers internet sont dans `~/Library/Application Support/noir/`, pas `~/.noir_desktop/`. Sa palette de couleurs est celle de `DESIGN-SYSTEM.md`, donc fausse sur 3 valeurs. En revanche, c'est lui qui signalait l'existence du design system hors dépôt — **désormais rapatrié** dans `02-design/reference/`. |
 | `06-setup-v2/GUIDE-LAUNCH-BETA-V1.md` | Antérieur au worker Cloudflare, partiellement périmé. Le runbook à jour est `SAVOIR-RELEASE.md`. |
 | `01-produit/recherche/*` | Analyses de mars-avril 2026 (marché, prix, GTM). Contexte produit, pas des faits techniques ; les prix et les concurrents ont pu bouger. |
+| `02-design/reference/styles.css` et `views.js` | **La cible de parité — et elle n'a jamais été lancée.** Le corps de la PR #37 le dit : « l'agent ne peut pas lancer l'app Tauri […] le rendu visuel est à confirmer sur ton Mac ». La migration d'octobre n'a pas été lancée davantage. Ce sont donc des sources **fiables sur le code et invérifiées sur le rendu**. Les captures d'écran (§A2 de `DEMARRER.md`) sont la première validation. |
+| `05-postmortem/chantier-wifi-sync/code/` | **Non compilé depuis avril 2026.** 30 tests existent mais n'ont pas tourné depuis. Les versions des dépendances ajoutées (axum 0.7, rustls 0.23, rcgen 0.13…) sont à revérifier. Le `cargo check` est le premier geste de toute reprise. |
+| `05-postmortem/chantier-wifi-sync/TEST-PROTOCOL-V2.2.md` | **Contient les réponses de Thomas écrites à la main** dans le fichier (« OK », « j'ai une alerte… », « je ne sais pas comment faire »). C'est la seule preuve directe que la feature tournait — et la trace de deux frictions d'UX. Ne pas « nettoyer » ce fichier : les annotations sont l'information. |

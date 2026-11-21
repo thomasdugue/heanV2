@@ -1,15 +1,29 @@
 /* tokens.css — SOURCE DE VÉRITÉ des valeurs du design Hean.
-   Extrait de noir-tauri/src/styles.css (branche claude/refonte-fab-5-2-3901f8,
-   commit 02508ea, 2026-11-21). 60 variables.
+
+   Extrait de reference/styles.css, qui est la CIBLE DE PARITÉ de V2 :
+   le commit e12a200 de `thomasdugue/design-migration-audit` (clone
+   noirdesktop-v1, 2026-10-29) — le redesign v3 porté sur main d'octobre.
+   PAS la version distribuée aux testeurs : voir ECARTS-DESIGN.md §0.
+
+   64 variables, réparties en DEUX blocs `:root` (le CSS de V1 en a deux,
+   c'est reproduit tel quel ci-dessous) :
+     - ligne 15 de styles.css : le socle ;
+     - ligne 10657 : les 4 `--glass-*` du redesign v3, ajoutées par la
+       migration d'octobre. Elles manquaient dans la PR #37, où elles étaient
+       pourtant utilisées 45 fois — bordures, survols et état actif de la
+       sidebar invisibles. C'est l'invariant CSS n°19 : voir
+       ../04-invariants/INVARIANTS.md
 
    En cas de divergence, CES VALEURS L'EMPORTENT, y compris sur
-   reference/noir-design-system.html (qui est en retard de +1px sur les 7 petites
-   tailles de police) et sur DESIGN-SYSTEM.md (faux sur 5 couleurs et une ombre).
+   reference/noir-design-system.html (avril, en retard) et sur DESIGN-SYSTEM.md.
    Détail des écarts : ECARTS-DESIGN.md
 
    Pour les COMPOSANTS et les ÉCRANS (et non les valeurs), la référence est
-   reference/noir-design-system.html — 28 sections avec aperçus live. */
+   reference/views.js (le markup réel, classe par classe) complété par
+   reference/noir-design-system.html pour les 28 aperçus. */
 
+
+/* --- bloc :root, styles.css ligne 15 --- */
 :root {
   /* Couleurs primaires */
   --color-bg: #0a0a0a;
@@ -102,6 +116,14 @@
   --ambient-intensity: 0.03;
 }
 
+/* --- bloc :root, styles.css ligne 10657 --- */
+:root {
+  --glass-hi: rgba(255, 255, 255, 0.10);
+  --glass-md: rgba(255, 255, 255, 0.06);
+  --glass-lo: rgba(255, 255, 255, 0.04);
+  --glass-xs: rgba(255, 255, 255, 0.025);
+}
+
 /* --- @font-face déclarés dans styles.css --- */
 @font-face {
   font-family: 'Geist Mono';
@@ -111,14 +133,20 @@
   font-display: swap;
 }
 
-/* --- variables ambient posées dynamiquement par JS (fullscreen-player.js / views.js) --- */
+
+/* --- variables posées dynamiquement par JS (10, relevées sur les appels
+       setProperty() de src/ : fullscreen-player.js, views.js) --- */
   --ambient-gradient-opacity: <runtime>;
-  --ambient-intensity: <runtime>;
-  --ambient-luminosity: <runtime>;
+  --ambient-intensity: <runtime>;        /* a aussi une valeur par défaut dans :root */
+  --ambient-luminosity: <runtime>;       /* posée par JS mais jamais lue par le CSS */
   --ambient-watermark-opacity: <runtime>;
-  --color-ambient-2-b: <runtime>;
-  --color-ambient-2-g: <runtime>;
-  --color-ambient-2-r: <runtime>;
-  --color-ambient-b: <runtime>;
-  --color-ambient-g: <runtime>;
   --color-ambient-r: <runtime>;
+  --color-ambient-g: <runtime>;
+  --color-ambient-b: <runtime>;
+  --color-ambient-2-r: <runtime>;
+  --color-ambient-2-g: <runtime>;
+  --color-ambient-2-b: <runtime>;
+
+/* --- variable locale, PAS dans :root ---
+   --strip-color est définie sur `.home-page .now-strip` elle-même, à partir des
+   --color-ambient-* posées par JS. Elle n'a pas de valeur fixe. */

@@ -8,6 +8,14 @@
 >
 > Chaque ligne est une feature que V2 doit avoir pour être « à l'identique ».
 > Cocher au fur et à mesure du portage.
+>
+> ⚠️ **Révisé le 2026-11-21 (soir).** Les 124 features sont justes — elles viennent du code. Mais
+> **la cible de parité visuelle a changé** : ce n'est plus `02508ea` ni la beta distribuée, c'est le
+> commit `e12a200` (redesign v3 porté sur main). Les colonnes « Réf. V1 » restent valables ; le
+> design de chaque écran se lit désormais dans
+> [`../02-design/reference/views.js`](../02-design/reference/views.js) et
+> [`../02-design/reference/styles.css`](../02-design/reference/styles.css). Voir
+> [`../02-design/ECARTS-DESIGN.md`](../02-design/ECARTS-DESIGN.md) §0.
 
 Légende colonne **Risque** : 🔴 difficile / plateforme hostile · 🟠 piégeux · 🟢 direct.
 
@@ -209,3 +217,18 @@ Compteurs par format affichés (`data.stats.mp3_count`…). ~964 lignes dans `on
 ## 10. Ce qui n'existe pas en V1
 
 Voir [`NON-GOALS.md`](NON-GOALS.md). En résumé : Windows/Linux, DSD/MQA/Opus/WMA, scrobbling, Roon/Audirvana/TIDAL/Qobuz, sync iCloud, crossfade, ReplayGain, visualiseur FFT, AutoEQ, DAP Sync (archivé).
+
+## 11. Hors parité, mais à reprendre : WiFi Sync
+
+**WiFi Sync n'est pas dans les 124 lignes ci-dessus** — il n'a jamais été distribué, donc il ne fait
+pas partie de « l'identique ». Mais ce n'est pas non plus un non-goal : c'est 5 677 lignes de Rust
+qui **fonctionnaient**, avec 30 tests, et c'est le remplaçant prévu de la sync MTP.
+
+Le DAP se connecte avec son navigateur sur le WiFi, le Mac sert un HTTPS + QR code, les albums
+partent en ZIP streamés. Le cahier des charges de l'étape suivante est déjà écrit.
+
+→ [`../05-postmortem/chantier-wifi-sync/README.md`](../05-postmortem/chantier-wifi-sync/README.md)
+
+**Décision à prendre** (elle n'est pas prise) : WiFi Sync entre-t-il dans le périmètre de V2, et à
+quelle phase ? Il est indépendant du reste — il n'a besoin que de la bibliothèque et des covers —
+donc il peut arriver tard sans bloquer quoi que ce soit.
