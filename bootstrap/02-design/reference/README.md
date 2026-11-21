@@ -40,11 +40,17 @@ donne les specs, pas le rendu — et il précède le redesign v3.
 ⚠️ **Les captures doivent être prises sur la cible de parité**, pas sur `main` ni sur l'app installée.
 Le worktree qui porte le bon commit :
 
+Protocole complet : [`../../../docs/PROTOCOLE-CAPTURES.md`](../../../docs/PROTOCOLE-CAPTURES.md).
+
 ```bash
-cd /Users/tsunami25/conductor/workspaces/noirdesktop-v1/yellowknife/noir-tauri && npm run tauri dev
+cd /Users/tsunami25/Documents/Thomas/noirdesktop && git checkout thomasdugue/design-migration-audit
 ```
 
-Vérifier avant de lancer que `git log -1 --format=%h` y vaut bien `e12a200`.
+```bash
+cd /Users/tsunami25/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
+```
+
+Vérifier avant de lancer que `git log -1 --format=%h` vaut bien `e12a200`.
 
 Liste à couvrir : Home (eyebrow + now-strip + chaque carousel) · Albums · Artistes · Pistes (avec
 multi-sélection) · détail album (hero + body + aside) · détail artiste (avec watermark et loose

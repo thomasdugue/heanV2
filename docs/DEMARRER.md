@@ -49,11 +49,20 @@ quiconque regarde la cible de parité**. C'est pour ça que c'est bloquant et pa
 
 ⚠️ **À prendre sur le bon commit.** Pas sur l'app installée, pas sur `main` : sur `e12a200`.
 
+**Le protocole complet est dans [`PROTOCOLE-CAPTURES.md`](PROTOCOLE-CAPTURES.md)** — lancement, les
+30 captures dans l'ordre d'un parcours, et la vérification typographique à faire dans la même
+session. En deux lignes :
+
 ```bash
-cd /Users/tsunami25/conductor/workspaces/noirdesktop-v1/yellowknife/noir-tauri && npm run tauri dev
+cd /Users/tsunami25/Documents/Thomas/noirdesktop && git checkout thomasdugue/design-migration-audit
 ```
 
-Vérifier avant de lancer que `git -C .. log -1 --format=%h` vaut bien `e12a200`.
+```bash
+cd /Users/tsunami25/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
+```
+
+C'est bien le **checkout principal** et pas le workspace Conductor : lui seul a `scripts/.env.local`
+(sans quoi `dev.sh` s'arrête net) et 17 Go de cache de build Rust.
 
 Destination : `bootstrap/02-design/reference/captures/`. La liste des écrans à couvrir est dans
 [`../bootstrap/02-design/reference/README.md`](../bootstrap/02-design/reference/README.md).

@@ -73,3 +73,12 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   **Et le prototype d'origine est perdu** : le redesign v3 est le portage d'un « prototype Hean v4 »
   livré dans un bundle `design_handoff`, qui vivait dans `/tmp/proto/player_test_1/`. Introuvable sur
   le disque. On reproduit le portage, pas le prototype.
+- **2026-11-21** (suite 6) : protocole de capture écrit (`docs/PROTOCOLE-CAPTURES.md`) et dossier
+  `captures/` créé. Trois constats pratiques en préparant le lancement : le workspace Conductor
+  `yellowknife` **ne peut pas lancer l'app** (pas de `scripts/.env.local`, et `dev.sh` s'arrête net
+  sans lui ; pas de cache de build Rust non plus → 10-20 min à froid), alors que le **checkout
+  principal** a les deux (`.env.local` + 17 Go de `target/`) et peut récupérer la branche maintenant
+  qu'elle est poussée — basculement vérifié propre, HEAD local contenu dans la branche distante. Et
+  **la mesure sous défilement ne peut pas se greffer sur cette session** : elle doit tourner sur la
+  build **release** (`/Applications/Hean.app`), puisque les chiffres de `MESURES-V1.md` viennent de
+  là ; un build de dev n'a pas le même profil mémoire.
