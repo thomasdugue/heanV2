@@ -38,7 +38,7 @@ composant de 28 pixels de côté a produit 4 invariants, 2 sessions de debug et 
 
 ---
 
-## 2. Les cinq causes racines
+## 2. Les causes racines
 
 ### 2.1 Zéro vérification statique sur 16 000 lignes de JavaScript
 
@@ -162,6 +162,23 @@ depuis le code, en CI, et documenter à la main seulement ce qui ne se déduit p
 les invariants et les décisions.
 
 ---
+
+### 2.6 L'observabilité est un décor — ajoutée le 2026-11-21 (soir)
+
+**252 `println!` contre 3 appels `tracing::`** dans le backend, et `logging.rs` ne capture pas
+stdout. L'app installée a produit **63 lignes de journal** en tout. Donc : l'échec systématique de la
+génération de thumbnails, l'activité du scan réseau de fond, les échecs de résolution de chemin SMB
+— tout cela est annoncé en clair par le build de dev et **n'existe pas** chez les ~50 testeurs.
+
+Les trois bugs trouvés en mesurant V1 (auto-updater en 404 depuis le lancement, nettoyage de
+`smb_buffer` inopérant, thumbnails à 11 % de couverture) sont tous des bugs **silencieux**. Pas
+subtils : silencieux. Avec un Sentry qui ne remonte que les panics et les erreurs JS, un bug qui ne
+plante pas ne remonte jamais.
+
+C'est la cause racine la plus coûteuse des cinq précédentes, parce qu'elle les rend **indétectables**.
+Elle a été trouvée par accident, en regardant trente secondes de sortie d'un build de dev.
+
+Détail et correction proposée : [`../../docs/MESURES-V1.md`](../../docs/MESURES-V1.md) §8.
 
 ## 3. Ce que V1 a fait bien, et qu'il faut absolument garder
 

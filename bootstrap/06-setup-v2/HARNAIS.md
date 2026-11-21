@@ -84,6 +84,11 @@ des règles explicites :
   refonte : bordures, survols et état actif de la sidebar invisibles, découverts quatre mois plus
   tard. Le test tient en vingt lignes : collecter les `--x:` déclarées, collecter les `var(--x)`
   utilisées, échouer sur la différence (en tolérant les valeurs de repli `var(--x, 100)`) ;
+- **aucun `println!` / `eprintln!` dans le backend** → tout passe par `tracing`. V1 en comptait
+  **252**, contre **3** appels `tracing::`, et `logging.rs` ne capture pas stdout : 63 lignes de
+  journal pour toute la vie de l'app installée. Les trois bugs trouvés le 2026-11-21 étaient tous
+  annoncés en clair par le build de dev et **invisibles en production**. Détail :
+  [`../../docs/MESURES-V1.md`](../../docs/MESURES-V1.md) §8 ;
 - aucun fichier > 400 lignes.
 
 **Coût** : faible. **Gain** : énorme, et croissant avec la taille du projet. C'est le seul mécanisme

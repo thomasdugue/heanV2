@@ -19,7 +19,7 @@ branche `claude/refonte-fab-5-2-3901f8`, commit `02508ea` (Hean v0.2.0-beta.1).
 | | Fichier | Pourquoi |
 |---|---|---|
 | 1 | [`00-BRIEF-V2.md`](00-BRIEF-V2.md) | L'objectif, ce qui est tranché, ce qui ne l'est pas, le vrai risque. 2 minutes. |
-| 2 | [`05-postmortem/DETTE-TECHNIQUE-V1.md`](05-postmortem/DETTE-TECHNIQUE-V1.md) | **Pourquoi on refait.** Les 5 causes racines, chiffrées, et 12 propositions classées par rendement. C'est le document qui demande tes arbitrages. |
+| 2 | [`05-postmortem/DETTE-TECHNIQUE-V1.md`](05-postmortem/DETTE-TECHNIQUE-V1.md) | **Pourquoi on refait.** Les **6** causes racines, chiffrées, et 12 propositions classées par rendement. La 6e — l'observabilité qui est un décor — a été trouvée le soir du 2026-11-21 et explique pourquoi les cinq autres ont pu passer inaperçues. C'est le document qui demande tes arbitrages. |
 | 3 | [`04-invariants/README.md`](04-invariants/README.md) | **Le savoir qui ne se redécouvre pas.** Les 7 pièges de plateforme. À lire avant d'écrire une ligne. |
 | 4 | [`01-produit/FEATURE-SET.md`](01-produit/FEATURE-SET.md) | **Le contrat de parité.** 124 features à cocher. |
 | 5 | [`02-design/ECARTS-DESIGN.md`](02-design/ECARTS-DESIGN.md) | ⭐ Avant de reproduire le design : il existe **trois designs** de Hean et **six documents** qui les décrivent. Dit lequel est la cible, et pourquoi la PR #37 est cassée. |

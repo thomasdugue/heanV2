@@ -92,9 +92,42 @@ C'est très probablement une part importante des 155 Mo de la WebView, et une pi
 immédiate pour V2 : générer les thumbnails de façon fiable au scan, et ne jamais décoder une cover
 pleine résolution pour une vignette.
 
-> À confirmer : il faudrait vérifier si le scan échoue à générer les thumbnails ou s'il ne les
-> génère que pour les pistes locales (306 sur 3 443 — l'ordre de grandeur correspond à peu près aux
-> 247 fichiers).
+### ✅ Cause trouvée le 2026-11-21 (soir), en lisant le code
+
+L'hypothèse « il ne les génère que pour les pistes locales » était la bonne, et le mécanisme exact
+est à trois lignes de `get_cover_bytes_internal()` (`lib.rs`) :
+
+```rust
+// SMB paths : impossible de lire avec Probe::open() (ne supporte que le FS local)
+// On ne peut compter que sur COVER_CACHE (peuplé par get_cover_smb)
+if path.starts_with("smb://") {
+    return None;
+}
+```
+
+`generate_thumbnails_batch()` est appelé avec des **chemins de pistes**. Pour une piste SMB qui n'est
+pas déjà dans `COVER_CACHE` à cet instant, la fonction renvoie `None` **immédiatement** → `failed`.
+Et **91 % de la bibliothèque est sur SMB** (3 137 pistes sur 3 443).
+
+Observé en direct dans la sortie du build de dev, sur plusieurs dizaines de lots consécutifs :
+
+```
+[RUST-PERF] generate_thumbnails_batch: starting batch of 8 images
+[RUST-PERF] generate_thumbnails_batch: DONE in 1ms - 0 generated, 0 skipped, 8 failed
+```
+
+**0 généré, 0 ignoré, 100 % d'échec, en 0-1 ms.** Zéro milliseconde est la signature : ce n'est pas
+un décodage d'image qui rate, c'est un `return None` sur une condition.
+
+**Et l'ironie** : les pochettes sont bien là, sur le disque — 2 173 fichiers, 275 Mo dans `covers/`,
+dont les `internet_*.jpg` récupérés via MusicBrainz. Mais `COVER_CACHE` est indexé par **chemin de
+piste**, alors qu'une pochette internet est nommée par `artiste|||album`. La recherche par chemin de
+piste ne la trouve pas. Les octets nécessaires sont à quelques centimètres, et le code va les
+chercher dans le fichier audio distant.
+
+**Correction pour V2, en une phrase** : la source d'un thumbnail est le **fichier de pochette déjà
+sur le disque**, jamais une ré-extraction depuis le fichier audio. Le pipeline devient
+`cover sur disque → thumbnail`, et il n'a aucune raison de connaître SMB.
 
 ## 6. Deux bugs trouvés en mesurant
 
@@ -145,15 +178,23 @@ aucune interaction entre les deux :
 Le journal ne contient que deux lignes sur la période (init du logging, puis l'erreur d'updater) :
 rien n'indique un scan.
 
-**Cause indéterminée.** Trois hypothèses, non tranchées : un scan de fond non journalisé (3 137
-pistes en SMB), la croissance normale des caches internes de WebKit au repos, ou une fuite. Une
-croissance de +20 Mo de footprint en une heure d'inactivité n'est pas alarmante en soi, mais elle
-n'est pas expliquée — et une app censée rester ouverte toute une session d'écoute doit savoir ce
-qu'elle fait de sa mémoire.
+**Cause probable identifiée le 2026-11-21 (soir)** : l'hypothèse du **scan de fond non
+journalisé**. Le build de dev, lancé sur la cible de parité, en crache la preuve :
 
-**Pour V2** : c'est exactement ce qu'un marqueur d'instrumentation réglerait en une minute. À
-trancher avec une mesure longue (plusieurs heures, échantillonnage à la minute) une fois V2 capable
-de journaliser ses phases.
+```
+[Network Scan] lofty FLAC fallback for /LOSSLESS/complete/…/15 Onizuka.flac: failed to fill whole buffer
+```
+
+Un scan réseau tourne bel et bien, et il travaille sur les 3 137 pistes SMB. Il n'apparaissait pas
+dans le journal pour la raison expliquée au §8 : **cette ligne est un `println!`**, et rien ne
+capture stdout dans l'app packagée.
+
+Ce n'est pas une preuve que le scan explique les +114 Mo — ça reste à mesurer. Mais ce n'était pas
+« rien n'indique un scan » : c'était « rien n'est journalisé ». Nuance décisive, et elle invalide le
+raisonnement que j'avais tenu ici le matin.
+
+**Pour V2** : un marqueur de phase de scan dans le journal **persisté** (pas sur stdout), et une
+mesure longue une fois qu'il existe.
 
 ## 7. Ce qui reste à mesurer
 
@@ -191,3 +232,54 @@ lisent sur la courbe imprimée.
 Pour les FPS et la recherche, il n'y a pas de raccourci : il faut un compteur dans l'app. **En V2,
 l'instrumentation fait partie de la phase 0** — un marqueur de premier rendu, un compteur de FPS
 activable, et un chronomètre sur la recherche. Sans ça, on en est réduit à des proxys, comme ici.
+
+## 8. 🔴 La découverte la plus importante : l'observabilité de V1 est un décor
+
+C'est ce qui explique les deux sections précédentes, et probablement d'autres choses qu'on ne sait
+pas encore.
+
+| | |
+|---|---|
+| Appels `println!` / `eprintln!` dans le backend Rust | **252** |
+| Appels `tracing::` (les seuls qui atterrissent dans un fichier) | **3** |
+
+Les trois : la ligne d'init de `logging.rs`, un `tracing::error!` dans `lib.rs`, et le basculement du
+toggle Sentry. C'est tout.
+
+`logging.rs` configure `tracing-appender` avec rotation journalière — correctement. Mais **il ne
+capture pas stdout** (vérifié : aucune redirection, aucun `dup2`, aucun `gag`). Donc les 252
+`println!` partent dans le vide dès que l'app est lancée depuis le Finder plutôt qu'un terminal.
+
+Résultat mesurable : **63 lignes de journal** pour toute la vie de l'app installée, réparties sur
+8 fichiers.
+
+Ce qui était donc invisible en production, et qu'on vient de voir en trente secondes de build de
+dev :
+
+- l'échec **systématique** de la génération de thumbnails (§5) — des mois durant ;
+- l'activité du scan réseau de fond (§6bis), et ses échecs de lecture de métadonnées FLAC ;
+- la résolution de chemin SMB qui échoue avant de basculer en download progressif ;
+- tout le détail de la chaîne audio (timings, négociation de sample rate, pre-roll), qui est
+  excellent et dont personne ne voit jamais rien.
+
+### Pourquoi c'est pire qu'un simple manque de logs
+
+Les trois bugs trouvés en mesurant le 2026-11-21 (auto-updater en 404 depuis le lancement, nettoyage
+de `smb_buffer` qui ne nettoie pas, thumbnails à 11 %) ont un point commun : **ils sont tous
+silencieux en production.** Pas parce qu'ils sont subtils — le build de dev les annonce en clair —
+mais parce que le canal où ils s'annoncent n'existe pas chez l'utilisateur.
+
+Avec ~50 beta-testeurs et un Sentry qui ne remonte que les panics et les erreurs JS, un bug qui ne
+plante pas est un bug invisible.
+
+### Pour V2
+
+Ce n'est pas « ajouter des logs ». C'est une règle de harnais, à poser en phase 0 :
+
+1. **`println!` interdit dans le backend**, par un test d'architecture — comme les autres règles de
+   forme du [`HARNAIS.md`](../bootstrap/06-setup-v2/HARNAIS.md) §2. Tout passe par `tracing`.
+2. **Un niveau par nature** : `info!` pour les phases (début/fin de scan, nombre de fichiers),
+   `warn!` pour les échecs récupérables (un thumbnail qui rate, un fallback SMB), `error!` pour ce
+   qui mérite Sentry.
+3. **Les compteurs d'une opération de masse sont journalisés en `warn!` si le taux d'échec dépasse un
+   seuil.** « 0 généré, 8 échoués » n'aurait pas dû attendre sept mois et une session de mesure.

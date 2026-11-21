@@ -41,7 +41,7 @@ la référence, mais il permet de mesurer ce que les testeurs vont voir changer.
 | `05-postmortem/DETTE-TECHNIQUE-V1.md` | l'ensemble des constats |
 | `06-setup-v2/README.md` | — |
 | `06-setup-v2/PLAN-DE-RECONSTRUCTION.md` | — |
-| `06-setup-v2/HARNAIS.md` | les 5 causes racines du postmortem + les 19 invariants + les 24 comportements, retournés en mécanismes de vérification |
+| `06-setup-v2/HARNAIS.md` | les causes racines du postmortem + les 19 invariants + les 24 comportements, retournés en mécanismes de vérification |
 | `06-setup-v2/CLAUDE.md` | template dérivé de `noir-tauri/CLAUDE.md` |
 | `06-setup-v2/ci/secrets.env.template` | noms de variables documentés dans `hean-release` et `hean-ops` (**aucune valeur réelle**) |
 

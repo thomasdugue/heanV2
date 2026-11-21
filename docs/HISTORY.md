@@ -82,3 +82,22 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   **la mesure sous défilement ne peut pas se greffer sur cette session** : elle doit tourner sur la
   build **release** (`/Applications/Hean.app`), puisque les chiffres de `MESURES-V1.md` viennent de
   là ; un build de dev n'a pas le même profil mémoire.
+- **2026-11-21** (suite 7) : **l'observabilité de V1 est un décor** — trouvé par accident, en lisant
+  trente secondes de sortie du build de dev lancé sur la cible de parité. **252 `println!` contre 3
+  appels `tracing::`** dans le backend, et `logging.rs` ne capture pas stdout : l'app installée a
+  produit **63 lignes de journal** en tout. Conséquence : les trois bugs trouvés en mesurant V1 sont
+  tous **silencieux en production** alors que le build de dev les annonce en clair. Ajouté comme
+  **6e cause racine** de `DETTE-TECHNIQUE-V1.md`, et comme règle de harnais (`println!` interdit dans
+  le backend, test d'architecture, `HARNAIS.md` §2).
+
+  Deux questions ouvertes résolues au passage :
+  - **§5, les thumbnails à 11 %** : cause exacte trouvée. `get_cover_bytes_internal()` fait
+    `if path.starts_with("smb://") { return None }`, et `generate_thumbnails_batch()` est appelé avec
+    des chemins de pistes — dont **91 % sont en SMB**. D'où `0 generated, N failed` en 0 ms sur tous
+    les lots. Les pochettes sont pourtant sur le disque (2 173 fichiers, 275 Mo), mais `COVER_CACHE`
+    est indexé par chemin de piste alors qu'une pochette internet est nommée par `artiste|||album`.
+    Correction pour V2 : la source d'un thumbnail est le fichier de pochette sur disque, jamais une
+    ré-extraction depuis l'audio.
+  - **§6bis, la dérive mémoire** : un scan réseau de fond tourne bien (`[Network Scan] lofty FLAC
+    fallback…`). Il n'était pas journalisé parce que c'est un `println!`. Ce n'était pas « rien
+    n'indique un scan », c'était « rien n'est journalisé ».
