@@ -37,3 +37,11 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   **Trois bugs V1 trouvés en mesurant** : l'auto-updater renvoie 404 depuis le lancement (prerelease
   + `/releases/latest`), le nettoyage de `smb_buffer` laisse 607 Mo, et le cache de thumbnails ne
   couvre que 11 % des covers.
+- **2026-11-21** (suite 4) : tentative de mesure de la mémoire sous défilement — **invalide** :
+  courbe plate sur 90 s (2 Mo de variation), aucune navigation dans la fenêtre. L'échantillonnage
+  avait été démarré en même temps que l'envoi des consignes, donc avant qu'elles soient lisibles.
+  Protocole corrigé : c'est l'opérateur qui lance le script. Observation secondaire conservée
+  (`MESURES-V1.md` §6bis) : entre deux relevés du même processus à ~70 min d'intervalle et au repos,
+  **+114 Mo de RSS / +20 Mo de footprint**, concentrés sur `WebKit.WebContent` (+69 Mo) et
+  `WebKit.GPU` (+32 Mo), sans trace de scan dans le journal. Cause indéterminée — scan non
+  journalisé, caches WebKit, ou fuite.

@@ -129,6 +129,32 @@ supprimer. Après lancement : **toujours 607 Mo**.
 Soit la condition de péremption ne correspond pas, soit le nettoyage ne tourne pas dans ce chemin de
 démarrage. À reproduire et à comprendre **avant** de porter ce code en V2 — et à couvrir par un test.
 
+## 6bis. Dérive mémoire au repos — à élucider
+
+Deux relevés du **même processus** (PID 10612, lancé à 09:45), à ~70 minutes d'intervalle, sans
+aucune interaction entre les deux :
+
+| Processus | juste après le lancement | ~70 min plus tard, au repos | Δ RSS |
+|---|---|---|---|
+| `noir-tauri` | 128 Mo | 142 Mo | +14 Mo |
+| `WebKit.WebContent` | 201 Mo | 270 Mo | **+69 Mo** |
+| `WebKit.GPU` | 85 Mo | 117 Mo | +32 Mo |
+| `WebKit.Networking` | 19 Mo | 19 Mo | 0 |
+| **Total** | **433 Mo RSS / 235 Mo footprint** | **547 Mo RSS / 255 Mo footprint** | **+114 Mo / +20 Mo** |
+
+Le journal ne contient que deux lignes sur la période (init du logging, puis l'erreur d'updater) :
+rien n'indique un scan.
+
+**Cause indéterminée.** Trois hypothèses, non tranchées : un scan de fond non journalisé (3 137
+pistes en SMB), la croissance normale des caches internes de WebKit au repos, ou une fuite. Une
+croissance de +20 Mo de footprint en une heure d'inactivité n'est pas alarmante en soi, mais elle
+n'est pas expliquée — et une app censée rester ouverte toute une session d'écoute doit savoir ce
+qu'elle fait de sa mémoire.
+
+**Pour V2** : c'est exactement ce qu'un marqueur d'instrumentation réglerait en une minute. À
+trancher avec une mesure longue (plusieurs heures, échantillonnage à la minute) une fois V2 capable
+de journaliser ses phases.
+
 ## 7. Ce qui reste à mesurer
 
 Trois chiffres manquent, parce qu'ils demandent d'interagir avec l'app :
@@ -138,6 +164,19 @@ Trois chiffres manquent, parce qu'ils demandent d'interagir avec l'app :
 | Mémoire après défilement de toute la grille d'albums | protocole §3 de [`../tools/measure-app.sh`](../tools/measure-app.sh) |
 | Images par seconde du virtual scroll sur 3 443 pistes | demande un compteur de FPS dans l'app |
 | Temps de réponse de la recherche | demande une instrumentation dans l'app |
+
+### Tentative du 2026-11-21 à 10:56 — invalide
+
+Un échantillonnage de 90 s a été lancé, mais la courbe est **plate** (545 → 547 Mo de RSS,
+254 → 255 Mo de footprint, soit 2 Mo de variation sur 90 s) : **aucune navigation n'a eu lieu dans
+la fenêtre de mesure.**
+
+Cause : l'échantillonnage a démarré **en même temps** que l'envoi des consignes, donc la fenêtre de
+90 s a commencé avant qu'elles puissent être lues. Erreur de conception du protocole, pas de la
+mesure.
+
+**Correction du protocole** : celui qui navigue doit **démarrer lui-même** le script, pour contrôler
+le top départ. D'où le bloc de lancement ci-dessous.
 
 **Protocole** (à reproduire à l'identique sur V2) :
 
