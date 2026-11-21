@@ -16,7 +16,7 @@
 #   [ ] tests d'architecture              phase 0  (HARNAIS.md §2)
 #   [ ] couverture des invariants         phase 0  (HARNAIS.md §6)
 #   [ ] doc générée à jour                phase 0  (HARNAIS.md §9)
-#   [ ] budgets de performance            phase 5  (HARNAIS.md §8)
+#   [ ] budgets de performance            phase 5  (HARNAIS.md §8, chiffres de V1 à mesurer)
 #   [ ] régression visuelle               phase 4  (HARNAIS.md §7)
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
@@ -29,6 +29,7 @@ run "liens markdown"      python3 tools/check-links.py
 run "taille de CLAUDE.md" bash tools/check-claude-md.sh
 run "taille des fichiers" bash tools/check-sizes.sh
 run "skills"              bash tools/check-skills.sh
+run "poids & deps"        bash tools/check-weight.sh
 
 if [ "$FAST" -eq 0 ]; then
   if [ -f package.json ]; then

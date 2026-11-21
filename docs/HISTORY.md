@@ -19,3 +19,11 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   Ajout de `docs/DEMARRER.md` : 5 préalables avant de coder — dont **figer la cible de parité**, qui
   manquait au plan — la procédure de changement de modèle et le prompt de démarrage de la phase 0.
   Toujours aucun code applicatif. `./check` vert.
+- **2026-11-21** (suite 2) : question posée sur l'impact de la stack sur la promesse de légèreté.
+  Chiffres relevés sur V1 : frontend complet **960 Ko**, binaire Rust **16 Mo**, DMG **33 Mo** — le
+  frontend pèse donc ~1 % de l'app distribuée, et l'écart binaire/archive est fait des ~92 dylibs
+  Samba. Conclusion dans `docs/PERFORMANCE.md` : +~1 Mo (SQLite) moins ce que la minification fait
+  gagner, mémoire neutre à meilleure, audio strictement inchangé. Trois pièges identifiés
+  (réactivité sur 10 000 pistes, perte du pool de virtual scroll, **dérive npm**) ; les deux premiers
+  deviennent des règles dans `CLAUDE.md`, le troisième un garde-fou : `tools/check-weight.sh`
+  (budget `dist/` ≤ 600 Ko, ≤ 3 dépendances de production) branché dans `./check`.

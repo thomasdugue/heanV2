@@ -88,6 +88,20 @@ fichier [`check`](check), chacune annotée de sa phase.
 - **Toute donnée affichée passe par un échappement** (y compris les guillemets).
 - **Répondre toujours en français.**
 
+## Règles de performance (voir [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md))
+
+La promesse du produit est une app légère, peu gourmande, aux performances redoutables. Trois règles
+la protègent — les deux premières sont des pièges de Svelte 5, la troisième est le seul risque réel :
+
+1. **La bibliothèque n'est jamais réactive.** `$state.raw` (ou hors de tout état réactif) pour la
+   liste de pistes. La réactivité ne couvre que l'état d'UI : vue, tri, sélection, filtre. Envelopper
+   10 000 pistes dans des signaux multiplie la mémoire et le coût de chaque mutation.
+2. **Le virtual scroll reste explicite** : un pool fixe de 60 nœuds recyclés, item à 48 px,
+   délégation d'événements. C'est ce qui tient 60 fps sur 10 000+ pistes en V1 ; aucun framework ne
+   fera mieux en rendant 10 000 lignes.
+3. **Zéro dépendance npm de production sans ADR** — ce qu'elle apporte, son poids mesuré, pourquoi on
+   ne l'écrit pas à la main. V1 en avait zéro ; `./check` applique un budget.
+
 ## Invariants
 
 Source de vérité : `.claude/skills/hean-invariants/SKILL.md`. Résumé d'une ligne par règle ici.

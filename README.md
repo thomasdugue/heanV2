@@ -37,6 +37,7 @@ Puis, dans une session Claude Code ouverte sur ce dépôt :
 | `.claude/agents/` | `test-runner` (lance tout, résumé court) · `invariant-guardian` (relit un diff contre les invariants). |
 | `.claude/hooks/` | `invariant-reminder.sh` — propose d'ajouter une règle quand du code change sans que les invariants bougent. |
 | `docs/adr/` | Un fichier par décision, numéroté, immuable. |
+| `docs/PERFORMANCE.md` | Les chiffres réels de V1, l'impact de la stack sur poids/mémoire/vitesse, et les 3 règles qui protègent la promesse de légèreté. |
 | `docs/HISTORY.md` | Journal des sessions, une entrée par session, en bas. |
 | `tools/` | Les vérifications appelées par `./check`. |
 | `fixtures/` | Fixtures de test — notamment [`fixtures/audio/`](fixtures/audio/README.md), l'actif le plus réutilisable du projet. |
@@ -48,7 +49,9 @@ Puis, dans une session Claude Code ouverte sur ce dépôt :
 - **taille de `CLAUDE.md`** — ≤ 150 lignes *(leçon V1 : il avait fini par être tronqué à la lecture)* ;
 - **taille des fichiers source** — ≤ 400 lignes *(leçon V1 : `lib.rs` 4 870, `views.js` 3 512,
   `styles.css` 10 654 en un seul fichier)* ;
-- **skills** — frontmatter exploitable.
+- **skills** — frontmatter exploitable ;
+- **poids et dépendances** — budget sur `dist/` et sur les dépendances npm de production
+  *(V1 en avait zéro : pas de bundler, donc pas de porte d'entrée)*.
 
 La liste des vérifications à ajouter, dans l'ordre, est en commentaire en tête de
 [`check`](check) et spécifiée dans [`bootstrap/06-setup-v2/HARNAIS.md`](bootstrap/06-setup-v2/HARNAIS.md).
