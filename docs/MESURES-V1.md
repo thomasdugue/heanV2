@@ -283,3 +283,75 @@ Ce n'est pas « ajouter des logs ». C'est une règle de harnais, à poser en ph
    qui mérite Sentry.
 3. **Les compteurs d'une opération de masse sont journalisés en `warn!` si le taux d'échec dépasse un
    seuil.** « 0 généré, 8 échoués » n'aurait pas dû attendre sept mois et une session de mesure.
+
+## 9. L'extraction de couleur ambiante échoue à chaque page album
+
+Relevé dans la console du build de dev, sur **chaque** page album ouverte :
+
+```
+[Error] Unable to get image data from canvas because the canvas has been tainted by cross-origin data.
+    extractColorsFromImg (fullscreen-player.js:26)
+    applyAmbientFromImage (views.js:51)
+[Warning] [AMBIENT] extractColorsFromImg error: SecurityError: The operation is insecure.
+[Log] [AMBIENT] "Album: WE" — direct failed, trying base64 fallback
+[Log] [AMBIENT] "Album: WE" — base64 fallback OK
+```
+
+**Cause** : la pochette est servie par le protocole custom `noir://`, qui constitue une **origine
+différente** de celle de la page. Dessiner cette image dans un `<canvas>` le « teinte », et
+`getImageData()` lève une `SecurityError`. Le code rattrape, puis repasse par un **fallback base64**.
+
+**Pourquoi c'est plus qu'un message dans la console** : le protocole `noir://` a précisément été
+introduit pour remplacer le base64 sur l'IPC — le gain documenté est de **700 Mo à 60 Ko de tas pour
+1 000 albums**. Ici, le chemin nominal échoue systématiquement et le fallback **réintroduit le base64
+qu'on avait éliminé**, sur une image pleine résolution (~127 Ko), à chaque ouverture de page album.
+
+C'est une piste sérieuse pour les 155 Mo de la WebView (§4), au même titre que les thumbnails
+manquants (§5) — et comme eux, **c'était invisible en production** (§8).
+
+**Observation liée, à confirmer** : sur les captures `03-album-page.png` et `08-artiste-page.png`,
+les watermarks (« AIR », « PRINCE ») apparaissent en **gris**, alors que `DESIGN-SYSTEM.md` les
+décrit teintés par un gradient de deux couleurs extraites de la pochette. Le fallback base64 réussit
+pourtant. Reste à vérifier si la teinte est appliquée et très discrète, ou si elle ne l'est pas.
+
+**Correction pour V2**, deux options, la seconde étant la bonne :
+
+1. servir le protocole custom avec les en-têtes CORS qui vont bien et poser `crossorigin="anonymous"`
+   sur l'image ;
+2. **extraire les couleurs côté Rust, au scan**, et les stocker avec l'album. Le JS n'a alors plus
+   besoin ni de canvas, ni de l'image pleine résolution, ni de base64 — il reçoit six nombres.
+   L'extraction ne se refait plus à chaque affichage.
+
+## 10. 21 % de la bibliothèque est en double
+
+Visible dans les captures : la page album de *Moon Safari* affiche « 20 tracks » et liste chaque
+titre **deux fois** (`03-album-page.png`) ; la vue Tracks montre « 10 Feet Tall » de Fat Freddy's
+Drop deux fois de suite (`06-tracks.png`).
+
+Ce n'est **pas un bug d'affichage** — la bibliothèque contient vraiment ces entrées :
+
+| | |
+|---|---|
+| Doublons de **chemin exact** | **0** — l'invariant « un fichier = une entrée » tient |
+| Groupes (album + titre + n° de piste) présents plusieurs fois à des chemins différents | **342** |
+| Pistes concernées | **731**, soit **21 %** des 3 443 |
+| dont : le même album en local **et** sur le NAS | 259 groupes |
+| dont : doublons **réels sur le NAS**, deux fichiers au nommage différent | **83 groupes** |
+
+Les 259 premiers s'expliquent par le dossier `local Music Test/` de Thomas, qui recopie des albums
+présents sur le NAS : artefact de son installation, pas un bug. **Les 83 autres sont de vrais
+doublons** sur le NAS — par exemple `09 Brigas, nunca mais [feat. Tom Jobim].flac` et
+`09. Elis Regina & Tom Jobim - Brigas, nunca mais.flac`, le même morceau sous deux noms.
+
+**La question pour V2 est un choix de modèle, pas un correctif** : V1 pose « un fichier audio = une
+entrée en base », donc il n'a aucune notion de *morceau* distincte de *fichier*. Tant que ce sera le
+cas, un même morceau présent à deux endroits apparaîtra deux fois, et c'est défendable — c'est la
+vérité du disque. Mais une page album qui annonce 20 pistes pour un album qui en a 10 est fausse pour
+l'utilisateur.
+
+À trancher en phase 3 (modèle de données) : garde-t-on l'identité par chemin, en dédupliquant
+seulement à l'affichage d'un album ? Ou introduit-on un identifiant de morceau logique, avec N
+fichiers derrière, et le choix de la meilleure source à la lecture (le FLAC plutôt que le MP3, le
+local plutôt que le NAS) ? La seconde option est plus riche et c'est elle qui rend possible « jouer
+la meilleure version disponible » — mais elle demande une règle de correspondance, donc des faux
+positifs.

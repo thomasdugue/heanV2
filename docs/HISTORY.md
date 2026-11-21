@@ -101,3 +101,26 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   - **§6bis, la dérive mémoire** : un scan réseau de fond tourne bien (`[Network Scan] lofty FLAC
     fallback…`). Il n'était pas journalisé parce que c'est un `println!`. Ce n'était pas « rien
     n'indique un scan », c'était « rien n'est journalisé ».
+- **2026-11-21** (suite 8) : **la cible de parité a été lancée pour la première fois.** 8 captures
+  dans `bootstrap/02-design/reference/captures/`, avec leur index.
+
+  **Deux validations** : les `--glass-*` sont bien rétablies (bordures, survols et sidebar active
+  visibles — la régression de la PR #37 n'est pas dans la cible), et **DM Sans se charge**.
+  L'hypothèse « bloquée par la CSP » que j'avais posée le matin était **fausse** : le redesign v3
+  applique déjà Geist Mono au technique et DM Sans aux grands titres, exactement l'intention du
+  design system. Décision de Thomas : **davantage de DM Sans**, modification qu'il fait côté design
+  — donc la cible de parité changera et `adr/0004` sera remplacé.
+
+  **Trois défauts trouvés** :
+  - **§9, l'ambient casse à chaque page album.** `getImageData()` lève une `SecurityError` parce que
+    la pochette vient du protocole `noir://`, origine différente → canvas teinté. Le code retombe sur
+    un **fallback base64**, c'est-à-dire exactement ce que `noir://` avait été introduit pour
+    supprimer (700 Mo → 60 Ko de tas). Piste sérieuse pour les 155 Mo de la WebView. Correction
+    proposée : extraire les couleurs côté Rust au scan.
+  - **§10, 21 % de la bibliothèque est en double** : 342 groupes, 731 pistes, dont 83 groupes de
+    vrais doublons sur le NAS (même morceau, deux nommages). Zéro doublon de chemin exact : c'est un
+    choix de modèle, pas un bug. À trancher en phase 3.
+  - La première vignette de la grille d'albums déborde de sa carte.
+
+  Ces trois-là étaient visibles **en trente secondes d'usage**. Elles ne l'étaient pas en production,
+  pour la raison du §8.

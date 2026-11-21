@@ -124,7 +124,36 @@ noir: https://tauri.localhost`). La feuille Google Fonts et les `.woff2` de `fon
 devraient donc être **bloqués par la CSP** dans l'app packagée, et les 7 règles `--font-sans`
 tomberaient sur `-apple-system`, c'est-à-dire **San Francisco**.
 
-**Non vérifié visuellement** (il faut lancer l'app et regarder la console + la police calculée).
+### ✅ Vérifié le 2026-11-21 au soir — et l'hypothèse ci-dessus était fausse
+
+L'app a été lancée sur la cible de parité et capturée. **DM Sans se charge.** Les captures le
+montrent sans ambiguïté :
+
+| Ce qui est en **DM Sans** | Ce qui est en **Geist Mono** |
+|---|---|
+| « WE », « Recently Added », « Moon Safari », « Albums », « Artists », « Tracks », « Prince », « Details » | l'eyebrow `● HEAN · 21 NOV · 06:51 PM`, les libellés des cellules hallmark, les noms de colonnes, les durées, les badges de qualité, les raccourcis clavier |
+
+Autrement dit : **l'intention du design system est réalisée dans le redesign v3** — Geist Mono pour
+le corps et le technique, DM Sans pour l'affichage. C'est ce que `main` ne faisait que sur 7 règles.
+
+Deux réserves qui subsistent :
+
+1. **Vérifié en dev seulement.** Le mode développement peut assouplir la CSP. À reconfirmer sur un
+   build release packagé avant de considérer la question close.
+2. **La police vient toujours de Google Fonts.** Même si ça marche, une police ne doit pas dépendre
+   du réseau : latence au lancement, et une requête vers Google à chaque démarrage, incohérente avec
+   le `send_default_pii: false` de Sentry. **En V2, DM Sans s'embarque en `@font-face` local**, comme
+   Geist Mono — c'est non négociable, indépendamment du reste.
+
+### 🎯 Décision de Thomas, 2026-11-21 : **davantage de DM Sans**
+
+La direction est prise : élargir la part de DM Sans au-delà de ce que fait le redesign v3. Thomas
+fait la modification lui-même, côté design.
+
+**Conséquence à anticiper** : quand cette passe de design atterrira, **la cible de parité changera**.
+[`../../docs/adr/0004`](../../docs/adr/0004-cible-de-parite.md) devra être remplacé par un nouvel ADR
+pointant sur le commit correspondant, et `reference/styles.css`, `reference/views.js` et `tokens.css`
+réextraits depuis lui. La méthode est écrite, elle est rejouable.
 C'est la première chose à vérifier. Dans tous les cas, deux problèmes à corriger en V2 :
 1. une police ne doit pas dépendre du réseau (appel à Google à chaque lancement = latence + fuite
    d'IP, incohérent avec le `send_default_pii: false` de Sentry) ;

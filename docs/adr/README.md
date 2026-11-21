@@ -22,7 +22,8 @@ conclusion.
 
 | Sujet | Bloque | Où c'est documenté |
 |---|---|---|
-| Typographie — Geist Mono partout, ou + DM Sans embarquée en local | phase 4 | [`../../bootstrap/02-design/ECARTS-DESIGN.md`](../../bootstrap/02-design/ECARTS-DESIGN.md) §2. L'échelle de tailles, elle, est tranchée par [`0004`](0004-cible-de-parite.md). |
+| **Nouvelle cible de parité** après la passe « davantage de DM Sans » que Thomas fait côté design | phase 4 | Remplacera [`0004`](0004-cible-de-parite.md). Vérifié le 2026-11-21 : DM Sans **se charge** et le redesign v3 l'applique déjà aux grands titres ; la direction est d'élargir sa part. Méthode de réextraction : [`../../bootstrap/02-design/ECARTS-DESIGN.md`](../../bootstrap/02-design/ECARTS-DESIGN.md) §2. |
+| Identité d'une piste : par chemin de fichier, ou morceau logique avec N fichiers ? | phase 3 | 21 % de la bibliothèque est en double — [`../MESURES-V1.md`](../MESURES-V1.md) §10 |
 | Régime de V1 pendant la reconstruction (gel / hotfix seulement / évolution) | rien | [`0004`](0004-cible-de-parite.md) — la cible, elle, est tranchée |
 | WiFi Sync dans le périmètre de V2, et à quelle phase | rien | [`../../bootstrap/05-postmortem/chantier-wifi-sync/README.md`](../../bootstrap/05-postmortem/chantier-wifi-sync/README.md) |
 | V2 = mise à jour de V1 (même bundle identifier) ou app distincte | phase 7 | [`0003`](0003-dossier-de-donnees.md) |
