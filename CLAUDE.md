@@ -9,6 +9,13 @@
 > un skill. (Leçon V1 : le `CLAUDE.md` était devenu trop gros pour être lu intégralement, et
 > l'historique des sessions a dû en être extrait.)
 
+## Décisions
+
+Toute décision structurante va dans [`docs/adr/`](docs/adr/) — un fichier numéroté, immuable, avec le
+contexte, les alternatives écartées **et pourquoi**. On ne modifie pas un ADR : on en écrit un nouveau
+qui le remplace. Leçon V1 : les « décisions actées » s'accumulaient dans un skill, on y perdait le
+*pourquoi*, donc la règle finissait par être supprimée par quelqu'un qui la trouvait arbitraire.
+
 ## Projet
 
 **heanV2** — réécriture de Hean, lecteur de musique audiophile macOS. Objectif : **même design, même
@@ -17,16 +24,26 @@ feature set** que Hean v0.2.0-beta.1, sur une base technique saine.
 Référence de parité : `heanv2-bootstrap/01-produit/FEATURE-SET.md` (liste à cocher).
 Postmortem de V1 : `heanv2-bootstrap/05-postmortem/DETTE-TECHNIQUE-V1.md`.
 
-## Stack
+## Stack — tranchée le 2026-11-21 (ADR [0002](docs/adr/0002-stack-technique.md), [0003](docs/adr/0003-dossier-de-donnees.md))
 
-⟦À TRANCHER⟧
-- Framework : Tauri v2 (décidé, ne se rouvre pas)
-- Backend : Rust (décidé)
-- Audio : CoreAudio direct via `coreaudio-rs` + `coreaudio-sys` — **jamais CPAL** (décidé)
-- Frontend : ⟦TypeScript strict + ? (Svelte / Solid / Lit / vanilla + Vite)⟧
-- IPC : ⟦tauri-specta (types générés) ?⟧
-- Store bibliothèque : ⟦SQLite via rusqlite ?⟧
-- Dossier de données : ⟦`~/Library/Application Support/hean/` + migration depuis `noir/` ?⟧
+| | Choix | Pourquoi, en une ligne |
+|---|---|---|
+| Framework | **Tauri v2** | démontré en production |
+| Backend | **Rust** | idem |
+| Audio | **CoreAudio direct** (`coreaudio-rs` + `coreaudio-sys`) — **jamais CPAL** | seul chemin vers le bit-perfect et le hog mode |
+| Frontend | **TypeScript strict + Vite** | cause racine n°1 de V1 : 16 076 lignes de JS sans types |
+| UI | **Svelte 5 (runes)** | compilé, CSS scopé, remplace l'état partagé par référence |
+| IPC | **tauri-specta** (types générés depuis le Rust) | un renommage de commande casse la compilation du front |
+| Store bibliothèque | **SQLite** (`rusqlite`, `bundled`) | transactions → 4 invariants bloquants disparaissent |
+| Dossier de données | **`~/Library/Application Support/hean/`** + migration one-shot depuis `noir/` | nom cohérent, testeurs préservés |
+
+**Svelte 5 uniquement.** Les runes (`$state`, `$derived`, `$effect`) et non les stores Svelte 4
+(`writable`, `$:`). Beaucoup d'exemples en ligne sont encore en Svelte 4 : si un doute, vérifier la
+doc officielle Svelte 5, ne pas mélanger les deux syntaxes.
+
+**Reste à trancher** : la typographie (Geist Mono partout, comme le fait V1, ou Geist Mono +
+DM Sans embarquée pour les grands titres). Décision reportée jusqu'à vérification sur V1 — rien en
+phase 0 n'en dépend. Voir [`bootstrap/02-design/ECARTS-DESIGN.md`](bootstrap/02-design/ECARTS-DESIGN.md) §2.
 
 ## Skills — quoi charger avant de travailler
 
@@ -46,16 +63,16 @@ Historique des sessions : `docs/HISTORY.md` — **une entrée par session, en ba
 
 ## Commands
 
-⟦À REMPLIR⟧
-
 ```bash
-# dev
-# type-check
-# lint
-# tests frontend
-# tests Rust
-# release signée + notarisée
+./check            # TOUT : liens, tailles, skills, types, tests. Identique en local et en CI.
+./check --fast     # seulement les vérifications rapides (pre-commit)
 ```
+
+`./check` est le point d'entrée **unique**. Quand une vérification manque, on l'ajoute dedans — on ne
+crée pas une deuxième commande. La liste de ce qui reste à y brancher est en commentaire en tête du
+fichier [`check`](check), chacune annotée de sa phase.
+
+⟦À REMPLIR au fur et à mesure : dev, release signée + notarisée⟧
 
 ## Architecture
 

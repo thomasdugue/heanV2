@@ -59,21 +59,22 @@ Tauri v2 + Rust · CoreAudio direct (**jamais** CPAL) · bit-perfect sans resamp
 uniquement · hors Mac App Store (aucun entitlement sandbox n'existe pour l'accès exclusif à un device
 de sortie) · distribution directe, licence perpétuelle.
 
-## À trancher en phase 0
+## Stack tranchée
 
-Langage frontend · framework UI · IPC typée générée · store de bibliothèque · nom du dossier de
-données · typographie. Les options et mes recommandations sont dans
-[`bootstrap/06-setup-v2/PLAN-DE-RECONSTRUCTION.md`](bootstrap/06-setup-v2/PLAN-DE-RECONSTRUCTION.md).
+**TypeScript strict + Vite · Svelte 5 (runes) · tauri-specta · SQLite · données dans `hean/`**
+— avec Tauri v2, Rust et CoreAudio direct qui ne se rouvrent pas.
+Le raisonnement et les alternatives écartées : [`docs/adr/`](docs/adr/).
 
-## Deux choses à faire avant d'écrire du code
+Reste ouvert : la typographie, et quatre points listés dans [`docs/adr/README.md`](docs/adr/README.md).
 
-1. **Capturer V1 visuellement** — aucune capture d'écran n'existe. Sans elles, « le design à
-   l'identique » n'est pas vérifiable. → `bootstrap/02-design/reference/captures/`
-2. **Mesurer V1** — démarrage avec 10 000 pistes, images par seconde du virtual scroll, mémoire après
-   1 000 covers, temps de recherche. Sinon les budgets de performance du harnais seront des souhaits
-   au lieu de faits.
+## Avant d'écrire du code
 
-Dans les deux cas : V1 est la seule référence, et elle ne sera plus dans le même état plus tard.
+**[`docs/DEMARRER.md`](docs/DEMARRER.md)** — cinq préalables (figer la cible de parité, capturer V1,
+le mesurer, vérifier la typographie, rapatrier les secrets), comment changer de modèle, et le prompt
+de démarrage de la phase 0 prêt à coller.
+
+Le préalable le plus important n'est pas technique : **figer la cible**. Si V1 continue d'évoluer
+pendant la reconstruction, la parité est une cible mobile et le travail ne se termine jamais.
 
 ---
 
