@@ -37,15 +37,25 @@ puisque le travail de design sur V1 est arrêté depuis octobre :
 | **Hotfix critiques seulement** (crash, perte de données) | Raisonnable. Chaque hotfix s'ajoute explicitement au contrat de parité comme une ligne supplémentaire. **L'auto-updater cassé entre dans cette catégorie** : aucun testeur n'a jamais reçu de mise à jour ([`MESURES-V1.md`](MESURES-V1.md) §6). |
 | **V1 continue d'évoluer** | À éviter. La cible bouge, et le travail de parité est à refaire en continu. |
 
-### A2. Capturer la cible visuellement 🔴 **bloquant**
+### A2. Capturer la cible visuellement 🟠 ~~bloquant~~ — **fait pour la validation, en pause pour la référence**
 
-**Aucune capture d'écran n'existe** — et le design de référence **n'a jamais été validé
-visuellement**. Le corps de la PR #37 le dit noir sur blanc : *« l'agent ne peut pas lancer l'app
-Tauri […] le rendu visuel est à confirmer sur ton Mac »*. La migration d'octobre n'a pas été lancée
-non plus.
+**Le 2026-11-21 à 18 h 51, la cible a été lancée pour la première fois.** Huit captures :
+[`../bootstrap/02-design/reference/captures/`](../bootstrap/02-design/reference/captures/README.md).
 
-Ces captures sont donc deux choses à la fois : la référence de V2, et **la première fois que
-quiconque regarde la cible de parité**. C'est pour ça que c'est bloquant et pas seulement important.
+Ces captures avaient deux rôles. **Le premier est rempli** : la cible est validée — les `--glass-*`
+sont bien rétablies, DM Sans se charge, la structure du redesign v3 tient. Et trois défauts ont été
+trouvés au passage (`MESURES-V1.md` §9 et §10).
+
+**Le second — servir de référence visuelle à V2 — est en pause**, volontairement : Thomas fait une
+passe « davantage de DM Sans » côté design, qui changera la typographie de tous les écrans. La série
+sera reprise **en entier** après, et la cible de parité changera avec elle (nouvel ADR remplaçant
+`0004`).
+
+**Ce que ça débloque** : plus rien n'attend. La phase 0 ne touche pas au design — socle, `./check`,
+tests d'architecture, tri des invariants, traduction des 24 comportements en tests. Elle peut
+démarrer pendant la passe de design.
+
+Ce qui suit reste valable pour reprendre la série.
 
 ⚠️ **À prendre sur le bon commit.** Pas sur l'app installée, pas sur `main` : sur `e12a200`.
 

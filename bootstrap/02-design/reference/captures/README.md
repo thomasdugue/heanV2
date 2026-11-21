@@ -35,11 +35,20 @@ Chemins de bibliothèque avec le nom d'utilisateur, nom d'hôte du NAS, noms de 
 réel de la bibliothèque. **Ce dépôt est privé — il doit le rester**, ou ces captures doivent être
 retirées avant toute ouverture.
 
-## Ce qui manque encore
+## ⏸ La série est en pause, pas abandonnée — décidé le 2026-11-21
 
-Fullscreen player, fullscreen lyrics, panneaux Queue / Track Info / EQ / Lyrics, modals (playlist,
-feedback, bulk edit, découverte NAS, confirm), les 6 étapes d'onboarding, la sidebar repliée sous
-900 px, le module d'indexation en cours, et la player bar en gros plan avec l'ambient glow.
+Il manque : fullscreen player, fullscreen lyrics, panneaux Queue / Track Info / EQ / Lyrics, modals
+(playlist, feedback, bulk edit, découverte NAS, confirm), les 6 étapes d'onboarding, la sidebar
+repliée sous 900 px, le module d'indexation en cours, et la player bar en gros plan avec l'ambient
+glow.
+
+**Elles attendent volontairement la passe « davantage de DM Sans »** que Thomas fait côté design : la
+typographie change sur tous ces écrans, les capturer maintenant reviendrait à les refaire. Les huit
+captures existantes suffisent à ce dont on avait besoin aujourd'hui — valider la cible.
+
+**Quand la passe aura atterri** : réextraire `styles.css` / `views.js` / `tokens.css` depuis le
+nouveau commit, écrire l'ADR qui remplace `0004`, puis **reprendre la série en entier** (les huit
+d'aujourd'hui comprises, puisqu'elles auront vieilli).
 
 La liste complète et l'ordre sont dans
 [`../../../../docs/PROTOCOLE-CAPTURES.md`](../../../../docs/PROTOCOLE-CAPTURES.md).

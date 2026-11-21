@@ -124,3 +124,9 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
 
   Ces trois-là étaient visibles **en trente secondes d'usage**. Elles ne l'étaient pas en production,
   pour la raison du §8.
+- **2026-11-21** (suite 9) : série de captures **mise en pause**, décision de Thomas. La typographie
+  va changer sur tous les écrans avec sa passe « davantage de DM Sans » ; les capturer maintenant
+  reviendrait à les refaire. Les huit existantes remplissent le rôle qui comptait aujourd'hui —
+  valider la cible. Le préalable A2 passe donc de **bloquant** à **en pause** : plus rien n'attend,
+  et la phase 0 (socle, `./check`, tests d'architecture, tri des invariants, 24 comportements en
+  tests) ne touche pas au design — elle peut démarrer pendant la passe.
