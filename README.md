@@ -37,6 +37,7 @@ Puis, dans une session Claude Code ouverte sur ce dépôt :
 | `.claude/agents/` | `test-runner` (lance tout, résumé court) · `invariant-guardian` (relit un diff contre les invariants). |
 | `.claude/hooks/` | `invariant-reminder.sh` — propose d'ajouter une règle quand du code change sans que les invariants bougent. |
 | `docs/adr/` | Un fichier par décision, numéroté, immuable. |
+| `docs/MESURES-V1.md` | Les mesures de référence de V1 : échelle de la bibliothèque, démarrage, mémoire par processus, et deux bugs trouvés en mesurant. |
 | `docs/PERFORMANCE.md` | Les chiffres réels de V1, l'impact de la stack sur poids/mémoire/vitesse, et les 3 règles qui protègent la promesse de légèreté. |
 | `docs/HISTORY.md` | Journal des sessions, une entrée par session, en bas. |
 | `tools/` | Les vérifications appelées par `./check`. |

@@ -94,3 +94,18 @@ Ces trois-là ne figuraient pas dans le document ci-dessus (écrit le 2026-04-26
   `kAudioObjectPropertyManufacturer` (purement informatif).
 - `src-tauri/src/audio/coreaudio_backend.rs:1131` — **listeners CoreAudio pour le hot-plug** :
   actuellement on fait du polling au lieu de réagir aux événements système. À faire proprement en V2.
+
+## Addendum 2 (2026-11-21) — trouvés en mesurant V1
+
+- 🔴 **L'auto-updater n'a jamais fonctionné.** L'endpoint
+  `https://github.com/thomasdugue/noirdesktop/releases/latest/download/latest.json` renvoie
+  **HTTP 404** : la seule release est une *prerelease*, et `/releases/latest` de GitHub ignore les
+  prereleases. 23 erreurs dans les logs. Aucun beta-testeur n'a pu recevoir de mise à jour depuis le
+  lancement du 2026-05-01.
+- 🟠 **Le nettoyage de `smb_buffer` ne nettoie pas.** 607 Mo de fichiers temporaires du 29 octobre
+  encore présents après un lancement de l'app (commit `eaee676` censé les supprimer au démarrage).
+- 🟠 **Le cache de thumbnails couvre 11 % des covers** (247 miniatures pour 2 173 covers) :
+  `get_cover_thumbnail` renvoie `null` la plupart du temps et c'est la cover pleine résolution
+  (~127 Ko) qui est décodée pour afficher une vignette.
+
+Détail et méthode : [`../../docs/MESURES-V1.md`](../../docs/MESURES-V1.md).

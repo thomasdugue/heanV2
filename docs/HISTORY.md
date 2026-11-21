@@ -27,3 +27,13 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   (réactivité sur 10 000 pistes, perte du pool de virtual scroll, **dérive npm**) ; les deux premiers
   deviennent des règles dans `CLAUDE.md`, le troisième un garde-fou : `tools/check-weight.sh`
   (budget `dist/` ≤ 600 Ko, ≤ 3 dépendances de production) branché dans `./check`.
+- **2026-11-21** (suite 3) : V1 mesurée. Bibliothèque de référence : **3 443 pistes, 336 albums,
+  91 % sur NAS, 97 % FLAC**, dossier de données de 889 Mo. Démarrage « prêt » **2,8 s** (processus
+  visible à 90 ms). Mémoire au repos sur l'accueil : **235 Mo de footprint** (WebView 155, natif 53,
+  GPU 20, réseau 7) pour **433 Mo de RSS cumulé**. Méthode outillée dans `tools/measure-app.sh` +
+  `tools/webkit-pids.py` pour que V2 soit mesurée à l'identique. Budgets remplis dans
+  `docs/PERFORMANCE.md`, rapport dans `docs/MESURES-V1.md`. Trois chiffres manquent (FPS, mémoire
+  après défilement, recherche) : ils demandent une instrumentation dans l'app → à poser en phase 0.
+  **Trois bugs V1 trouvés en mesurant** : l'auto-updater renvoie 404 depuis le lancement (prerelease
+  + `/releases/latest`), le nettoyage de `smb_buffer` laisse 607 Mo, et le cache de thumbnails ne
+  couvre que 11 % des covers.

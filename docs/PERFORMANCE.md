@@ -116,23 +116,32 @@ Toute dépendance de production supplémentaire demande un **ADR** : ce qu'elle 
 mesuré, et pourquoi on ne l'écrit pas à la main. C'est volontairement contraignant — c'est le prix de
 la promesse.
 
-## Les budgets de performance restent à mesurer sur V1
+## Les budgets, mesurés sur V1
 
-Ce document traite du **poids**. Les budgets de **vitesse** sont encore vides parce que V1 n'a pas été
-mesuré. C'est le préalable A3 de [`DEMARRER.md`](DEMARRER.md), et cette question le fait passer de
-« phase 5 » à « maintenant » : sans les chiffres de V1, on ne pourra pas prouver que V2 ne régresse
-pas.
+V1 a été mesuré le 2026-11-21 avec [`../tools/measure-app.sh`](../tools/measure-app.sh) — le même
+script devra servir pour V2, sinon les chiffres ne sont pas comparables. Rapport complet,
+observations et deux bugs trouvés au passage : [`MESURES-V1.md`](MESURES-V1.md).
 
-À mesurer sur V1, avec la vraie bibliothèque, et à reporter dans
-[`../bootstrap/06-setup-v2/HARNAIS.md`](../bootstrap/06-setup-v2/HARNAIS.md) §8 :
+**Le constat qui change la perspective** : la WebView consomme **155 Mo de footprint contre 53 Mo
+pour le natif** — alors que le frontend ne pèse que 960 Ko sur disque. Le gros de la mémoire est dans
+le DOM, le heap JS et les bitmaps de covers décodés, pas dans le code. Et à 235 Mo au repos sur la
+seule vue d'accueil, « très light » est un objectif à atteindre en V2, pas seulement un acquis à
+préserver.
 
-| Mesure | V1 | Budget V2 |
+| Mesure | V1 (mesuré 2026-11-21) | Budget V2 |
 |---|---|---|
-| Démarrage jusqu'à UI utilisable | à mesurer | ≤ V1 |
-| Images par seconde du virtual scroll | 60 attendu | 60 |
-| Mémoire après ~1 000 covers défilées | à mesurer | ≤ V1 |
-| Recherche sur la bibliothèque complète | < 16 ms (documenté) | < 16 ms |
+| Processus visible | 90 ms | ≤ 150 ms |
+| Démarrage « prêt » (plateau RSS + CPU) | **2,8 s** | ≤ 2,8 s |
+| Mémoire au repos, accueil — footprint | **235 Mo** | **≤ 200 Mo** (on veut mieux, pas égal) |
+| dont WebView (`WebKit.WebContent`) | **155 Mo** | ≤ 120 Mo |
+| dont natif (`noir-tauri`) | 53 Mo | ≤ 70 Mo (SQLite en plus) |
+| Mémoire après défilement complet des albums | non mesuré | ≤ V1 |
+| Images par seconde du virtual scroll | non mesuré | 60 |
+| Recherche sur la bibliothèque complète | non mesuré (< 16 ms documenté) | < 16 ms |
 | Poids du DMG | 33 Mo | ≤ 35 Mo |
+
+Bibliothèque de référence : **3 443 pistes, 336 albums, 91 % sur NAS, 97 % FLAC**. Détail complet,
+méthode et observations : [`MESURES-V1.md`](MESURES-V1.md).
 
 ## Conclusion
 
