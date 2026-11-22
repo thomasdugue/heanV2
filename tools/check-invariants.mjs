@@ -5,7 +5,8 @@
 //   - chaque invariant a une pile, une gravité, une couverture et un pourquoi ;
 //   - un invariant qui annonce un test doit être cité par un test qui existe ;
 //   - un test qui cite un invariant disparu échoue ;
-//   - les compteurs du tableau du skill doivent correspondre à la réalité.
+//   - les compteurs du tableau du skill doivent correspondre à la réalité ;
+//   - les comptes que CLAUDE.md réclame en prose doivent correspondre à la même réalité.
 //
 // Une couverture « planifiée (phase N) » est une dette ASSUMÉE et VISIBLE : le script la
 // compte et l'affiche, il ne la cache pas. C'est la porte de sortie explicite.
@@ -62,6 +63,10 @@ const parcourir = (d) => {
 };
 parcourir(join(RACINE, 'tests'));
 parcourir(join(RACINE, 'src-tauri/src'));
+// `src-tauri/tests/` : même angle mort que celui trouvé sur INV-21 dans `backend.test.ts`.
+// Tant que ce dossier ne contenait qu'un fichier, il ne se voyait pas ; une règle citée là y
+// aurait été invisible, donc déclarée orpheline à tort au moment de la brancher sur un test.
+parcourir(join(RACINE, 'src-tauri/tests'));
 
 for (const id of citations.keys()) {
   if (!invariants.has(id)) erreurs.push(`${id} : cité par un test mais absent de ${SKILL} (test orphelin)`);
@@ -86,7 +91,7 @@ for (const pile of PILES) {
 
 // --- 4. les comptes que CLAUDE.md RÉCLAME ---------------------------------------------
 // CLAUDE.md est lu en entier à chaque session : un compte faux y est lu par tout le monde.
-// Ces quatre nombres étaient au niveau « réclamé » — ils sont devenus faux à la minute où
+// Ces cinq nombres étaient au niveau « réclamé » — ils sont devenus faux à la minute où
 // INV-22 est née. C'est exactement la dérive que la section 3 interdit déjà au skill
 // (ADR 0005 : tout défaut repart avec la vérification qui l'aurait vu).
 const claudeMd = readFileSync(join(RACINE, 'CLAUDE.md'), 'utf8');

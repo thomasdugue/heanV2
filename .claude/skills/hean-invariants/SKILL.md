@@ -233,19 +233,26 @@ dette **visible**, que `./check` recompte à chaque passage.
 - pile : test
 - gravité : 🔴 BLOQUANT
 - couverture : planifiée (phase 5) — contrôle hors décodeur : durée annoncée par le conteneur contre trames réellement rendues
-- pourquoi : **règle née le 2026-11-22 d'une mesure**, et **classée 🔴 BLOQUANT par Thomas**
-  le même jour. Sur les trois façons dont un fichier audio s'abîme dans la vraie vie, **une
-  seule produit une erreur** : un en-tête STREAMINFO incohérent. Des trames abîmées sont
-  sautées en silence — **un seul octet suffit à faire disparaître 4 608 trames**, un dixième
-  de seconde de musique — et un fichier tronqué, c'est-à-dire la copie interrompue depuis le
-  NAS, joue simplement plus court. Le `README` des fixtures de phase 0 affirmait l'inverse
-  (« doit produire une erreur propre ») : la mesure l'a démenti, et personne ne pouvait le
-  savoir avant d'essayer. La gravité ne vient pas de la perte, elle vient de son silence —
-  même raisonnement que pour INV-21 : un défaut qui se voit se répare, un défaut invisible se
-  propage. **« Ça s'est décodé » ne prouvera jamais « le fichier est entier. »** La prémisse
-  est déjà épinglée par les trois tests de `decodage.rs`, qui citent la règle : si une mise à
-  jour de symphonia se mettait à signaler ces cas, ils échoueraient — et cet échec serait la
-  bonne nouvelle.
+- pourquoi : **règle née le 2026-11-22 d'une mesure**, et **classée 🔴 BLOQUANT par Thomas
+  le 2026-11-22** — classée, pas « bloquante par défaut » : une règle classée avec son
+  pourquoi ne se rediscute pas. Sur les trois façons dont un fichier audio s'abîme dans la
+  vraie vie, **une seule produit une erreur** : un en-tête STREAMINFO incohérent. Des trames
+  abîmées sont sautées en silence — **un seul octet suffit à faire disparaître 4 608 trames**,
+  un dixième de seconde de musique — et un fichier tronqué, c'est-à-dire la copie interrompue
+  depuis le NAS, joue simplement plus court. Le `README` des fixtures de phase 0 affirmait
+  l'inverse (« doit produire une erreur propre ») : la mesure l'a démenti, et personne ne
+  pouvait le savoir avant d'essayer.
+  **Le raisonnement de Thomas** : ce qui est en jeu n'est pas un désagrément, c'est **perdre
+  de la musique sans le savoir**. Un testeur dont la bibliothèque NAS s'est mal recopiée
+  écoutera des morceaux tronqués **en croyant écouter le master** — et ne signalera rien,
+  puisqu'il n'y a rien à voir. C'est la suite de son raisonnement sur INV-21 : un défaut qui
+  se voit se répare, un défaut invisible se propage. Et la règle ne coûte presque rien à
+  tenir : vérifier l'intégrité à côté du décodage, c'est quelques lignes.
+  **« Ça s'est décodé » ne prouvera jamais « le fichier est entier. »** La prémisse, elle, est
+  déjà épinglée par les trois tests de `decodage.rs` — la section qui les porte cite la règle,
+  et le parcours des citations couvre désormais `src-tauri/tests/`. Si une mise à jour de
+  symphonia se mettait à signaler ces cas, ces tests échoueraient : cet échec serait la bonne
+  nouvelle.
 
 ---
 

@@ -285,8 +285,8 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     contrôle d'intégrité hors décodeur viendra avec le NAS ; les trois tests de `decodage.rs`
     n'épinglent que la prémisse, et la citent désormais. Le raisonnement de Thomas est celui
     d'INV-21 : ce n'est pas la perte qui est grave, c'est son silence.
-  - **Le compte des invariants réclamé par `CLAUDE.md` est devenu une vérification.** Quatre
-    nombres y sont lus à chaque session (total, et une par pile, plus les « planifiées ») ; ils sont
+  - **Le compte des invariants réclamé par `CLAUDE.md` est devenu une vérification.** Cinq
+    nombres y sont lus à chaque session (le total, un par pile, et les « planifiées ») ; ils sont
     devenus faux à la minute où INV-22 est née. `check-invariants.mjs` les confronte maintenant à la
     réalité du skill, comme il le faisait déjà pour le tableau de tri — deux mutations le
     confirment. C'est le défaut exact que ce fichier reproche à V1 : « un compte annoncé faux dans

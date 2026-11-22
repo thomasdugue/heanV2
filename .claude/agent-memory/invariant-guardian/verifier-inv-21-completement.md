@@ -1,17 +1,24 @@
 ---
 name: verifier-inv-21-completement
-description: Le test d'architecture qui protège INV-21 ne scanne que src-tauri/src — les tests d'intégration de src-tauri/tests/ y échappent, il faut les grepper à la main en relecture
+description: Angle mort d'INV-21 refermé le 2026-11-22 — le test d'architecture scanne désormais src-tauri/src ET src-tauri/tests ; garder le grep manuel pour les dossiers hors scope
 metadata:
   type: reference
 ---
 
-`tests/architecture/backend.test.ts` applique INV-21 (aucun `println!` / `eprintln!` /
-`dbg!`) via `sources('src-tauri/src', ['.rs'])`. Deux conséquences pour une relecture :
+> **Mise à jour du 2026-11-22 (commit `4769020`)** : le trou décrit ci-dessous est
+> **refermé**. `backend.test.ts` scanne maintenant `src-tauri/src` **et** `src-tauri/tests`
+> (constante `RUST`), et la mutation le confirme — un `println!` ajouté dans `decodage.rs`
+> fait rougir le test. Le reste de la fiche garde sa valeur : il dit *pourquoi* le trou
+> existait, et la méthode reste bonne pour tout dossier non scanné.
 
-- Les modules `#[cfg(test)]` **dans** `src-tauri/src/**` sont bien couverts.
-- Les **tests d'intégration** de `src-tauri/tests/*.rs` ne le sont **pas**. Un `println!`
-  y passerait `./check` au vert.
-- `src-tauri/build.rs` est volontairement hors scope (ses `println!("cargo::…")` sont le
+`tests/architecture/backend.test.ts` applique INV-21 (aucun `println!` / `eprintln!` /
+`dbg!`). À l'origine il ne lisait que `sources('src-tauri/src', ['.rs'])` :
+
+- Les modules `#[cfg(test)]` **dans** `src-tauri/src/**` étaient bien couverts.
+- Les **tests d'intégration** de `src-tauri/tests/*.rs` ne l'étaient **pas** — un `println!`
+  y passait `./check` au vert. Tant que ce dossier n'avait qu'un fichier, le trou ne se
+  voyait pas. Couvert depuis.
+- `src-tauri/build.rs` reste volontairement hors scope (ses `println!("cargo::…")` sont le
   protocole de Cargo).
 
 Donc, à chaque diff qui ajoute des tests Rust :
@@ -25,6 +32,7 @@ crate : la cible `export_bindings` réécrit `src/ipc/bindings.ts` (voir
 [[verifier-le-garde-fou-des-secrets]]).
 
 **Why:** relecture de la phase 1 (moteur audio vérifiable) le 2026-11-22 — il fallait
-prouver INV-21 « y compris dans les tests du crate », et le mécanisme ne le couvre pas.
-**How to apply:** ne jamais conclure « INV-21 OK » sur la seule foi du test
-d'architecture quand le diff touche `src-tauri/tests/`.
+prouver INV-21 « y compris dans les tests du crate », et le mécanisme ne le couvrait pas.
+**How to apply:** le mécanisme couvre désormais les deux dossiers, donc le test
+d'architecture suffit pour eux. La leçon qui reste : une règle n'est tenue que là où le
+garde-fou regarde, et ce périmètre se vérifie au lieu de se supposer.
