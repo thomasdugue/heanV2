@@ -1,7 +1,7 @@
 //! LE SEUL module qui lit un secret compile-time.
 //!
 //! `option_env!()` n'apparaît nulle part ailleurs dans le crate — vérifié par
-//! tests/architecture/secrets-un-seul-module.test.ts. Le garde-fou de build.rs est inclus
+//! tests/architecture/backend.test.ts. Le garde-fou de build.rs est inclus
 //! ici : en profil release sans secrets, la ligne suivante devient un `compile_error!()`.
 
 include!(concat!(env!("OUT_DIR"), "/secrets_guard.rs"));

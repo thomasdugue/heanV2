@@ -199,3 +199,14 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   - Décisions actées : **ADR [0006](adr/0006-socle-et-harnais-de-phase-0.md)**. Le bloc `updater`
     de V1 n'est **pas** repris : son endpoint renvoie 404 depuis le lancement, il reviendra en
     phase 6 avec la vérification qui l'aurait vu.
+  - **`invariant-guardian` : AVERTISSEMENT**, un défaut réel — `secrets.rs` et `client.ts`, les deux
+    fichiers les plus sensibles du socle, annonçaient être « vérifiés par » des fichiers de test
+    renommés en cours de route. La règle était tenue, mais ailleurs : quelqu'un venant vérifier
+    aurait trouvé un fichier absent et conclu « pas de test », puis aurait pu supprimer la règle.
+    Corrigé, **et** la vérification qui l'aurait vu est ajoutée (`references-de-tests.test.ts` :
+    tout chemin `tests/…` cité où que ce soit doit exister). Le gardien a aussi prouvé le garde-fou
+    des secrets en lançant deux vrais builds release, et en a tiré une fiche de mémoire d'agent : un
+    `secrets_guard.rs` vide dans `target/` ne prouve rien, puisque `build.rs` ne se relance que si
+    une variable surveillée change.
+  - Le README annonçait encore « aucun code applicatif » et un `./check` à 5 vérifications : mis à
+    jour. `check-links` validait ses liens, pas ses affirmations.

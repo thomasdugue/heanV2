@@ -7,7 +7,7 @@
 //   2. les signatures viennent de `bindings.ts`, GÉNÉRÉ depuis le Rust par tauri-specta :
 //      renommer une commande côté Rust casse la compilation du front.
 //
-// Vérifié par tests/architecture/ipc-un-seul-point-dentree.test.ts.
+// Vérifié par tests/architecture/ipc.test.ts.
 import { commands } from './bindings';
 
 export function appVersion(): Promise<string> {
