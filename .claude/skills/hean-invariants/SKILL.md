@@ -25,7 +25,7 @@ D'où les trois piles :
 | Pile | Ce que ça veut dire | Combien |
 |---|---|---|
 | **rayé** | L'architecture de V2 rend la faute inexprimable. Plus de règle à retenir. | 6 |
-| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 13 |
+| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 14 |
 | **irréductible** | Comportement de CoreAudio, de WebKit ou de Gatekeeper. Aucun test ne le prouve. | 2 + 7 pièges |
 
 **La mesure du succès : la pile « irréductible » ne grossit pas, et la pile « test » se
@@ -229,6 +229,24 @@ dette **visible**, que `./check` recompte à chaque passage.
   effort qu'écrire dans le vide. Toute exception passera par un ADR.
   `build.rs` est hors scope : ses `println!("cargo::…")` sont le protocole de Cargo.
 
+### INV-22 — L'intégrité d'un fichier audio ne se vérifie jamais avec le décodeur
+- pile : test
+- gravité : 🔴 BLOQUANT
+- couverture : planifiée (phase 5) — contrôle hors décodeur : durée annoncée par le conteneur contre trames réellement rendues
+- pourquoi : **règle née le 2026-11-22 d'une mesure**, et **classée 🔴 BLOQUANT par Thomas**
+  le même jour. Sur les trois façons dont un fichier audio s'abîme dans la vraie vie, **une
+  seule produit une erreur** : un en-tête STREAMINFO incohérent. Des trames abîmées sont
+  sautées en silence — **un seul octet suffit à faire disparaître 4 608 trames**, un dixième
+  de seconde de musique — et un fichier tronqué, c'est-à-dire la copie interrompue depuis le
+  NAS, joue simplement plus court. Le `README` des fixtures de phase 0 affirmait l'inverse
+  (« doit produire une erreur propre ») : la mesure l'a démenti, et personne ne pouvait le
+  savoir avant d'essayer. La gravité ne vient pas de la perte, elle vient de son silence —
+  même raisonnement que pour INV-21 : un défaut qui se voit se répare, un défaut invisible se
+  propage. **« Ça s'est décodé » ne prouvera jamais « le fichier est entier. »** La prémisse
+  est déjà épinglée par les trois tests de `decodage.rs`, qui citent la règle : si une mise à
+  jour de symphonia se mettait à signaler ces cas, ils échoueraient — et cet échec serait la
+  bonne nouvelle.
+
 ---
 
 ## Pile 3 — irréductibles
@@ -284,9 +302,10 @@ techniques actées ». Ils sont de la même nature, et ils restent valables en V
 ## Décisions techniques actées
 
 Elles ne sont pas des invariants : ce sont des choix, et leur place est dans
-[`docs/adr/`](../../../docs/adr/). Les cinq ADR en vigueur : réécrire de zéro (0001), la
+[`docs/adr/`](../../../docs/adr/). Les sept ADR en vigueur : réécrire de zéro (0001), la
 stack (0002), le dossier de données (0003), la cible de parité visuelle (0004), l'entretien
-du harnais et l'orchestration (0005). **Un ADR ne se modifie pas : on en écrit un nouveau.**
+du harnais et l'orchestration (0005), le socle de phase 0 (0006), le format interne audio et
+la preuve du bit-perfect (0007). **Un ADR ne se modifie pas : on en écrit un nouveau.**
 
 Rappel des interdits qui en découlent et qui ne se rouvrent pas : **jamais CPAL** ·
 **bit-perfect = pas de resampling** · **macOS 11+ seulement, hors Mac App Store** ·

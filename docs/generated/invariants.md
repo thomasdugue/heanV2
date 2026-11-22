@@ -2,7 +2,7 @@
 
 <!-- FICHIER GÉNÉRÉ — NE PAS ÉDITER. Source : .claude/skills/hean-invariants/SKILL.md. Régénérer : npm run gen -->
 
-21 règles : 6 rayées par construction, 13 devenues des tests, 2 irréductibles.
+22 règles : 6 rayées par construction, 14 devenues des tests, 2 irréductibles.
 En V1, **3 sur 20** étaient couvertes par un test.
 
 | # | Règle | Pile | Gravité | Ce qui la protège |
@@ -26,5 +26,6 @@ En V1, **3 sur 20** étaient couvertes par un test.
 | INV-19 | Bouton shuffle : une seule source pour l'icône et le mode | 🧪 test | 🟡 AVERTISSEMENT | planifiée (phase 3) — un seul module exporte le glyphe et le cycle de mode |
 | INV-20 | Toute variable `var(--x)` utilisée est définie | 🧪 test | 🟡 AVERTISSEMENT | architecture `css-variables-definies.test.ts` |
 | INV-21 | Aucun `println!` / `eprintln!` dans le backend | 🧪 test | 🔴 BLOQUANT | architecture `backend.test.ts` |
+| INV-22 | L'intégrité d'un fichier audio ne se vérifie jamais avec le décodeur | 🧪 test | 🔴 BLOQUANT | planifiée (phase 5) — contrôle hors décodeur : durée annoncée par le conteneur contre trames réellement rendues |
 | INV-13 | Mosaïque 28×28 : positionnement absolu, jamais CSS Grid | 🪨 irréductible | 🟡 AVERTISSEMENT | manuelle — piège PLAT-5, détecté a posteriori par la régression visuelle |
 | INV-18 | dylibbundler doit être suivi du fix des LC_RPATH dupliqués | 🪨 irréductible | 🔴 BLOQUANT | manuelle — piège PLAT-6, vérifiable dans le pipeline de release (phase 6) |

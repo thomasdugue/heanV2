@@ -70,9 +70,12 @@ fn seuls_les_formats_qui_declarent_leur_profondeur_la_donnent() {
 // et personne ne pouvait le savoir avant d'essayer. Une phrase dans un document ne peut
 // pas échouer ; ces trois tests, si.
 //
-// Conséquence de conception : L'INTÉGRITÉ D'UN FICHIER NE SE DÉDUIT PAS DU DÉCODEUR. Quand
-// la lecture depuis le NAS arrivera (phase 5), il faudra la vérifier autrement — la durée
-// annoncée par le conteneur contre le nombre de trames réellement rendues.
+// Conséquence de conception, devenue INV-22 (🔴 BLOQUANT) : L'INTÉGRITÉ D'UN FICHIER NE SE
+// DÉDUIT PAS DU DÉCODEUR. Quand la lecture depuis le NAS arrivera (phase 5), il faudra la
+// vérifier autrement — la durée annoncée par le conteneur contre le nombre de trames
+// réellement rendues. Ces trois tests n'épinglent que la prémisse : le jour où une mise à
+// jour de symphonia signalerait ces cas, ils échoueraient, et cet échec serait la bonne
+// nouvelle.
 
 /// Seul cas qui échoue : l'en-tête abîmé. Et il échoue dès la sonde, donc avant toute
 /// lecture d'audio — un panic ici arrêterait la lecture sans message pour le testeur.

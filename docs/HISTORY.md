@@ -277,7 +277,17 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   - **Ce travail n'a été délégué à aucun modèle moins coûteux** : le moteur audio et les ADR sont
     deux zones jamais déléguées (ADR 0005), et aucun test vert n'y prouverait rien. Les deux
     sous-agents employés sont en lecture seule — `test-runner` et `invariant-guardian`.
-  - **Règle candidate, à trancher par Thomas** : « l'intégrité d'un fichier audio ne se vérifie
-    jamais avec le décodeur — un fichier abîmé ou tronqué joue court, ou joue du bruit, sans aucune
-    erreur ». Elle n'a pas été ajoutée à `hean-invariants` : seul Thomas classe une gravité, et une
-    règle non classée y serait bloquante par défaut.
+  - **Règle candidate soumise à Thomas** : « l'intégrité d'un fichier audio ne se vérifie jamais
+    avec le décodeur — un fichier abîmé ou tronqué joue court, ou joue du bruit, sans aucune
+    erreur ». Elle n'a pas été ajoutée tout de suite : seul Thomas classe une gravité, et une règle
+    non classée serait bloquante par défaut. **Classée 🔴 BLOQUANT le 2026-11-22**, elle est entrée
+    au skill sous le numéro **INV-22**, pile « test », couverture `planifiée (phase 5)` — le
+    contrôle d'intégrité hors décodeur viendra avec le NAS ; les trois tests de `decodage.rs`
+    n'épinglent que la prémisse, et la citent désormais. Le raisonnement de Thomas est celui
+    d'INV-21 : ce n'est pas la perte qui est grave, c'est son silence.
+  - **Le compte des invariants réclamé par `CLAUDE.md` est devenu une vérification.** Quatre
+    nombres y sont lus à chaque session (total, et une par pile, plus les « planifiées ») ; ils sont
+    devenus faux à la minute où INV-22 est née. `check-invariants.mjs` les confronte maintenant à la
+    réalité du skill, comme il le faisait déjà pour le tableau de tri — deux mutations le
+    confirment. C'est le défaut exact que ce fichier reproche à V1 : « un compte annoncé faux dans
+    cinq documents parce que rien ne le vérifiait ».
