@@ -9,7 +9,8 @@
 
 use std::path::{Path, PathBuf};
 
-use hean_lib::library::{Depot, Edition};
+use hean_lib::library::repository::{CLE_V1_EXCLUSIONS, CLE_V1_RACINES};
+use hean_lib::library::{reprise_v1, Depot, Edition};
 
 fn fixture(nom: &str) -> PathBuf {
     PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/audio")).join(nom)
@@ -413,4 +414,82 @@ fn la_base_se_reouvre_sans_perdre_la_bibliotheque() {
     let depot = bac.depot();
     assert_eq!(depot.lister_pistes().expect("liste").len(), 2);
     assert_eq!(depot.racines().expect("racines").len(), 1, "la racine aussi est persistée");
+}
+
+// =====================================================================================
+// Reprise de la configuration de V1 (ADR 0010) — INV-06 à travers la migration
+// =====================================================================================
+
+/// Un `config.json` de V1, composé sans écrire les noms de clés en clair (INV-06).
+fn config_v1(racines: &[&str], exclusions: &[&str]) -> String {
+    let tableau = |v: &[&str]| format!("[{}]", v.iter().map(|x| format!("\"{x}\"")).collect::<Vec<_>>().join(","));
+    format!(
+        "{{\"{CLE_V1_RACINES}\":{},\"{CLE_V1_EXCLUSIONS}\":{},\"sentry_enabled\":null}}",
+        tableau(racines),
+        tableau(exclusions)
+    )
+}
+
+/// **Une piste supprimée dans V1 ne revient pas dans V2.**
+///
+/// C'est INV-06 (🔴) à travers la migration, et c'est le défaut que déplacer les fichiers
+/// ne corrige pas : V2 ne lit aucun JSON de V1, donc sans reprise la liste d'exclusion
+/// serait perdue et la piste réapparaîtrait au premier scan. Le testeur verrait revenir ce
+/// qu'il avait supprimé, sans comprendre pourquoi.
+#[test]
+fn une_piste_exclue_dans_v1_reste_exclue_apres_la_reprise() {
+    let bac = Bac::avec("reprise", &["tags-nfd.flac", "artist-feat.flac"]);
+    let exclue = bac.chemin("tags-nfd.flac");
+    let mut depot = bac.depot();
+
+    let reprise = reprise_v1::reprendre(
+        &mut depot,
+        &config_v1(&[&bac.dossier.display().to_string()], &[&exclue]),
+    )
+    .expect("reprise");
+    assert_eq!(reprise.racines, 1, "{reprise:?}");
+    assert_eq!(reprise.exclusions, 1, "{reprise:?}");
+
+    // Le dossier de musique de V1 est devenu une racine : la bibliothèque se rescanne
+    // toute seule, le testeur n'a rien à reconfigurer.
+    assert_eq!(depot.racines().expect("racines").len(), 1);
+    let rapport = depot.scanner().expect("scan");
+    assert_eq!(rapport.ajoutees, 1, "la piste exclue ne doit pas entrer : {rapport:?}");
+
+    let pistes = depot.lister_pistes().expect("liste");
+    assert_eq!(pistes.len(), 1);
+    assert!(!pistes.iter().any(|p| p.path == exclue), "la piste exclue est revenue");
+}
+
+/// La reprise ne se rejoue pas — sinon elle ressusciterait les réglages que l'utilisateur a
+/// changés depuis dans V2.
+#[test]
+fn la_reprise_ne_se_rejoue_pas() {
+    let bac = Bac::avec("reprise-idempotence", &["tags-nfd.flac"]);
+    let chemin = bac.chemin("tags-nfd.flac");
+    let config = config_v1(&[&bac.dossier.display().to_string()], &[&chemin]);
+    let mut depot = bac.depot();
+
+    assert!(!reprise_v1::reprendre(&mut depot, &config).expect("1re").deja_faite);
+    assert_eq!(depot.chemins_exclus().expect("exclus").len(), 1);
+
+    // L'utilisateur change d'avis dans V2 : il veut revoir cette piste. (Il n'y a pas encore
+    // d'interface pour ça, mais la base, elle, peut déjà le dire.)
+    let seconde = reprise_v1::reprendre(&mut depot, &config).expect("2e");
+    assert!(seconde.deja_faite, "{seconde:?}");
+    assert_eq!(seconde.exclusions, 0, "rien n'est réinséré : {seconde:?}");
+}
+
+/// Un `config.json` absent, vide ou illisible ne fait pas échouer le démarrage.
+#[test]
+fn un_config_v1_illisible_ne_bloque_rien() {
+    let bac = Bac::avec("reprise-illisible", &["tags-nfd.flac"]);
+    let mut depot = bac.depot();
+    let reprise = reprise_v1::reprendre(&mut depot, "{ ceci n'est pas du json").expect("reprise");
+    assert_eq!(reprise.racines, 0);
+    assert_eq!(reprise.exclusions, 0);
+    assert!(!reprise.deja_faite);
+    // Et le marqueur est posé quand même : on ne retentera pas éternellement de lire un
+    // fichier abîmé, ce qui écrirait une erreur dans le journal à chaque démarrage.
+    assert!(reprise_v1::reprendre(&mut depot, "{}").expect("2e").deja_faite);
 }

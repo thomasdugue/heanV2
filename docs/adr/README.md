@@ -28,6 +28,7 @@ qui doit désigner exactement un fichier — ce qu'aucun vérificateur de liens 
 | [0007](0007-format-interne-audio-et-preuve-du-bit-perfect.md) | Format interne audio `i32` à l'échelle 32 bits ; le bit-perfect devient une assertion | Acceptée |
 | [0008](0008-epingler-la-chaine-doutils.md) | La chaîne d'outils Rust est épinglée — `./check` est vraiment identique partout | Acceptée |
 | [0009](0009-bibliotheque-cle-dalbum-et-source-de-verite.md) | La bibliothèque : schéma SQLite strict et versionné, clé d'album typée, le fichier audio comme source de vérité | Acceptée |
+| [0010](0010-methode-de-migration-des-donnees-v1.md) | La méthode de migration des données de V1 : copier à côté, vérifier, échanger, puis supprimer | Acceptée |
 
 **Décisions encore ouvertes**, à transformer en ADR dès qu'elles sont prises :
 

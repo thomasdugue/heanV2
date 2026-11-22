@@ -471,3 +471,66 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   - **Prochaine étape, choisie par Thomas : la migration `noir/` → `hean/` avant les vues.**
     Sécuriser la bibliothèque des ~50 testeurs d'abord. Zone jamais déléguée, fixtures à tirer
     d'une copie réelle d'un dossier `noir/`, sa propre session.
+- **2026-11-22** (migration des données de V1) : **Thomas a tranché la priorité** — sécuriser la
+  bibliothèque des ~50 beta-testeurs avant les écrans. `~/Library/Application Support/noir/` passe à
+  `hean/` par une migration one-shot vérifiée. ADR 0010. `./check` vert (19 vérifications),
+  113 tests Rust, 55 tests frontend.
+  - **La forme : copier à côté, vérifier, échanger, puis supprimer.** Quatre temps, chacun fermant un
+    mode de défaut. Le premier est le moins évident et le plus important : la copie va dans
+    `hean.en-cours-de-migration/` et **pas** directement dans `hean/`, donc une interruption laisse un
+    dossier provisoire et **aucun `hean/`** — le lancement suivant repart proprement. En copiant
+    directement à destination, une interruption laisserait une bibliothèque à moitié présente,
+    **indistinguable d'une bibliothèque complète**. L'échange final est un `rename` sur le même
+    volume, donc atomique. La suppression de l'original vient en dernier, après la vérification.
+  - **Le défaut le plus grave de la phase, trouvé en écrivant les tests** : déplacer les fichiers ne
+    suffit pas, parce que **V2 ne lit aucun JSON de V1**. Sans reprise, le testeur migré trouvait au
+    premier lancement une bibliothèque **vide** — ses dossiers de musique sont dans `config.json`,
+    que rien ne relisait — et **ses pistes supprimées de retour** au premier scan, la liste
+    d'exclusion vivant dans ce même fichier. C'est **INV-06 (🔴) violé à travers la migration** :
+    « une piste supprimée ne revient jamais » ne vaut pas que dans une version. `reprise_v1.rs`
+    reprend les deux listes, une seule fois, garanti par une table `reprises` — rejouer la reprise
+    ressusciterait les réglages changés depuis dans V2.
+  - Et ce module ne contient **aucun SQL** : il passe par `ajouter_racine` et `exclure`. Contrainte
+    d'INV-06, pas élégance — un seul fichier nomme la table des chemins exclus. Les tests composent
+    même leur `config.json` à partir des constantes du dépôt plutôt que d'écrire le nom de la clé en
+    clair, parce qu'un détecteur qui signale des données de test finit désarmé.
+  - **Le détecteur d'INV-06 a mordu deux fois dans cette session**, sur des commentaires :
+    `scan.rs` puis `reprise_v1.rs` citaient le nom de la table en prose. C'est voulu — il cherche à
+    la lettre, commentaires compris, et c'est ce qui lui donne ses dents.
+  - **Ce que le dossier réel a appris** (mesuré, 572 Mo / 2 446 fichiers) : **la moitié est un cache
+    jetable.** `smb_buffer/` pesait 289 Mo en trois fichiers, dont un de 147 Mo, datés de la veille —
+    V1 devait les nettoyer à chaque lancement (W008, correctif au commit `eaee676`) et ne l'a pas
+    fait. Ils ne se migrent pas : les copier aurait été transporter le bug de V1 avec ses données.
+    Au passage, `logs/` garde des fichiers de juillet alors que la rotation est annoncée à 7 jours,
+    et **`dap_sync.db` n'existe pas** là où l'ADR 0003 le décrit comme « laissé en place
+    volontairement ». Les deux sont signalés, aucun n'est corrigé ici.
+  - **Pas de pré-contrôle de place disque, et c'est un choix** : une estimation peut être fausse, un
+    `ENOSPC` ne peut pas. Un disque plein fait échouer la copie, le provisoire est effacé, l'original
+    n'a pas bougé, le lancement suivant retentera.
+  - **Mesure contre l'attente, qui vaut au-delà de la migration** : sur **APFS, un nom de fichier en
+    NFD et le même en NFC désignent UN SEUL fichier** — le système compare les noms après
+    normalisation tout en conservant les octets donnés. Mon premier test posait les deux écritures de
+    « Café Noir » en attendant deux fichiers ; la seconde avait écrasé la première. Conséquence pour
+    le projet : la normalisation NFC d'INV-01 porte sur les **clés d'album**, que nous comparons dans
+    SQLite, et **non sur les chemins**, que le système compare pour nous. Deux problèmes qui se
+    ressemblent, un seul des deux est le nôtre.
+  - **La vérification sur données réelles existe, et elle est hors de `./check`** :
+    `tools/verifier-migration-reelle.sh` travaille sur une **copie**, refuse de désigner le vrai
+    `hean/` comme cible, et ne touche jamais l'original. Hors CI délibérément — la CI n'a pas de
+    dossier `noir/`, et une vérification qui ne peut pas tourner là où elle est lancée ne vérifie
+    rien. Lancée le 2026-11-22 sur les données de Thomas : **2 443 fichiers migrés sur 2 446**
+    (291 Mo), 3 ignorés, `playlists.json` / `listening_history.json` / `network_sources.json` /
+    `config.json` **identiques à l'original**, reprise de **1 dossier de bibliothèque / 0 exclusion**,
+    original intact. Les tests sur arbres fabriqués, eux, apportent ce que les données réelles
+    n'apportent pas : les **cas de défaut** — fichier illisible, cible déjà peuplée, provisoire qui
+    traîne, lien symbolique, dossier ne contenant que du cache.
+  - **Les entrées Keychain ne sont pas touchées** : le nom de service de V2 est un point ouvert daté
+    de la phase 3 (ADR 0003). Ne rien faire laisse les mots de passe en place ; s'y prendre à moitié
+    les perdrait.
+  - `repository.rs` a dépassé 400 lignes en route et a été découpé : `lignes.rs` (comment une piste
+    s'écrit et se relit) et `reprise_v1.rs`. Une duplication a disparu dans l'opération —
+    l'empreinte d'un fichier (taille + date) était calculée à deux endroits, elle est maintenant
+    dans `scan::empreinte`.
+  - **Prochaine étape** : les vues (phase 3). Ce qui attend encore un arbitrage de Thomas est dans la
+    PR : le pipeline de pochettes, `store.rs` devenu sans appelant, et la convention d'attribution
+    des ADR quand une session décide à l'intérieur d'un brief approuvé.

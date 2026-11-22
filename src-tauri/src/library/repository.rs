@@ -14,11 +14,11 @@
 //! Si du code revenait poser ici un cache global mutable, il rouvrirait ces quatre portes.
 
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{params, Connection, OptionalExtension};
 
-use super::cle::AlbumKey;
+use super::lignes::{en_i64, inserer, ligne_en_track, maintenant};
+
 use super::migrations::{self, Migration};
 use super::metadonnees;
 use super::scan::{self, Trouvee};
@@ -68,8 +68,28 @@ pub const MIGRATIONS: &[Migration] = &[Migration {
           path       TEXT    PRIMARY KEY NOT NULL,
           ajoutee_le INTEGER NOT NULL
         ) STRICT;
+
+        -- Ce qui a déjà été repris du dossier de V1. Une reprise qui se rejouerait
+        -- ressusciterait des réglages que l'utilisateur a changés depuis dans V2 — par
+        -- exemple une piste qu'il a cessé d'exclure.
+        CREATE TABLE reprises (
+          sujet TEXT    PRIMARY KEY NOT NULL,
+          le    INTEGER NOT NULL
+        ) STRICT;
     ",
 }];
+
+/// La clé de la liste d'exclusion dans le `config.json` de V1.
+///
+/// Elle est ici, et nulle part ailleurs, parce que c'est la règle d'INV-06 : un seul fichier
+/// nomme cette liste. Les tests qui ont besoin de fabriquer un `config.json` de V1 composent
+/// leur JSON avec cette constante au lieu d'écrire le nom en clair — sinon le détecteur
+/// d'architecture, qui cherche ce nom à la lettre dans tout le backend, se mettrait à
+/// signaler des données de test, et un détecteur qui lève des faux positifs finit désarmé.
+pub const CLE_V1_EXCLUSIONS: &str = "excluded_paths";
+
+/// La clé des dossiers de bibliothèque dans le `config.json` de V1.
+pub const CLE_V1_RACINES: &str = "library_paths";
 
 /// Les colonnes d'une piste telle que l'IPC la rend. Écrites une fois, lues une fois.
 const COLONNES: &str = "path, titre, artiste, album, album_artiste, cle_album, annee, piste, \
@@ -186,6 +206,32 @@ impl Depot {
             .query_map([], |r| r.get::<_, String>(0))?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(out)
+    }
+
+    // --- marqueurs de reprise (ADR 0010) -----------------------------------------------
+
+    /// Vrai si ce sujet a déjà été repris du dossier de V1.
+    ///
+    /// La reprise elle-même vit dans `reprise_v1.rs` et ne passe que par l'API publique de
+    /// ce dépôt. Ce n'est pas un découpage esthétique : INV-06 veut qu'un seul fichier
+    /// nomme la table des chemins exclus, donc tout ce qui touche à l'exclusion passe par
+    /// `exclure()` — y compris la reprise des exclusions de V1.
+    pub fn reprise_deja_faite(&self, sujet: &str) -> Result<bool, Erreur> {
+        let deja: Option<i64> = self
+            .conn
+            .query_row("SELECT le FROM reprises WHERE sujet = ?1", params![sujet], |r| r.get(0))
+            .optional()?;
+        Ok(deja.is_some())
+    }
+
+    /// Note qu'un sujet a été repris. Une reprise rejouée ressusciterait des réglages que
+    /// l'utilisateur a changés depuis dans V2 — par exemple une piste qu'il a cessé d'exclure.
+    pub fn noter_la_reprise(&mut self, sujet: &str) -> Result<(), Erreur> {
+        self.conn.execute(
+            "INSERT OR IGNORE INTO reprises (sujet, le) VALUES (?1, ?2)",
+            params![sujet, maintenant()],
+        )?;
+        Ok(())
     }
 
     // --- scan (B02, B03) ---------------------------------------------------------------
@@ -319,80 +365,11 @@ impl Depot {
             // Le fichier vient d'être réécrit : sa taille et sa date ont changé, et c'est
             // celles du disque qui entrent dans la base. Sinon le scan suivant croirait la
             // piste modifiée et la relirait pour rien — et V004 tomberait.
-            let meta = std::fs::metadata(&lues.track.path).ok();
-            let trouvee = Trouvee {
-                chemin: PathBuf::from(&lues.track.path),
-                taille: meta.as_ref().map(|m| m.len()).unwrap_or(0),
-                mtime_ns: meta
-                    .and_then(|m| m.modified().ok())
-                    .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-                    .and_then(|d| i64::try_from(d.as_nanos()).ok())
-                    .unwrap_or(0),
-            };
+            let trouvee = scan::empreinte(Path::new(&lues.track.path));
             inserer(&tx, &lues.track, &lues.cle, &trouvee)?;
             out.push(lues.track.clone());
         }
         tx.commit()?;
         Ok(out)
     }
-}
-
-/// L'écriture d'une piste. `INSERT OR REPLACE` et **jamais** un `DELETE` suivi d'un
-/// `INSERT` : c'est la leçon d'INV-08, où supprimer au lieu de mettre à jour ouvrait une
-/// fenêtre pendant laquelle la piste n'existait nulle part. Ici la fenêtre n'existe pas,
-/// mais le réflexe reste le bon.
-fn inserer(tx: &rusqlite::Transaction<'_>, t: &Track, cle: &AlbumKey, f: &Trouvee) -> Result<(), rusqlite::Error> {
-    tx.execute(
-        "INSERT INTO tracks (path, titre, artiste, album, album_artiste, cle_album, annee, piste,
-                             disque, genre, duree_ms, format, echantillonnage, bits, debit,
-                             taille, mtime_ns, ajoutee_le)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,
-                 COALESCE((SELECT ajoutee_le FROM tracks WHERE path = ?1), ?18))
-         ON CONFLICT(path) DO UPDATE SET
-           titre=?2, artiste=?3, album=?4, album_artiste=?5, cle_album=?6, annee=?7, piste=?8,
-           disque=?9, genre=?10, duree_ms=?11, format=?12, echantillonnage=?13, bits=?14,
-           debit=?15, taille=?16, mtime_ns=?17",
-        params![
-            t.path, t.titre, t.artiste, t.album, t.album_artiste, cle.as_str(), t.annee,
-            t.piste, t.disque, t.genre, t.duree_ms, t.format, t.echantillonnage, t.bits,
-            t.debit, en_i64(f.taille), f.mtime_ns, maintenant()
-        ],
-    )?;
-    Ok(())
-}
-
-fn ligne_en_track(r: &rusqlite::Row<'_>) -> Result<Track, rusqlite::Error> {
-    Ok(Track {
-        path: r.get(0)?,
-        titre: r.get(1)?,
-        artiste: r.get(2)?,
-        album: r.get(3)?,
-        album_artiste: r.get(4)?,
-        cle_album: r.get(5)?,
-        annee: r.get(6)?,
-        piste: r.get(7)?,
-        disque: r.get(8)?,
-        genre: r.get(9)?,
-        duree_ms: r.get(10)?,
-        format: r.get(11)?,
-        echantillonnage: r.get(12)?,
-        bits: r.get(13)?,
-        debit: r.get(14)?,
-    })
-}
-
-/// Une taille de fichier pour SQLite, qui n'a pas d'entier non signé. Un fichier de plus
-/// de 8 exaoctets est hors de ce monde ; la saturation est préférable à une troncature
-/// silencieuse, qui donnerait une taille plausible et fausse.
-fn en_i64(taille: u64) -> i64 {
-    i64::try_from(taille).unwrap_or(i64::MAX)
-}
-
-/// L'heure, en secondes depuis l'époque. Jamais `unwrap()` : une horloge réglée avant 1970
-/// ne doit pas faire paniquer l'app de quelqu'un.
-fn maintenant() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| i64::try_from(d.as_secs()).unwrap_or(0))
-        .unwrap_or(0)
 }

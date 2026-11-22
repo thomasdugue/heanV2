@@ -92,18 +92,26 @@ fn examiner(chemin: &Path) -> Option<Trouvee> {
     if !est_audio(chemin) {
         return None;
     }
-    let meta = std::fs::metadata(chemin).ok()?;
-    let mtime_ns = meta
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-        .and_then(|d| i64::try_from(d.as_nanos()).ok())
-        .unwrap_or(0);
-    Some(Trouvee {
+    Some(empreinte(chemin))
+}
+
+/// Taille et date de modification d'un fichier, sans se demander si c'est de la musique.
+///
+/// Le dépôt s'en sert après avoir réécrit les tags d'un fichier : la taille et la date ont
+/// changé, et ce sont celles du disque qui doivent entrer dans la base — sinon le scan
+/// suivant croirait la piste modifiée et la relirait pour rien, ce qui ferait tomber V004.
+/// Une seule façon de prendre une empreinte, donc, et pas deux qui se mettraient à diverger.
+pub fn empreinte(chemin: &Path) -> Trouvee {
+    let meta = std::fs::metadata(chemin).ok();
+    Trouvee {
         chemin: chemin.to_path_buf(),
-        taille: meta.len(),
-        mtime_ns,
-    })
+        taille: meta.as_ref().map(|m| m.len()).unwrap_or(0),
+        mtime_ns: meta
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .and_then(|d| i64::try_from(d.as_nanos()).ok())
+            .unwrap_or(0),
+    }
 }
 
 /// Vrai si l'extension est l'une de celles que l'app sait jouer. La comparaison est

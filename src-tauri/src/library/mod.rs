@@ -17,12 +17,15 @@
 
 pub mod cle;
 pub mod dossier;
+pub mod lignes;
 pub mod metadonnees;
 pub mod migrations;
 pub mod repository;
+pub mod reprise_v1;
 pub mod scan;
 pub mod types;
 
 pub use cle::AlbumKey;
 pub use repository::Depot;
+pub use reprise_v1::Reprise;
 pub use types::{Edition, RapportDeScan, Track};
