@@ -15,6 +15,8 @@
 #   [ ] conteneur Samba + injection panne    phase 5  (HARNAIS.md §12)
 #   [ ] budgets de performance              phase 5  (HARNAIS.md §8, chiffres de V1 à mesurer)
 #   [ ] appel réel sur l'endpoint updater   phase 6  (ENTRETIEN-DU-HARNAIS.md, audit)
+#   [ ] « une version plus récente de la chaîne Rust existe »  (audit hebdo — ADR 0007 :
+#       la contrepartie de l'épinglage, signalée en une ligne et non par un build rouge)
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 FAST=0; [ "${1:-}" = "--fast" ] && FAST=1
@@ -36,6 +38,7 @@ run "taille des fichiers" bash tools/check-sizes.sh
 run "skills"              bash tools/check-skills.sh
 run "invariants"          node tools/check-invariants.mjs
 run "zones jamais déléguées" bash tools/check-zones.sh
+run "chaîne d'outils"     bash tools/check-toolchain.sh
 run "fixtures audio"      bash tools/check-fixtures-audio.sh
 run "comptes annoncés"    node tools/check-comptes.mjs
 

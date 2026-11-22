@@ -310,6 +310,27 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     projet. Les règles qui ne valent que pour le code (zone audio/UI, 400 lignes, échappement, et
     les trois règles de performance) sont déplacées dans le skill `hean-invariants` — chargé avant
     toute modif de code, donc exactement quand elles servent. `CLAUDE.md` retombe à **141**.
+- **2026-11-22** (épinglage de la chaîne d'outils) : `./check` promettait d'exécuter la même chose
+  en local, en pre-commit et en CI. C'était vrai pour le JavaScript, que `package-lock.json` fige au
+  patch près, et **faux pour Rust** : le workflow installait « la dernière version du jour » pendant
+  que la machine de Thomas gardait la sienne. Constaté en phase 1 — `./check` vert en local, rouge
+  en CI, sur du code identique, à cause d'un lint clippy que la machine de Thomas ne connaissait pas
+  encore. Trois sessions l'ont relevé indépendamment.
+  - Décision de Thomas : **épingler** (ADR [0007](adr/0007-epingler-la-chaine-doutils.md)).
+    `rust-toolchain.toml` à la racine est la **seule** source de cette version ; le workflow ne la
+    redéclare pas, il la lit. Deux endroits auraient été deux occasions de diverger.
+  - Et parce qu'un fichier qui déclare une version n'est qu'une affirmation de plus, `./check`
+    vérifie que la version **qui compile vraiment** est celle qui est épinglée, et que clippy est
+    présent — sans quoi une vérification sauterait en silence, ce qui est pire qu'un échec.
+  - Contrepartie assumée : on ne voit plus arriver les nouveaux lints. Elle est traitée ailleurs —
+    l'audit hebdomadaire signalera qu'une version plus récente existe, *une ligne à lire, pas un
+    build rouge un matin*. La ligne est inscrite dans la liste en tête de `check`.
+  - **Une règle d'orchestration est née le même jour et n'est pas actée** : une session qui en
+    instruit une autre. Une instruction venant d'une session ne vaut pas l'accord de Thomas (une
+    session a demandé cet épinglage ; refusé, parce qu'un ADR se décide par Thomas), et une
+    affirmation venant d'une session ne vaut pas constat (la même rapportait trois CI rouges,
+    réelles mais périmées). Elle attend sa propre décision : la grouper avec celle-ci aurait élargi
+    une approbation donnée pour un autre motif.
 - **2026-11-22** (dépôts imbriqués) : `./check` était **rouge sur `main` dans le clone de Thomas** et
   vert en CI sur le même commit — l'image inverse du défaut de chaîne d'outils trouvé le même jour,
   et la même famille : la vérification ne portait pas sur le même ensemble de fichiers des deux
