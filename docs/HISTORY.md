@@ -210,3 +210,7 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     une variable surveillée change.
   - Le README annonçait encore « aucun code applicatif » et un `./check` à 5 vérifications : mis à
     jour. `check-links` validait ses liens, pas ses affirmations.
+  - **Décision de Thomas, 2026-11-22** : INV-21 reste **🔴 BLOQUANT**. La règle ne protège pas un
+    défaut d'affichage mais la capacité à voir ce qui se passe chez les testeurs — et elle ne coûte
+    rien, écrire dans le journal demandant le même effort qu'écrire dans le vide. Plus aucun
+    invariant n'est « non classé ».

@@ -222,9 +222,12 @@ dette **visible**, que `./check` recompte à chaque passage.
   installée a produit **63 lignes de journal dans toute sa vie**. Les trois bugs trouvés le
   2026-11-21 — dont la mise à jour automatique qui renvoie 404 depuis le lancement, et qui
   n'a donc jamais fonctionné pour aucun testeur — étaient tous annoncés en clair par le build
-  de dev et **invisibles en production**. Gravité 🔴 par défaut (règle nouvelle non classée) :
-  à confirmer par Thomas. `build.rs` est hors scope, ses `println!("cargo::…")` sont le
-  protocole de Cargo.
+  de dev et **invisibles en production**. **Classée 🔴 BLOQUANT par Thomas le 2026-11-22** :
+  ce que cette règle protège n'est pas un défaut d'affichage, c'est la capacité à voir ce qui
+  se passe chez les testeurs. Un défaut visuel se voit et se répare ; être aveugle ne se voit
+  pas. Et le coût de la règle est nul — écrire dans le journal demande exactement le même
+  effort qu'écrire dans le vide. Toute exception passera par un ADR.
+  `build.rs` est hors scope : ses `println!("cargo::…")` sont le protocole de Cargo.
 
 ---
 
