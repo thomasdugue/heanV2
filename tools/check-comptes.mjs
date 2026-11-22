@@ -63,6 +63,17 @@ const claude = lire('CLAUDE.md');
 // serait faux au premier branchement ; il l'était d'ailleurs déjà à la phase 2.
 const actives = (skill.match(/^- couverture\s*:\s*(test|architecture) /gm) ?? []).length;
 
+// 2b. Le nombre de règles annoncé par le README. Il annonçait « les 21 règles » pour 22 —
+// faux depuis la naissance d'INV-22, et invisible parce que seul CLAUDE.md était vérifié.
+// Un garde-fou qui ne couvre qu'un des deux fichiers où le nombre est écrit ne couvre pas
+// la règle, seulement l'endroit où quelqu'un y a pensé.
+const regles = /`hean-invariants` \(les (\d+) règles\)/.exec(lire('README.md'))?.[1];
+if (regles === undefined) {
+  erreurs.push("README.md : impossible d'y lire le nombre de règles — le format a changé");
+} else if (Number(regles) !== total) {
+  erreurs.push(`README.md annonce « les ${regles} règles », il y en a ${total}`);
+}
+
 const attendus = [
   [/\*\*(\d+) règles\*\*/, total, 'le total des invariants'],
   [/dont \*\*(\d+) déjà actives\*\*/, actives, 'les invariants déjà couverts par un test'],

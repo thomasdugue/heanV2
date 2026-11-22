@@ -420,6 +420,10 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     décodé » — c'est INV-22, vu depuis l'autre bout. Le contrôle est daté de la phase 5 ; d'ici là
     un test fixe la mesure, et le jour où il échouera parce que lofty refuse ces fichiers, **cet
     échec sera la bonne nouvelle**.
+  - Et un quatrième, trouvé en relisant : le `README` annonçait « les 21 règles » alors qu'il y en
+    a 22 — faux depuis la naissance d'INV-22, et invisible parce que `check-comptes` ne vérifiait ce
+    nombre que dans `CLAUDE.md`. Un garde-fou qui ne couvre qu'un des deux endroits où un nombre est
+    écrit ne couvre pas la règle, seulement l'endroit où quelqu'un y a pensé. Corrigé, et vérifié.
   - Conséquence de délégation, tirée dans le même mouvement : `library/migrations.rs` rejoint la
     zone `migration-donnees` de `tools/zones-interdites.txt`. Une migration de **schéma** qui perd
     une colonne perd les mêmes données qu'une copie ratée.

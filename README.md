@@ -8,9 +8,13 @@ démarre, le filet anti-régression tourne, et **« bit-perfect » n'est plus un
 décode une fixture FLAC vers un WAV à travers un backend de test et compare le résultat *octet par
 octet* à un fichier écrit par ffmpeg, donc par un décodeur indépendant du nôtre — en CI, sans
 matériel ([ADR 0007](docs/adr/0007-format-interne-audio-et-preuve-du-bit-perfect.md)). Le moteur
-CoreAudio lui-même, l'égaliseur et le gapless ne sont pas portés. Le contrat de parité
-(124 features) est encore entièrement à porter, et les 24 comportements anti-régression sont rouges
-exprès : c'est le tableau de bord du projet.
+CoreAudio lui-même, l'égaliseur et le gapless ne sont pas portés.
+
+La **bibliothèque** existe depuis la phase 2 : scan du disque, métadonnées lues et écrites dans le
+fichier audio, rangement dans SQLite sous transaction, schéma versionné
+([ADR 0009](docs/adr/0009-bibliotheque-cle-dalbum-et-source-de-verite.md)). Elle n'a pas encore
+d'interface. Le reste du contrat de parité est à porter, et les comportements anti-régression encore
+rouges le sont exprès : leur compte est le tableau de bord du projet.
 
 ---
 
@@ -44,7 +48,7 @@ npm run tauri dev
 | `src/`, `src-tauri/` | Le socle. `src/ipc/` est le **seul** module qui parle à Tauri ; `src-tauri/src/secrets.rs` le seul qui lit un secret. Des tests d'architecture le garantissent. |
 | `tests/` | `architecture/` (la forme du code) · `ux/` (les 24 comportements anti-régression) · `unit/`. |
 | `docs/generated/` | Catalogues **générés** par `npm run gen` — IPC, tokens, couverture des invariants et des comportements. Ne jamais les éditer : `./check` échoue si ils diffèrent du code. |
-| `.claude/skills/` | 7 skills `hean-*` — le savoir par zone, dont `hean-invariants` (les 21 règles) et `hean-orchestration` (quand déléguer). |
+| `.claude/skills/` | 7 skills `hean-*` — le savoir par zone, dont `hean-invariants` (les 22 règles) et `hean-orchestration` (quand déléguer). |
 | `.claude/agents/` | `test-runner` (lance `./check`, résumé court) · `invariant-guardian` (relit un diff contre les invariants). Les deux en lecture seule. |
 | `.claude/hooks/` | `contrat-de-fin-de-tache.sh` — réclame ce qui manque quand un diff touche une zone, avec une porte de sortie explicite. |
 | `docs/adr/` | Un fichier par décision, numéroté, immuable. |
@@ -86,8 +90,10 @@ npm run tauri dev
   *(leçon du 2026-11-22 : ce README a annoncé « 29 cas » de tests d'architecture là où il y en avait
   32 — vrai à l'écriture, faux un commit plus tard)*.
 
-Hors verdict, en **tableau de bord** : les 24 comportements de `UX-ANTI-REGRESSION.md`, tous rouges
-tant que la feature correspondante n'est pas portée.
+Hors verdict, en **tableau de bord** : les 24 comportements de `UX-ANTI-REGRESSION.md`. Chacun reste
+rouge tant que la feature correspondante n'est pas portée, et `./check` affiche le compte à chaque
+passage — il se déduit du nombre de tests rouges, pour qu'aucun nombre écrit à la main ne puisse le
+faire mentir.
 
 La liste des vérifications à ajouter, dans l'ordre, est en commentaire en tête de
 [`check`](check) et spécifiée dans [`bootstrap/06-setup-v2/HARNAIS.md`](bootstrap/06-setup-v2/HARNAIS.md).
