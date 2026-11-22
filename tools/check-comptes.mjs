@@ -27,6 +27,22 @@ for (const fichier of ['README.md', 'CLAUDE.md']) {
   }
 }
 
+// 1b. Le « (sur N) » du tableau de bord de ./check ↔ le nombre de comportements du contrat.
+// `./check` déduit les portés de « N moins les rouges » : si ce N et le contrat divergent,
+// le tableau de bord annonce un avancement faux sans qu'aucun test n'échoue.
+const comportements = (lire('tests/ux/_contrat.ts').match(/^\s*c\('[VW]\d{3}'/gm) ?? []).length;
+const verif = lire('check');
+const surN = /portés \(sur (\d+)\)/.exec(verif)?.[1];
+const moins = /\$\(\( (\d+) - /.exec(verif)?.[1];
+if (surN === undefined || moins === undefined) {
+  erreurs.push("check : impossible d'y lire le compte du tableau de bord — le format a changé");
+} else if (Number(surN) !== comportements || Number(moins) !== comportements) {
+  erreurs.push(
+    `check annonce « sur ${surN} » et calcule « ${moins} - rouges », ` +
+      `le contrat compte ${comportements} comportements`,
+  );
+}
+
 // 2. Les comptes de piles d'invariants de CLAUDE.md ↔ le skill, source de vérité.
 // (check-invariants.mjs vérifie déjà le tableau DU SKILL contre les invariants eux-mêmes ;
 //  ici on ferme le maillon suivant, la copie lue à chaque session.)
@@ -41,8 +57,15 @@ const total = Object.values(piles).reduce((a, b) => a + b, 0);
 const planifiees = (skill.match(/^- couverture\s*:\s*planifiée/gm) ?? []).length;
 
 const claude = lire('CLAUDE.md');
+// Les invariants DÉJÀ actifs : couverture « test X » ou « architecture X ». C'est le
+// pendant des « planifiées », et il bouge au même rythme — chaque règle branchée sur un
+// test fait monter l'un et baisser l'autre. Écrit à la main dans CLAUDE.md, ce nombre
+// serait faux au premier branchement ; il l'était d'ailleurs déjà à la phase 2.
+const actives = (skill.match(/^- couverture\s*:\s*(test|architecture) /gm) ?? []).length;
+
 const attendus = [
   [/\*\*(\d+) règles\*\*/, total, 'le total des invariants'],
+  [/dont \*\*(\d+) déjà actives\*\*/, actives, 'les invariants déjà couverts par un test'],
   [/\*\*Rayées \((\d+)\)\*\*/, piles['rayé'], 'les invariants rayés'],
   [/\*\*Devenues des tests \((\d+)\)\*\*/, piles['test'], 'les invariants devenus des tests'],
   [/\*\*Irréductibles \((\d+)\s*\+/, piles['irréductible'], 'les invariants irréductibles'],
@@ -60,5 +83,7 @@ if (erreurs.length) {
   process.exit(1);
 }
 console.log(
-  `check-comptes : OK (${verifications} vérifications, ${total} invariants dont ${planifiees} planifiés)`,
+  `check-comptes : OK (${verifications} vérifications, ${total} invariants dont ${actives} actifs et ` +
+    `${planifiees} planifiés, ` +
+    `${comportements} comportements)`,
 );

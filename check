@@ -9,7 +9,7 @@
 #
 # Reste à brancher, au fur et à mesure (voir bootstrap/06-setup-v2/HARNAIS.md) :
 #   [x] fixtures audio + backend « fake »   phase 1  (HARNAIS.md §1) — fait
-#   [ ] property tests de normalisation     phase 2  (HARNAIS.md §4)
+#   [x] property tests de normalisation     phase 2  (HARNAIS.md §4) — fait
 #   [ ] mode parité V1 ↔ V2                 phase 2  (HARNAIS.md §5)
 #   [ ] régression visuelle                 phase 4  (HARNAIS.md §7)
 #   [ ] conteneur Samba + injection panne    phase 5  (HARNAIS.md §12)
@@ -69,9 +69,13 @@ run "poids & deps"        bash tools/check-weight.sh
 if [ -f package.json ]; then
   echo "→ comportements UX (tableau de bord, hors verdict)"
   sortie=$(npm run --silent test:ux 2>&1)
-  verts=$(printf '%s' "$sortie" | grep -oE '[0-9]+ passed' | tail -1 | grep -oE '[0-9]+' || echo 0)
   rouges=$(printf '%s' "$sortie" | grep -oE '[0-9]+ failed' | tail -1 | grep -oE '[0-9]+' || echo 0)
-  echo "  ${rouges:-0} comportements restent à porter, $(( ${verts:-0} > 3 ? ${verts:-0} - 3 : 0 )) portés (sur 24)"
+  # Les PORTÉS se déduisent des rouges : 24 moins ce qui reste. L'ancienne formule
+  # retranchait « 3 » aux verts — le nombre de tests de l'appariement — donc elle devenait
+  # fausse en silence dès qu'on ajoutait un test à contrat-complet.test.ts, ce qui est
+  # arrivé en phase 2. Un nombre écrit à la main dans un calcul est un mensonge en attente
+  # (ADR 0005) ; celui-ci se déduit, et `tools/check-comptes.mjs` vérifie le « sur 24 ».
+  echo "  ${rouges:-0} comportements restent à porter, $(( 24 - ${rouges:-0} )) portés (sur 24)"
   echo
 fi
 

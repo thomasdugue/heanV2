@@ -12,10 +12,20 @@ import { lire, sources } from './_lecture';
 const DEPOT_TS = 'src/lib/library/repository.ts';
 const DEPOT_RS = 'src-tauri/src/library/repository.rs';
 
-/** Les commandes dont le type de retour parle de pistes, lues dans les bindings générés. */
+/**
+ * Les commandes dont le type de retour parle de pistes, lues dans les bindings générés.
+ *
+ * Le nom du type est cherché sous ses TROIS formes, et c'est la leçon de la phase 2 : dès
+ * qu'un type porte un champ `Option`, specta en émet deux versions — `Track_Serialize` et
+ * `Track_Deserialize` — plus l'alias `Track`. Écrit en phase 0 contre un exemple à la main,
+ * ce détecteur ne cherchait que `\bTrack\b` : il serait devenu aveugle à la première
+ * commande réelle, donc INV-06 aurait été désarmé **en silence**, sans aucun test rouge.
+ * C'est le modèle de défaut que ce harnais existe pour fermer ; il s'est présenté ici dans
+ * le harnais lui-même.
+ */
 export function commandesDePistes(bindings: string): string[] {
   return [...bindings.matchAll(/^\t(\w+):[^\n]*?__TAURI_INVOKE<([^>]*)>/gm)]
-    .filter((m) => /\bTrack\b/.test(m[2] as string))
+    .filter((m) => /\bTrack(_Serialize|_Deserialize)?\b/.test(m[2] as string))
     .map((m) => m[1] as string);
 }
 
@@ -31,6 +41,24 @@ describe('INV-06 — une seule construction de liste de pistes', () => {
   it('le détecteur reconnaît une commande qui rend des pistes', () => {
     const faux = '\tlistTracks: (o?: InvokeOptions) => __TAURI_INVOKE<Track[]>("list_tracks", undefined, o),';
     expect(commandesDePistes(faux)).toEqual(['listTracks']);
+  });
+
+  it('le détecteur reconnaît aussi la forme que specta génère vraiment', () => {
+    const reel =
+      '\tlistTracks: (o?: InvokeOptions) => __TAURI_INVOKE<Track_Serialize[]>("list_tracks", undefined, o),';
+    expect(commandesDePistes(reel)).toEqual(['listTracks']);
+  });
+
+  it('il ne se déclenche pas sur un type qui ressemble au nom', () => {
+    const autre = '\tgetTracker: (o?: InvokeOptions) => __TAURI_INVOKE<Tracker>("get_tracker", undefined, o),';
+    expect(commandesDePistes(autre)).toEqual([]);
+  });
+
+  it('il trouve bien les commandes réelles du projet', () => {
+    // Un détecteur qui ne trouve RIEN passe au vert sans rien garantir : c'est le piège
+    // décrit dans le skill hean-invariants. Tant que la bibliothèque existe, il doit voir
+    // au moins une commande.
+    expect(commandesDePistes(lire('src/ipc/bindings.ts')).length).toBeGreaterThan(0);
   });
 
   it('excluded_paths ne s’applique qu’à un seul endroit côté Rust', () => {

@@ -1,8 +1,10 @@
 //! Commandes IPC. Chacune porte `#[tauri::command]` ET `#[specta::specta]`, et doit être
 //! inscrite dans `collect_commands!` (src/lib.rs) — sinon elle n'existe pas côté TypeScript.
 //!
-//! Phase 0 : une seule commande, qui sert à prouver la chaîne complète
-//! Rust → tauri-specta → bindings.ts → client.ts → Svelte.
+//! `app_version` sert à prouver la chaîne complète Rust → tauri-specta → bindings.ts →
+//! client.ts → Svelte. Les commandes de la bibliothèque sont dans `bibliotheque.rs`.
+
+pub mod bibliotheque;
 
 /// Version de l'application, telle que déclarée dans `Cargo.toml`.
 #[tauri::command]

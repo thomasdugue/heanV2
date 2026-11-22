@@ -6,7 +6,7 @@
 # tools/check-zones.sh vérifie que les deux disent la même chose.
 
 moteur-audio | src-tauri/src/audio/** src-tauri/src/coreaudio* | Un défaut de bit-perfect ne fait échouer aucun test : ça joue, un peu moins bien. L'oreille de Thomas est le seul juge, et la boucle de retour est trop lente pour un exécutant.
-migration-donnees | src-tauri/src/migration/** src-tauri/src/store/migrations/** | Une migration ratée, c'est la bibliothèque de 50 testeurs. Le test passe sur des fixtures ; la réalité a des chemins NFD et des caches à demi écrits.
+migration-donnees | src-tauri/src/migration/** src-tauri/src/store/migrations/** src-tauri/src/library/migrations.rs | Une migration ratée, c'est la bibliothèque de 50 testeurs. Le test passe sur des fixtures ; la réalité a des chemins NFD et des caches à demi écrits. Les migrations DE SCHÉMA sont du même risque et sont arrivées en phase 2 : une migration qui perd une colonne perd les mêmes données que celle qui rate une copie.
 pipeline-release | scripts/release* .github/workflows/release* src-tauri/build.rs | Signature, notarisation, bundling des dylibs. Ça ne casse pas en CI : ça casse chez l'utilisateur, à l'installation.
 secrets-et-keychain | src-tauri/src/secrets.rs src-tauri/src/keychain* | Une erreur ne se voit pas. Elle se découvre.
 choix-produit | bootstrap/01-produit/** docs/adr/** | Ce n'est pas une tâche technique. C'est celle de Thomas.

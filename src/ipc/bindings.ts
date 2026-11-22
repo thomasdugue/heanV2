@@ -7,4 +7,146 @@ import type { InvokeOptions } from "@tauri-apps/api/core";
 export const commands = {
 	/**  Version de l'application, telle que déclarée dans `Cargo.toml`. */
 	appVersion: (options?: InvokeOptions) => __TAURI_INVOKE<string>("app_version", undefined, options),
+	/**  Toutes les pistes de la bibliothèque, chemins exclus filtrés (INV-06). */
+	listTracks: (options?: InvokeOptions) => __TAURI_INVOKE<Track_Serialize[]>("list_tracks", undefined, options),
+	/**
+	 *  Scanne les dossiers enregistrés et rend ce qui a changé.
+	 * 
+	 *  Le rapport est **ce qui permet à l'interface de ne rien recharger pour rien** (V004) :
+	 *  en V1, `scan_complete` déclenchait un rechargement inconditionnel, qui entrait en course
+	 *  avec le premier rendu de la home.
+	 */
+	scanLibrary: (options?: InvokeOptions) => __TAURI_INVOKE<RapportDeScan>("scan_library", undefined, options),
+	/**  Ajoute un dossier de bibliothèque (B04) et rend la liste complète des racines. */
+	addLibraryRoot: (path: string, options?: InvokeOptions) => __TAURI_INVOKE<string[]>("add_library_root", { path }, options),
+	/**  Les dossiers de bibliothèque enregistrés. */
+	libraryRoots: (options?: InvokeOptions) => __TAURI_INVOKE<string[]>("library_roots", undefined, options),
+	/**
+	 *  Écrit une édition de métadonnées **dans le fichier audio**, puis met la base à jour
+	 *  (INV-07). Rend la piste telle que la relecture du fichier l'a donnée.
+	 */
+	writeMetadata: (path: string, edition: Edition_Deserialize, options?: InvokeOptions) => __TAURI_INVOKE<Track_Serialize>("write_metadata", { path, edition }, options),
+	/**  Le bulk edit (B08) : les champs laissés vides ne sont pas touchés. */
+	bulkEdit: (paths: string[], edition: Edition_Deserialize, options?: InvokeOptions) => __TAURI_INVOKE<Track_Serialize[]>("bulk_edit", { paths, edition }, options),
+	/**  Exclut une piste de la bibliothèque, **définitivement** (INV-06, B09). */
+	excludeTrack: (path: string, options?: InvokeOptions) => __TAURI_INVOKE<null>("exclude_track", { path }, options),
+};
+
+/* Types */
+/**
+ *  Une édition de métadonnées. `None` = **ne pas toucher à ce champ**, ce qui est ce dont
+ *  le bulk edit a besoin : la modale de V1 affichait « mixed values » pour les champs qui
+ *  diffèrent entre les pistes sélectionnées, et ne devait écrire que ceux qu'on a remplis.
+ *  Pour vider un tag, passer `Some("")`.
+ */
+export type Edition = Edition_Serialize | Edition_Deserialize;
+
+/**
+ *  Une édition de métadonnées. `None` = **ne pas toucher à ce champ**, ce qui est ce dont
+ *  le bulk edit a besoin : la modale de V1 affichait « mixed values » pour les champs qui
+ *  diffèrent entre les pistes sélectionnées, et ne devait écrire que ceux qu'on a remplis.
+ *  Pour vider un tag, passer `Some("")`.
+ */
+export type Edition_Deserialize = {
+	titre?: string | null,
+	artiste?: string | null,
+	album?: string | null,
+	annee?: number | null,
+	piste?: number | null,
+	genre?: string | null,
+};
+
+/**
+ *  Une édition de métadonnées. `None` = **ne pas toucher à ce champ**, ce qui est ce dont
+ *  le bulk edit a besoin : la modale de V1 affichait « mixed values » pour les champs qui
+ *  diffèrent entre les pistes sélectionnées, et ne devait écrire que ceux qu'on a remplis.
+ *  Pour vider un tag, passer `Some("")`.
+ */
+export type Edition_Serialize = {
+	titre: string | null,
+	artiste: string | null,
+	album: string | null,
+	annee: number | null,
+	piste: number | null,
+	genre: string | null,
+};
+
+/**
+ *  Ce qu'un scan a trouvé. V004 en dépend : **si tout est à zéro, l'interface ne recharge
+ *  rien.** En V1, `scan_complete` rechargeait toujours la bibliothèque, ce qui créait une
+ *  course avec le premier rendu de la home.
+ */
+export type RapportDeScan = {
+	ajoutees: number,
+	modifiees: number,
+	disparues: number,
+	/**
+	 *  Les fichiers vus mais illisibles (tags corrompus, permissions). Comptés et non
+	 *  fatals : un fichier abîmé au milieu d'une bibliothèque de 10 000 pistes ne doit pas
+	 *  interrompre le scan. Le détail part dans le journal, via `tracing` (INV-21).
+	 */
+	illisibles: number,
+};
+
+/**
+ *  Une piste, telle que l'interface la voit. L'identité d'une piste est son **chemin** —
+ *  la question « un morceau logique avec N fichiers ? » est ouverte et tranchée en phase 3
+ *  (voir `docs/adr/README.md`), 21 % de la bibliothèque de Thomas étant en double.
+ */
+export type Track = Track_Serialize | Track_Deserialize;
+
+/**
+ *  Une piste, telle que l'interface la voit. L'identité d'une piste est son **chemin** —
+ *  la question « un morceau logique avec N fichiers ? » est ouverte et tranchée en phase 3
+ *  (voir `docs/adr/README.md`), 21 % de la bibliothèque de Thomas étant en double.
+ */
+export type Track_Deserialize = {
+	path: string,
+	titre: string,
+	artiste: string,
+	album: string,
+	album_artiste?: string | null,
+	/**
+	 *  La clé de regroupement, produite par `AlbumKey::new` (INV-01). Le frontend la
+	 *  **reçoit** et ne la recalcule jamais : c'est ce qui garantit qu'il n'existe qu'une
+	 *  normalisation dans tout le projet.
+	 */
+	cle_album: string,
+	annee?: number | null,
+	piste?: number | null,
+	disque?: number | null,
+	genre?: string | null,
+	duree_ms: number,
+	format: string,
+	echantillonnage?: number | null,
+	bits?: number | null,
+	debit?: number | null,
+};
+
+/**
+ *  Une piste, telle que l'interface la voit. L'identité d'une piste est son **chemin** —
+ *  la question « un morceau logique avec N fichiers ? » est ouverte et tranchée en phase 3
+ *  (voir `docs/adr/README.md`), 21 % de la bibliothèque de Thomas étant en double.
+ */
+export type Track_Serialize = {
+	path: string,
+	titre: string,
+	artiste: string,
+	album: string,
+	album_artiste: string | null,
+	/**
+	 *  La clé de regroupement, produite par `AlbumKey::new` (INV-01). Le frontend la
+	 *  **reçoit** et ne la recalcule jamais : c'est ce qui garantit qu'il n'existe qu'une
+	 *  normalisation dans tout le projet.
+	 */
+	cle_album: string,
+	annee: number | null,
+	piste: number | null,
+	disque: number | null,
+	genre: string | null,
+	duree_ms: number,
+	format: string,
+	echantillonnage: number | null,
+	bits: number | null,
+	debit: number | null,
 };

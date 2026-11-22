@@ -13,12 +13,12 @@ En V1, **3 sur 20** étaient couvertes par un test.
 | INV-10 | METADATA_CACHE : jamais de donnée périmée | ✂️ rayé | 🔴 BLOQUANT | sans objet — SQLite, un seul écrivain, transactions (ADR 0002) |
 | INV-14 | Mosaïque de playlist : rebuild automatique après chargement async des covers | ✂️ rayé | 🟡 AVERTISSEMENT | sans objet — Svelte 5 : le DOM découle de l'état (ADR 0002) |
 | INV-17 | option_env!() pour TOUS les secrets compile-time | ✂️ rayé | 🔴 BLOQUANT | sans objet — `src-tauri/build.rs` + `compile_error!()`, et architecture |
-| INV-01 | Un album = une seule entrée | 🧪 test | 🔴 BLOQUANT | planifiée (phase 2) — type `AlbumKey` à constructeur unique + property tests |
+| INV-01 | Un album = une seule entrée | 🧪 test | 🔴 BLOQUANT | test `cle.rs` — type `AlbumKey` à constructeur unique + proptests, et |
 | INV-02 | Pas de duplication visuelle sur la home | 🧪 test | 🟡 AVERTISSEMENT | planifiée (phase 3) — test de comportement sur « Recently Played » |
 | INV-03 | SMB : connexion périmée = retry automatique | 🧪 test | 🔴 BLOQUANT | planifiée (phase 5) — conteneur Samba + proxy à injection de panne |
 | INV-04 | SMB : un échec Keychain remonte une erreur, jamais un mot de passe vide | 🧪 test | 🔴 BLOQUANT | architecture `backend.test.ts` |
 | INV-05 | SMB : l'erreur du thread de download remonte à l'utilisateur | 🧪 test | 🟡 AVERTISSEMENT | planifiée (phase 5) — conteneur Samba |
-| INV-07 | Une métadonnée éditée est écrite dans le fichier audio | 🧪 test | 🔴 BLOQUANT | planifiée (phase 2) — écriture lofty puis relecture du fichier |
+| INV-07 | Une métadonnée éditée est écrite dans le fichier audio | 🧪 test | 🔴 BLOQUANT | test `bibliotheque.rs` — écriture lofty, puis relecture du fichier |
 | INV-11 | Mosaïque de playlist : déduplication par album seul | 🧪 test | 🟡 AVERTISSEMENT | planifiée (phase 3) — property test « invariant par permutation » |
 | INV-12 | Mosaïque de playlist : le fallback internet est obligatoire | 🧪 test | 🟡 AVERTISSEMENT | planifiée (phase 4) — test des 4 niveaux du pipeline de covers |
 | INV-15 | Boutons « Add to Queue » / « Add to Playlist » au survol | 🧪 test | 🟡 AVERTISSEMENT | planifiée (phase 4) — régression visuelle, état `hover` |

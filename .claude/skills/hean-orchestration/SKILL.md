@@ -79,8 +79,10 @@ une liste périmée sans que personne le sache.
 
 - **zone:moteur-audio** — `src-tauri/src/audio/**`, `src-tauri/src/coreaudio*`. Un défaut de
   bit-perfect ne fait échouer aucun test : ça joue, un peu moins bien.
-- **zone:migration-donnees** — `src-tauri/src/migration/**`. Une migration ratée, c'est la
-  bibliothèque de 50 testeurs.
+- **zone:migration-donnees** — `src-tauri/src/migration/**`,
+  `src-tauri/src/library/migrations.rs`. Une migration ratée, c'est la bibliothèque de 50
+  testeurs — et une migration de **schéma** qui perd une colonne perd les mêmes données
+  qu'une copie ratée (ajouté en phase 2, quand le schéma versionné est arrivé).
 - **zone:pipeline-release** — `scripts/release*`, `.github/workflows/release*`,
   `src-tauri/build.rs`. Ça ne casse pas en CI, ça casse chez l'utilisateur.
 - **zone:secrets-et-keychain** — `src-tauri/src/secrets.rs`, `src-tauri/src/keychain*`. Une

@@ -117,12 +117,21 @@ dette **visible**, que `./check` recompte à chaque passage.
 ### INV-01 — Un album = une seule entrée
 - pile : test
 - gravité : 🔴 BLOQUANT
-- couverture : planifiée (phase 2) — type `AlbumKey` à constructeur unique + property tests
+- couverture : test `cle.rs` — type `AlbumKey` à constructeur unique + proptests, et
+  architecture `une-seule-cle-dalbum.test.ts` côté frontend
 - pourquoi : trois bugs, une seule cause — une normalisation (trim + NFC) écrite plusieurs
   fois. L'invariant lui-même, la régression W003 (dédup par `artist+album` au lieu d'`album`
   seul : les variations « feat. » créaient de faux albums) et un lookup à quatre niveaux dans
   la home parce que deux formats de clé coexistaient. Si la seule façon d'obtenir une
   `AlbumKey` est `AlbumKey::new(raw)`, ce n'est plus une règle, c'est le système de types.
+  **Branchée sur un test le 2026-11-22 (phase 2).** Trois mécanismes, et c'est leur
+  empilement qui compte : (1) le type `AlbumKey` n'a qu'un constructeur, sans `From<String>`
+  ni champ public, donc aucune clé non normalisée ne peut entrer dans la base ; (2) des
+  proptests éprouvent l'idempotence et l'équivalence NFC/NFD sur **toute** chaîne Unicode
+  générée, plus les deux fixtures réelles `tags-nfd.flac` et `artist-feat.flac` ; (3) un
+  test d'architecture refuse toute normalisation Unicode écrite à la main dans `src/` **et
+  dans `tests/`** — un faux backend qui normaliserait serait une deuxième implémentation
+  arrivée par la porte du harnais.
 
 ### INV-02 — Pas de duplication visuelle sur la home
 - pile : test
@@ -158,11 +167,18 @@ dette **visible**, que `./check` recompte à chaque passage.
 ### INV-07 — Une métadonnée éditée est écrite dans le fichier audio
 - pile : test
 - gravité : 🔴 BLOQUANT
-- couverture : planifiée (phase 2) — écriture lofty puis relecture du fichier
+- couverture : test `bibliotheque.rs` — écriture lofty, puis relecture du fichier
 - pourquoi : le cache est un accélérateur, **la source de vérité est le fichier audio**.
   SQLite règle la cohérence entre caches (INV-08/09/10) mais ne dit rien de ça : si on
   n'écrit que dans la base, la métadonnée disparaît dès que l'utilisateur ouvre le fichier
   ailleurs. C'est pour cette raison que cette règle n'est pas rayée avec ses voisines.
+  **Branchée sur un test le 2026-11-22 (phase 2).** Elle est devenue un ORDRE D'ÉCRITURE :
+  le fichier d'abord, puis la base, et la base n'est alimentée qu'avec ce que la **relecture
+  du fichier** a rendu (`library/metadonnees.rs`). Si l'écriture échoue, la base n'a pas
+  bougé ; si lofty normalise une valeur à sa façon, c'est sa version qui entre dans la base,
+  donc la base ne peut pas annoncer autre chose que le fichier. Le test édite une vraie
+  fixture copiée en zone temporaire, **supprime la base**, rescanne, et retrouve la valeur :
+  elle ne peut venir que du fichier.
 
 ### INV-11 — Mosaïque de playlist : déduplication par album seul
 - pile : test
