@@ -17,6 +17,7 @@ conclusion.
 | [0002](0002-stack-technique.md) | Stack : TypeScript strict + Vite, Svelte 5, tauri-specta, SQLite | Acceptée |
 | [0003](0003-dossier-de-donnees.md) | Données dans `hean/` avec migration depuis `noir/` | Acceptée |
 | [0004](0004-cible-de-parite.md) | La cible de parité est le redesign v3, commit `e12a200` | Acceptée |
+| [0005](0005-entretien-du-harnais-et-orchestration.md) | Le harnais s'entretient par mécanisme ; la délégation suit le harnais | Acceptée |
 
 **Décisions encore ouvertes**, à transformer en ADR dès qu'elles sont prises :
 

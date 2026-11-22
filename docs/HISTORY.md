@@ -153,3 +153,11 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   de démarrage. Au passage : le tableau des 6 arbitrages du `PLAN-DE-RECONSTRUCTION.md` était resté
   « à prendre » alors que les ADR 0002/0003/0004 les ont tranchés — corrigé, pour que la session de
   phase 0 ne les rouvre pas.
+- **2026-11-22** (suite) : Thomas valide les deux recommandations → **ADR
+  [0005](adr/0005-entretien-du-harnais-et-orchestration.md)**, qui les acte et les rend immuables.
+  Les deux documents de `06-setup-v2/` restent le détail et le raisonnement ; l'ADR porte la
+  décision, ses alternatives écartées (compter sur la discipline, énumérer d'avance, déléguer selon
+  la taille, faire relire l'exécution par l'orchestrateur, construire un cadre sur mesure) et ses
+  conséquences assumées — dont le fait que la phase 0 grossit, et que l'économie financière de
+  l'orchestration est modeste : le gain réel est l'attention du modèle cher.
+  Les deux règles sont remontées dans `CLAUDE.md`, donc lues à chaque session.

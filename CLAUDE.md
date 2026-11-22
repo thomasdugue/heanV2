@@ -37,6 +37,8 @@ Postmortem de V1 : `heanv2-bootstrap/05-postmortem/DETTE-TECHNIQUE-V1.md`.
 | Store bibliothèque | **SQLite** (`rusqlite`, `bundled`) | transactions → 4 invariants bloquants disparaissent |
 | Dossier de données | **`~/Library/Application Support/hean/`** + migration one-shot depuis `noir/` | nom cohérent, testeurs préservés |
 | Cible de parité visuelle | **le redesign v3, commit `e12a200`** (ADR [0004](docs/adr/0004-cible-de-parite.md)) — **pas** la beta distribuée | trois designs de Hean existent, deux étaient hors de `main` ; celui-ci est le seul complet et non cassé |
+| Entretien du harnais | **par mécanisme, jamais par discipline** (ADR [0005](docs/adr/0005-entretien-du-harnais-et-orchestration.md)) : généré > apparié > réclamé. Tout défaut qui atteint Thomas repart avec la vérification qui l'aurait vu | une phrase dans un document ne peut pas échouer ; un test, si |
+| Délégation à un modèle moins coûteux | **seulement si son critère de réussite est écrit et exécutable AVANT** de lancer la tâche (ADR [0005](docs/adr/0005-entretien-du-harnais-et-orchestration.md)) | sinon l'erreur se paie en temps de Thomas, pas en test rouge |
 
 **Svelte 5 uniquement.** Les runes (`$state`, `$derived`, `$effect`) et non les stores Svelte 4
 (`writable`, `$:`). Beaucoup d'exemples en ligne sont encore en Svelte 4 : si un doute, vérifier la
