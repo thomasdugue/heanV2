@@ -385,6 +385,24 @@ fn editer_une_piste_inconnue_remonte_une_erreur() {
     assert!(format!("{e}").contains("inconnue"), "{e}");
 }
 
+/// Une édition vide rend la piste telle quelle, et ne prétend pas qu'elle est inconnue.
+#[test]
+fn une_edition_vide_ne_remonte_pas_une_fausse_erreur() {
+    let bac = Bac::avec("vide-message", &["tags-nfd.flac"]);
+    let chemin = bac.chemin("tags-nfd.flac");
+    let mut depot = bac.scanne();
+
+    let piste = depot.editer(&chemin, &Edition::default()).expect("une édition vide est un non-événement");
+    assert_eq!(piste.path, chemin);
+
+    // Et une piste réellement inconnue, elle, remonte bien l'erreur — sinon la correction
+    // du message aurait fait disparaître le message utile avec le faux.
+    let e = depot
+        .editer("/nulle/part/absent.flac", &Edition::default())
+        .expect_err("une piste inconnue reste une erreur");
+    assert!(format!("{e}").contains("inconnue"), "{e}");
+}
+
 /// La base survit à sa fermeture : les migrations ne se rejouent pas et rien n'est perdu.
 #[test]
 fn la_base_se_reouvre_sans_perdre_la_bibliotheque() {

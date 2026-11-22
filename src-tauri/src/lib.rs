@@ -37,7 +37,9 @@ pub fn run() {
     // seule base (ADR 0002). Si elle ne s'ouvre pas, l'app ne démarre pas — ouvrir une base
     // de secours en mémoire donnerait une bibliothèque vide d'apparence normale, et
     // l'utilisateur croirait avoir tout perdu.
-    let base = library::dossier::base_de_bibliotheque();
+    let dossier = library::dossier::dossier_de_donnees()
+        .expect("HOME absent ou relatif : impossible de localiser le dossier de données (ADR 0003)");
+    let base = library::dossier::base_dans(&dossier);
     let depot = library::Depot::ouvrir(&base)
         .unwrap_or_else(|e| panic!("ouverture de la bibliothèque {} : {e}", base.display()));
 

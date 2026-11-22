@@ -275,7 +275,17 @@ impl Depot {
     /// Écrit une édition dans le **fichier audio**, puis met la base à jour avec ce que la
     /// relecture du fichier a rendu (INV-07). L'ordre est l'invariant.
     pub fn editer(&mut self, chemin: &str, edition: &Edition) -> Result<Track, Erreur> {
-        let mut pistes = self.editer_en_lot(&[chemin.to_string()], edition)?;
+        // Une édition vide est un non-événement, pas une erreur : on rend la piste telle
+        // qu'elle est. Sans ce court-circuit, `editer_en_lot` rendait un vecteur vide et le
+        // `pop()` levait « piste inconnue » — un message qui accuse la piste alors que rien
+        // n'avait été demandé. Relevé en relecture ; un message d'erreur faux coûte plus
+        // cher qu'une absence de message, parce qu'il envoie chercher au mauvais endroit.
+        if edition.est_vide() {
+            return self
+                .piste(chemin)?
+                .ok_or_else(|| Erreur::PisteInconnue(chemin.to_string()));
+        }
+        let mut pistes = self.editer_en_lot(std::slice::from_ref(&chemin.to_string()), edition)?;
         pistes.pop().ok_or_else(|| Erreur::PisteInconnue(chemin.to_string()))
     }
 

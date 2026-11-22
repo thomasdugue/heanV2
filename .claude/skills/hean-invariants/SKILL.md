@@ -348,6 +348,19 @@ censé voir.
 - **Les vérifications en script** (`tools/check-*.sh|mjs`) n'ont pas cette forme : on les
   éprouve **à la main, par injection**, avant de les committer. `check-adr.mjs`,
   `check-comptes.mjs` et les règles CSS/`println!` l'ont toutes été.
+- **Un comportement porté entre dans le verdict.** Les 24 comportements de
+  `UX-ANTI-REGRESSION.md` sont rouges par construction tant que la feature n'existe pas :
+  c'est le tableau de bord, et `./check` ne le compte pas dans son verdict. Mais dès qu'un
+  comportement est **porté**, la même indulgence devient un angle mort — il pourrait
+  régresser sans faire rougir `./check`, et le tableau de bord relabelliserait la régression
+  en dette (« il en reste 19 à porter »). Tenu par `tools/check-comportements.mjs` : un
+  comportement porté doit passer, un comportement à porter doit échouer. Né le 2026-11-22,
+  relevé par `invariant-guardian` à la relecture de la phase 2 — la phase qui venait d'ouvrir
+  le trou en portant les six premiers. Rattraper ça par le protocole de session serait de la
+  discipline, ce que l'ADR 0005 refuse par principe.
+- **Et un test porté doit contenir une assertion.** Le corollaire, sans quoi la règle
+  précédente se contourne sans le vouloir : `it('V005 — …', () => {})` serait compté porté
+  **et** vert. Tenu par `contrat-complet.test.ts`.
 - ⚠️ **Nettoyer l'injection : arbre propre avant, ou copie.** `git checkout <fichier>` pour
   retirer une faute injectée **efface aussi le travail non commité du même fichier**. Payé le
   2026-11-22 : deux modifications perdues, repérées seulement parce qu'un renvoi s'était remis

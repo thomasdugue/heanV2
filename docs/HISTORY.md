@@ -437,5 +437,26 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     plutôt que phase 2 selon le plan), **la migration des données de V1** (zone jamais déléguée,
     fixtures tirées de vraies données) et **toute interface**. Le frontend s'arrête au dépôt et au
     regroupement.
+  - **Le trou que cette phase avait elle-même ouvert**, relevé par `invariant-guardian` : les six
+    comportements portés vivaient **hors du verdict** de `./check`. La suite UX tournait à part et
+    son compte n'avait jamais touché le verdict — sans conséquence tant qu'aucun comportement
+    n'était porté, angle mort à la minute où six l'ont été. V012 ou V004 pouvaient régresser en
+    phase 3 en laissant `./check` **VERT**, le tableau de bord relabellisant la régression en dette
+    (« il en reste 19 à porter »). Refermé par `tools/check-comportements.mjs`, **19ᵉ vérification**
+    et la première à entrer dans le verdict depuis la phase 1 : un comportement porté doit passer,
+    un comportement à porter doit échouer. Éprouvée en réinjectant la faute de V1 dans le dépôt
+    frontend — `./check` devient rouge en nommant V004. La règle est écrite dans `hean-invariants`
+    avec son mécanisme, pas seulement son intention.
+  - Corollaire fermé dans le même mouvement : un test porté doit contenir une **assertion**.
+    `it('V005 — …', () => {})` aurait été compté porté *et* vert. Et le détecteur qui le vérifie
+    avait lui-même un défaut à sa première écriture — il découpait les corps de tests avec une
+    borne `\Z` qui n'existe pas en JavaScript, donc le **dernier test de chaque fichier** échappait
+    à l'examen, c'est-à-dire exactement l'endroit où on ajoute un test. Trouvé par son auto-test.
+  - Deux défauts de mon code, trouvés en relecture et corrigés avec leur test : `HOME` absent
+    rendait un chemin **relatif**, donc la base se créait dans le répertoire courant et la
+    bibliothèque paraissait simplement vide — le cas « défaut invisible » qu'INV-21 décrit ; et une
+    édition vide remontait « piste inconnue », un message **faux**, qui envoie chercher au mauvais
+    endroit. Fermée aussi l'asymétrie du détecteur d'INV-06, qui ne scannait que `src-tauri/src` là
+    où celui d'INV-01 scanne aussi `tests/`.
   - **Prochaine étape** : les vues (phase 3), ou la migration `noir/` → `hean/` si Thomas veut
     sécuriser les testeurs d'abord.

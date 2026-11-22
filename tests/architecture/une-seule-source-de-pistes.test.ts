@@ -62,7 +62,11 @@ describe('INV-06 — une seule construction de liste de pistes', () => {
   });
 
   it('excluded_paths ne s’applique qu’à un seul endroit côté Rust', () => {
-    const fautes = sources('src-tauri/src', ['.rs'])
+    // `src-tauri/tests/` est scanné en plus de `src/`, et c'est la même asymétrie que celle
+    // trouvée sur INV-21 en phase 1 : un test d'intégration qui interrogerait la table
+    // d'exclusion directement serait un deuxième endroit où le filtre vit — invisible tant
+    // que personne n'aurait pensé à regarder là. Relevé par invariant-guardian, phase 2.
+    const fautes = [...sources('src-tauri/src', ['.rs']), ...sources('src-tauri/tests', ['.rs'])]
       .filter(([f, c]) => f !== DEPOT_RS && c.includes('excluded_paths'))
       .map(([f]) => f);
     expect(fautes, `le filtre vit dans ${DEPOT_RS}, et nulle part ailleurs`).toEqual([]);

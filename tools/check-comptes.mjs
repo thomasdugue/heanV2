@@ -27,20 +27,18 @@ for (const fichier of ['README.md', 'CLAUDE.md']) {
   }
 }
 
-// 1b. Le « (sur N) » du tableau de bord de ./check ↔ le nombre de comportements du contrat.
-// `./check` déduit les portés de « N moins les rouges » : si ce N et le contrat divergent,
-// le tableau de bord annonce un avancement faux sans qu'aucun test n'échoue.
+// 1b. Le compte des comportements n'est plus écrit NULLE PART à la main : `./check` délègue
+// à `check-comportements.mjs`, qui le déduit du contrat. Ce qui reste à vérifier est donc
+// que la délégation existe — un `./check` qui recommencerait à compter lui-même rouvrirait
+// la porte. (Il a d'abord retranché « 3 » aux tests verts, puis annoncé « sur 24 » : deux
+// nombres écrits à la main, les deux devenus faux.)
 const comportements = (lire('tests/ux/_contrat.ts').match(/^\s*c\('[VW]\d{3}'/gm) ?? []).length;
 const verif = lire('check');
-const surN = /portés \(sur (\d+)\)/.exec(verif)?.[1];
-const moins = /\$\(\( (\d+) - /.exec(verif)?.[1];
-if (surN === undefined || moins === undefined) {
-  erreurs.push("check : impossible d'y lire le compte du tableau de bord — le format a changé");
-} else if (Number(surN) !== comportements || Number(moins) !== comportements) {
-  erreurs.push(
-    `check annonce « sur ${surN} » et calcule « ${moins} - rouges », ` +
-      `le contrat compte ${comportements} comportements`,
-  );
+if (!verif.includes('tools/check-comportements.mjs')) {
+  erreurs.push('check ne lance pas tools/check-comportements.mjs : les comportements portés sortiraient du verdict');
+}
+if (/portés \(sur \d+\)/.test(verif)) {
+  erreurs.push('check compte les comportements lui-même : ce nombre se déduit du contrat, il ne s’écrit pas');
 }
 
 // 2. Les comptes de piles d'invariants de CLAUDE.md ↔ le skill, source de vérité.
