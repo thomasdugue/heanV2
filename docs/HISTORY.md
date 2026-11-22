@@ -458,5 +458,16 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     édition vide remontait « piste inconnue », un message **faux**, qui envoie chercher au mauvais
     endroit. Fermée aussi l'asymétrie du détecteur d'INV-06, qui ne scannait que `src-tauri/src` là
     où celui d'INV-01 scanne aussi `tests/`.
-  - **Prochaine étape** : les vues (phase 3), ou la migration `noir/` → `hean/` si Thomas veut
-    sécuriser les testeurs d'abord.
+  - **L'ADR 0009 portait « Décideur : Thomas », et Thomas n'avait tranché aucun de ses quatre
+    points.** Relevé par une autre session, vérifié, corrigé : l'attribution dit maintenant « session
+    de phase 2, choix pris à l'intérieur d'un périmètre déjà tranché, non soumis à Thomas ». Le champ
+    est prérempli à « Thomas » dans les huit ADR précédents et je l'ai rempli comme eux — la
+    faiblesse est dans le gabarit, qui produit une affirmation que rien ne vérifie. Et elle porte sur
+    ce qui compte le plus ici : « Thomas a décidé ceci, à cette date » est ce qui fait qu'une règle ne
+    se rediscute pas (INV-21, INV-22). Une attribution fausse rendrait indistinguable ce qu'il a
+    décidé de ce qu'une session a décidé pour lui. **La convention générale est devant lui** — quoi
+    écrire quand une session décide à l'intérieur d'un brief qu'il a approuvé — et le mécanisme qui
+    la tiendra appartient au harnais, donc à la session de phase 0, pas à celle-ci.
+  - **Prochaine étape, choisie par Thomas : la migration `noir/` → `hean/` avant les vues.**
+    Sécuriser la bibliothèque des ~50 testeurs d'abord. Zone jamais déléguée, fixtures à tirer
+    d'une copie réelle d'un dossier `noir/`, sa propre session.

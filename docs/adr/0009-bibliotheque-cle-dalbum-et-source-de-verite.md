@@ -2,7 +2,13 @@
 
 - **Date** : 2026-11-22
 - **État** : Acceptée
-- **Décideur** : Thomas
+- **Décideur** : **session de phase 2** — choix techniques pris à l'intérieur d'un périmètre
+  déjà tranché par l'[ADR 0002](0002-stack-technique.md) et par le brief de phase 2.
+  **Non soumis à Thomas.** Il n'a arbitré aucun des quatre points ci-dessous, et l'écrire
+  ici est le seul moyen de garder distinguable ce qu'il a réellement décidé — pour INV-21 et
+  INV-22, par exemple — de ce qu'une session a décidé pour lui. Ce que ce champ doit dire en
+  général, quand une session décide à l'intérieur d'un brief qu'il a approuvé, est une
+  question ouverte devant lui ; la formulation d'ici suivra sa réponse.
 - **Suit** : [0002](0002-stack-technique.md) (SQLite, `rusqlite` en `bundled`),
   [0003](0003-dossier-de-donnees.md) (le dossier de données)
 
