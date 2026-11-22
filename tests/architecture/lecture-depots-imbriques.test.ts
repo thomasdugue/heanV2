@@ -10,6 +10,17 @@
 // `bootstrap/`, qui n'est volontairement dans aucune zone, et y compris eux-mêmes.
 //
 // Ce test-ci garde la garde : sans lui, la correction se perdrait au premier refactoring.
+//
+// ⚠️ ET LA CI NE PEUT PAS PROUVER CE CORRECTIF. Un clone neuf n'a aucun dépôt imbriqué :
+// `aucun-chemin-machine.test.ts` y passait déjà AVANT la correction, et y passe après. Le
+// vert de la CI et « le bug est corrigé » sont ici deux affirmations indépendantes. La seule
+// preuve est une exécution dans un clone qui porte réellement des worktrees — faite le
+// 2026-11-22 dans celui de Thomas, ROUGE avant, VERT après.
+//
+// C'est pour cela que le test ci-dessous **fabrique** son dépôt imbriqué dans un dossier
+// temporaire au lieu d'espérer en trouver un : c'est ce qui le rend vrai partout, y compris
+// là où le défaut ne peut pas se manifester. Toute vérification qui porte sur
+// l'environnement de travail plutôt que sur le contenu du dépôt aura cette propriété.
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

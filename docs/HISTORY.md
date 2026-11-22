@@ -346,6 +346,11 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   - Et le test qui garde la garde : `lecture-depots-imbriques.test.ts` fabrique un worktree dans un
     dossier temporaire et vérifie que le parcours l'ignore. Sans lui, la correction se perdrait au
     premier refactoring.
+  - **La CI ne peut pas prouver ce correctif** : un clone neuf n'a aucun worktree, donc le test
+    passait déjà avant et passe après. Vérifié là où le rouge existait — dans le clone de Thomas,
+    qui porte deux worktrees de session : ROUGE avant, VERT après. C'est pourquoi le test de garde
+    **fabrique** son dépôt imbriqué au lieu d'espérer en trouver un. Toute vérification qui porte
+    sur l'environnement de travail plutôt que sur le contenu du dépôt aura cette propriété.
   - Tranché au passage, par écrit dans le test : **`bootstrap/` reste hors des zones scannées.**
     C'est l'archive figée de V1 (ADR 0004) — ses chemins absolus sont un relevé historique, et
     `code-reference/rust/sentry_init.rs` en porte comme **fixtures d'un anonymiseur de chemins**.
