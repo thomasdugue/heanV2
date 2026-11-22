@@ -73,14 +73,13 @@ impl Trames {
     }
 
     /// Nombre de trames (un échantillon par canal). Zéro canal est impossible : le format
-    /// vient d'un conteneur qui en déclare toujours au moins un.
+    /// vient d'un conteneur qui en déclare toujours au moins un — `checked_div` est là pour
+    /// que l'impossible ne devienne pas une division par zéro si cette garantie tombe.
     pub fn nombre_de_trames(&self) -> usize {
-        let canaux = self.format.canaux as usize;
-        if canaux == 0 {
-            0
-        } else {
-            self.echantillons.len() / canaux
-        }
+        self.echantillons
+            .len()
+            .checked_div(self.format.canaux as usize)
+            .unwrap_or(0)
     }
 
     /// Les octets PCM **little-endian**, dans la profondeur du format.
