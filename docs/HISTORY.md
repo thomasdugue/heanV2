@@ -316,7 +316,7 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   que la machine de Thomas gardait la sienne. Constaté en phase 1 — `./check` vert en local, rouge
   en CI, sur du code identique, à cause d'un lint clippy que la machine de Thomas ne connaissait pas
   encore. Trois sessions l'ont relevé indépendamment.
-  - Décision de Thomas : **épingler** (ADR [0007](adr/0007-epingler-la-chaine-doutils.md)).
+  - Décision de Thomas : **épingler** (ADR [0008](adr/0008-epingler-la-chaine-doutils.md)).
     `rust-toolchain.toml` à la racine est la **seule** source de cette version ; le workflow ne la
     redéclare pas, il la lit. Deux endroits auraient été deux occasions de diverger.
   - Et parce qu'un fichier qui déclare une version n'est qu'une affirmation de plus, `./check`
@@ -355,3 +355,24 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     C'est l'archive figée de V1 (ADR 0004) — ses chemins absolus sont un relevé historique, et
     `code-reference/rust/sentry_init.rs` en porte comme **fixtures d'un anonymiseur de chemins**.
     Une règle de ce genre doit s'arrêter au code vivant.
+- **2026-11-22** (numérotation des décisions) : **deux ADR portaient le numéro 0007** — le format
+  audio interne (phase 1) et l'épinglage de la chaîne d'outils (phase 0). Les deux datés du même
+  jour, les deux « Acceptée ». L'index n'en listait qu'un, et le `README` disait « ADR 0007 » de
+  deux choses différentes à **dix-sept lignes d'écart**. Relevé par la session d'orchestration,
+  vérifié ici : 13 renvois dans 9 fichiers.
+  - Cause **structurelle**, pas une étourderie : deux sessions ont numéroté en parallèle, chacune
+    prenant « le suivant après 0006 » sans voir l'autre. Deux branches vivantes en même temps est
+    désormais le mode de travail normal — ça se reproduira.
+  - Décision de Thomas : **renuméroter en 0008** celui de l'épinglage, arrivé le second. Seul le
+    rangement change — ni la décision, ni son raisonnement, ni sa date. **L'immuabilité d'un ADR
+    porte sur ce qu'il décide, pas sur le numéro sous lequel il est classé.** Le même raisonnement
+    vaut pour le renvoi dans ce journal : un numéro est un pointeur, pas une affirmation sur ce
+    qui s'est passé — et une entrée qui pointe vers un fichier inexistant serait pire.
+  - Et la vérification qui l'aurait vu : `tools/check-adr.mjs` — numéro unique, présence dans
+    l'index, état dans un ensemble fermé, et tout renvoi qui doit désigner un ADR existant.
+    **Y compris les renvois en texte nu** dans un `.toml`, un `.sh` ou un `.yml` : quatre des huit
+    étaient de cette forme, et aucun vérificateur de liens ne les voit. Éprouvé par injection des
+    trois fautes.
+  - Au passage, une leçon de méthode payée sur le vif : nettoyer une faute injectée avec
+    `git checkout <fichier>` **efface le travail non commité** du même fichier. Deux modifications
+    perdues et refaites. Injecter une faute se fait sur un arbre propre, ou avec une copie.

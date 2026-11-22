@@ -11,6 +11,12 @@ de skill qui grossissait. On y perdait le *pourquoi*, donc la règle finissait p
 quelqu'un qui la trouvait arbitraire. Un ADR garde la trace du raisonnement, pas seulement de la
 conclusion.
 
+**Numérotation.** Le numéro suivant se prend en regardant ce tableau, et une collision est
+possible dès que deux branches vivent en même temps — c'est arrivé le 2026-11-22, deux sessions
+ayant pris « le suivant après 0006 » sans se voir. `tools/check-adr.mjs` le refuse désormais :
+numéro unique, présence dans ce tableau, état dans un ensemble fermé, et tout renvoi en texte nu
+qui doit désigner exactement un fichier — ce qu'aucun vérificateur de liens ne voit.
+
 | # | Décision | État |
 |---|---|---|
 | [0001](0001-reecrire-hean-de-zero.md) | Réécrire Hean de zéro plutôt que refactorer V1 | Acceptée |
@@ -20,6 +26,7 @@ conclusion.
 | [0005](0005-entretien-du-harnais-et-orchestration.md) | Le harnais s'entretient par mécanisme ; la délégation suit le harnais | Acceptée |
 | [0006](0006-socle-et-harnais-de-phase-0.md) | Le socle de phase 0 et la forme du harnais | Acceptée |
 | [0007](0007-format-interne-audio-et-preuve-du-bit-perfect.md) | Format interne audio `i32` à l'échelle 32 bits ; le bit-perfect devient une assertion | Acceptée |
+| [0008](0008-epingler-la-chaine-doutils.md) | La chaîne d'outils Rust est épinglée — `./check` est vraiment identique partout | Acceptée |
 
 **Décisions encore ouvertes**, à transformer en ADR dès qu'elles sont prises :
 

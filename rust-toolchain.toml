@@ -1,4 +1,4 @@
-# La chaîne d'outils Rust, épinglée à une version exacte (ADR 0007).
+# La chaîne d'outils Rust, épinglée à une version exacte (ADR 0008).
 #
 # Pourquoi : `./check` promet d'exécuter la MÊME chose en local, en pre-commit et en CI.
 # C'était vrai pour le JavaScript — `package-lock.json` fige ses versions au patch près — et

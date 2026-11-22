@@ -41,7 +41,7 @@ jobs:
       # Pas de `dtolnay/rust-toolchain@stable` : il installait « la dernière version du
       # jour », donc la CI compilait avec un autre compilateur que la machine de Thomas.
       # La version vient de `rust-toolchain.toml`, et d'elle seule — une seule source
-      # (ADR 0007). `rustup show` l'installe, avec les composants qu'elle déclare.
+      # (ADR 0008). `rustup show` l'installe, avec les composants qu'elle déclare.
       - name: Chaîne Rust épinglée
         run: |
           rustup show

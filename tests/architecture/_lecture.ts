@@ -16,7 +16,7 @@ const IGNORES = new Set(['node_modules', 'target', 'dist', '.git', 'icons']);
  * Sans cette garde, `./check` était **rouge en local et vert en CI** : la CI part d'un clone
  * neuf sans worktree, alors que la machine de Thomas en porte un par session. Le même code
  * n'était donc pas vérifié sur le même ensemble de fichiers des deux côtés. C'est la même
- * famille de défaut que la chaîne d'outils non épinglée (ADR 0007), vue de l'autre bout.
+ * famille de défaut que la chaîne d'outils non épinglée (ADR 0008), vue de l'autre bout.
  */
 function estUnDepotSepare(chemin: string): boolean {
   return existsSync(join(chemin, '.git'));
