@@ -7,6 +7,9 @@
 //   - un test qui cite un invariant disparu échoue ;
 //   - les compteurs du tableau du skill doivent correspondre à la réalité.
 //
+// Les comptes recopiés EN PROSE (CLAUDE.md, README) sont tenus par `tools/check-comptes.mjs`,
+// pas ici : un même nombre ne se vérifie qu'à un seul endroit.
+//
 // Une couverture « planifiée (phase N) » est une dette ASSUMÉE et VISIBLE : le script la
 // compte et l'affiche, il ne la cache pas. C'est la porte de sortie explicite.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -62,6 +65,10 @@ const parcourir = (d) => {
 };
 parcourir(join(RACINE, 'tests'));
 parcourir(join(RACINE, 'src-tauri/src'));
+// `src-tauri/tests/` : même angle mort que celui trouvé sur INV-21 dans `backend.test.ts`.
+// Tant que ce dossier ne contenait qu'un fichier, il ne se voyait pas ; une règle citée là y
+// aurait été invisible, donc déclarée orpheline à tort au moment de la brancher sur un test.
+parcourir(join(RACINE, 'src-tauri/tests'));
 
 for (const id of citations.keys()) {
   if (!invariants.has(id)) erreurs.push(`${id} : cité par un test mais absent de ${SKILL} (test orphelin)`);

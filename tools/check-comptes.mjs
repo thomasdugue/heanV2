@@ -36,6 +36,9 @@ for (const m of skill.matchAll(/^- pile\s*:\s*(\S+)\s*$/gm)) {
   if (m[1] in piles) piles[m[1]]++;
 }
 const total = Object.values(piles).reduce((a, b) => a + b, 0);
+// Les « planifiées » : la dette assumée. C'est le nombre le plus vivant des cinq — il bouge
+// à chaque règle branchée sur un test — donc le plus exposé à devenir faux en silence.
+const planifiees = (skill.match(/^- couverture\s*:\s*planifiée/gm) ?? []).length;
 
 const claude = lire('CLAUDE.md');
 const attendus = [
@@ -43,6 +46,7 @@ const attendus = [
   [/\*\*Rayées \((\d+)\)\*\*/, piles['rayé'], 'les invariants rayés'],
   [/\*\*Devenues des tests \((\d+)\)\*\*/, piles['test'], 'les invariants devenus des tests'],
   [/\*\*Irréductibles \((\d+)\s*\+/, piles['irréductible'], 'les invariants irréductibles'],
+  [/\*\*(\d+) « planifiées »\*\*/, planifiees, 'les couvertures planifiées'],
 ];
 for (const [re, reel, quoi] of attendus) {
   const m = re.exec(claude);
@@ -55,4 +59,6 @@ if (erreurs.length) {
   console.log('check-comptes : ÉCHEC');
   process.exit(1);
 }
-console.log(`check-comptes : OK (${verifications} vérifications, ${total} invariants)`);
+console.log(
+  `check-comptes : OK (${verifications} vérifications, ${total} invariants dont ${planifiees} planifiés)`,
+);
