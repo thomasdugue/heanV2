@@ -321,6 +321,22 @@ exactement quand elles servent — et que `CLAUDE.md` doit rester lisible en ent
 - **Toute donnée affichée passe par un échappement**, guillemets compris. C'est le
   comportement W006 : un tag contenant `"` était tronqué à la sauvegarde.
 
+### Éprouver un détecteur plutôt que le supposer
+
+Un test de forme sur un dossier encore vide passe au vert sans rien garantir : il produit de
+la confiance sans en mériter. Tout détecteur se prouve donc en lui donnant la faute qu'il est
+censé voir.
+
+- **Les tests d'architecture embarquent leur auto-test** : chacun lance son détecteur sur un
+  échantillon fautif écrit à côté. C'est la forme à préférer — elle tourne à chaque `./check`.
+- **Les vérifications en script** (`tools/check-*.sh|mjs`) n'ont pas cette forme : on les
+  éprouve **à la main, par injection**, avant de les committer. `check-adr.mjs`,
+  `check-comptes.mjs` et les règles CSS/`println!` l'ont toutes été.
+- ⚠️ **Nettoyer l'injection : arbre propre avant, ou copie.** `git checkout <fichier>` pour
+  retirer une faute injectée **efface aussi le travail non commité du même fichier**. Payé le
+  2026-11-22 : deux modifications perdues, repérées seulement parce qu'un renvoi s'était remis
+  à dire l'ancien numéro.
+
 ### Performance — détail dans [`docs/PERFORMANCE.md`](../../../docs/PERFORMANCE.md)
 
 La promesse du produit est une app légère et rapide. Trois règles la protègent ; les deux
