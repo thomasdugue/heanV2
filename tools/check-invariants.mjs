@@ -5,8 +5,10 @@
 //   - chaque invariant a une pile, une gravité, une couverture et un pourquoi ;
 //   - un invariant qui annonce un test doit être cité par un test qui existe ;
 //   - un test qui cite un invariant disparu échoue ;
-//   - les compteurs du tableau du skill doivent correspondre à la réalité ;
-//   - les comptes que CLAUDE.md réclame en prose doivent correspondre à la même réalité.
+//   - les compteurs du tableau du skill doivent correspondre à la réalité.
+//
+// Les comptes recopiés EN PROSE (CLAUDE.md, README) sont tenus par `tools/check-comptes.mjs`,
+// pas ici : un même nombre ne se vérifie qu'à un seul endroit.
 //
 // Une couverture « planifiée (phase N) » est une dette ASSUMÉE et VISIBLE : le script la
 // compte et l'affiche, il ne la cache pas. C'est la porte de sortie explicite.
@@ -87,25 +89,6 @@ for (const pile of PILES) {
   const annonce = new RegExp(`\\|\\s*\\*\\*${pile}\\*\\*\\s*\\|[^|]*\\|\\s*(\\d+)`).exec(skill)?.[1];
   if (annonce === undefined) erreurs.push(`${SKILL} : le tableau de tri n'annonce pas de compte pour « ${pile} »`);
   else if (Number(annonce) !== reels[pile]) erreurs.push(`${SKILL} : le tableau annonce ${annonce} « ${pile} », il y en a ${reels[pile]}`);
-}
-
-// --- 4. les comptes que CLAUDE.md RÉCLAME ---------------------------------------------
-// CLAUDE.md est lu en entier à chaque session : un compte faux y est lu par tout le monde.
-// Ces cinq nombres étaient au niveau « réclamé » — ils sont devenus faux à la minute où
-// INV-22 est née. C'est exactement la dérive que la section 3 interdit déjà au skill
-// (ADR 0005 : tout défaut repart avec la vérification qui l'aurait vu).
-const claudeMd = readFileSync(join(RACINE, 'CLAUDE.md'), 'utf8');
-const planifiesN = [...invariants.values()].filter((i) => (i.couverture ?? '').startsWith('planifiée')).length;
-for (const [motif, attendu, quoi] of [
-  [/\*\*(\d+) règles\*\*/, invariants.size, 'règles au total'],
-  [/\*\*Rayées \((\d+)\)\*\*/, reels['rayé'], 'rayées'],
-  [/\*\*Devenues des tests \((\d+)\)\*\*/, reels['test'], 'devenues des tests'],
-  [/\*\*Irréductibles \((\d+) /, reels['irréductible'], 'irréductibles'],
-  [/\*\*(\d+) « planifiées »\*\*/, planifiesN, 'planifiées'],
-]) {
-  const annonce = motif.exec(claudeMd)?.[1];
-  if (annonce === undefined) erreurs.push(`CLAUDE.md : n'annonce plus de compte de « ${quoi} » (motif ${motif})`);
-  else if (Number(annonce) !== attendu) erreurs.push(`CLAUDE.md : annonce ${annonce} ${quoi}, il y en a ${attendu}`);
 }
 
 // --- verdict ---------------------------------------------------------------------------

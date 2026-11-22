@@ -94,25 +94,17 @@ tools/          check-*.sh|mjs et gen/ — tout ce que ./check lance
 docs/generated/ catalogues produits par npm run gen — ne jamais éditer à la main
 ```
 
-**Trois points d'entrée uniques**, chacun tenu par un test d'architecture : l'IPC, les secrets, la
-liste de pistes. C'est ce qui fait disparaître « n'oublie pas de répéter ce filtre partout ».
+**Trois points d'entrée uniques**, tenus par des tests d'architecture : l'IPC, les secrets, la liste
+de pistes — ce qui fait disparaître « n'oublie pas de répéter ce filtre partout ».
 
-## Règles de travail (reprises de V1, elles ont fait leurs preuves)
+## Règles de travail
 
-- **Ne jamais modifier l'audio quand tu travailles sur l'UI ou la bibliothèque. Et inversement.**
-  La règle de zone ne vise que les chemins Rust de l'audio ; les fichiers frontend du player sont de
-  l'UI malgré leur nom.
-- **Un prompt = une tâche.** Ne pas toucher à ce qui est hors scope.
-- **Aucun fichier ne dépasse ~400 lignes.** Si ça arrive, c'est que le découpage est à revoir.
-- **Toute donnée affichée passe par un échappement** (y compris les guillemets).
 - **Répondre toujours en français.**
+- **Un prompt = une tâche.** Ne pas toucher à ce qui est hors scope.
 
-## Règles de performance (voir [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md))
-
-Trois règles, détaillées dans le document — les deux premières sont des pièges de Svelte 5 :
-(1) **la bibliothèque n'est jamais réactive** (`$state.raw`), la réactivité ne couvre que l'UI ·
-(2) **le virtual scroll reste explicite** : pool fixe de 60 nœuds, item à 48 px, délégation ·
-(3) **zéro dépendance npm de production sans ADR** — `./check` applique un budget.
+Les règles qui ne valent que pour le code — zone audio/UI, 400 lignes par fichier, échappement de
+toute donnée affichée, et les trois règles de performance — sont dans le skill
+[`hean-invariants`](.claude/skills/hean-invariants/SKILL.md), chargé avant toute modif de code.
 
 ## Invariants
 
@@ -144,6 +136,6 @@ invariants bougent.
 
 ## Bugs connus
 
-Aucun — il n'y a pas encore de feature. Repris de V1, à ne pas réintroduire : l'endpoint de mise à
-jour renvoyait 404 depuis le lancement (le bloc `updater` n'est pas repris avant la phase 6, ADR
-0006), et `logging.rs` ne capturait pas stdout (INV-21).
+Aucun : pas encore de feature. Repris de V1, à ne pas réintroduire — l'endpoint de mise à jour
+renvoyait 404 depuis le lancement (bloc `updater` repris en phase 6, ADR 0006), et `logging.rs` ne
+capturait pas stdout (INV-21).

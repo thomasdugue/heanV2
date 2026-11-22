@@ -20,7 +20,7 @@ exprès : c'est le tableau de bord du projet.
 ./check
 ```
 
-Vert. 15 vérifications, build compris. `check` est le point d'entrée **unique** : identique en
+Vert, build compris. `check` est le point d'entrée **unique** : identique en
 local, en pre-commit et en CI — la CI est un seul job qui lance `./check` et rien d'autre, donc elle
 ne peut pas diverger. Il installe lui-même les dépendances npm si elles manquent.
 
@@ -66,7 +66,7 @@ npm run tauri dev
   personne ne lit n'est pas une fixture, c'est du décor ;
 - **lint** (oxlint) · **types** (`tsc` en `strict` + `svelte-check` en échec sur avertissement)
   *(cause racine n°1 de V1 : 16 076 lignes de JS sans analyse statique)* ;
-- **tests d'architecture** — 29 cas sur la *forme* du code : aucun import circulaire, un seul
+- **tests d'architecture** — sur la *forme* du code : aucun import circulaire, un seul
   constructeur de liste de pistes, les zones ne se traversent pas, aucune couleur en dur hors des
   tokens, toute `var(--x)` lue est définie, aucun `println!` dans le backend ;
 - **build** — le frontend compile *(un `./check` vert sur un projet qui ne compile pas serait
@@ -75,7 +75,10 @@ npm run tauri dev
 - **artefacts générés** — régénérés et comparés au commit : la dérive de documentation devient
   impossible *(cause racine n°5 : 11 affirmations fausses au moment de l'audit)* ;
 - **poids et dépendances** — budget sur `dist/` hors sourcemaps et sur les dépendances npm de
-  production *(V1 en avait zéro : pas de bundler, donc pas de porte d'entrée)*.
+  production *(V1 en avait zéro : pas de bundler, donc pas de porte d'entrée)* ;
+- **comptes annoncés** — tout nombre écrit en prose sur le dépôt doit correspondre à la réalité
+  *(leçon du 2026-11-22 : ce README a annoncé « 29 cas » de tests d'architecture là où il y en avait
+  32 — vrai à l'écriture, faux un commit plus tard)*.
 
 Hors verdict, en **tableau de bord** : les 24 comportements de `UX-ANTI-REGRESSION.md`, tous rouges
 tant que la feature correspondante n'est pas portée.

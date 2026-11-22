@@ -216,8 +216,9 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     invariant n'est « non classé ».
 - **2026-11-22** : **phase 1 — le bit-perfect devient une assertion.** Pas en commençant par
   CoreAudio, mais par ce qui le rend vérifiable. Point de départ `./check` vert (14 vérifications,
-  32 tests d'architecture, 5 tests Rust) ; point d'arrivée vert aussi, avec **15 vérifications** et
-  **51 tests Rust** (33 unitaires, 4 de bit-perfect, 13 de décodage, 1 de bindings).
+  32 tests d'architecture, 5 tests Rust) ; point d'arrivée vert aussi, avec **15 vérifications**
+  (16 après la fusion des retouches de phase 0, entrée suivante) et **51 tests Rust** (33
+  unitaires, 4 de bit-perfect, 13 de décodage, 1 de bindings).
   - **Le test central est vert** : `src-tauri/tests/bit_perfect.rs` décode une fixture FLAC vers un
     WAV à travers le backend de test, égaliseur absent et volume à 100 %, et compare **octet par
     octet** à un fichier de référence commité — en 16/44,1 **et** en 24/192. Le golden est écrit par
@@ -287,7 +288,25 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     d'INV-21 : ce n'est pas la perte qui est grave, c'est son silence.
   - **Le compte des invariants réclamé par `CLAUDE.md` est devenu une vérification.** Cinq
     nombres y sont lus à chaque session (le total, un par pile, et les « planifiées ») ; ils sont
-    devenus faux à la minute où INV-22 est née. `check-invariants.mjs` les confronte maintenant à la
-    réalité du skill, comme il le faisait déjà pour le tableau de tri — deux mutations le
-    confirment. C'est le défaut exact que ce fichier reproche à V1 : « un compte annoncé faux dans
-    cinq documents parce que rien ne le vérifiait ».
+    devenus faux à la minute où INV-22 est née. C'est le défaut exact que ce fichier reproche à
+    V1 : « un compte annoncé faux dans cinq documents parce que rien ne le vérifiait ». Écrit
+    d'abord dans `check-invariants.mjs`, puis **déplacé** : la session de phase 0 avait créé
+    `tools/check-comptes.mjs` pour la même raison le même jour, et deux mécanismes pour un même
+    nombre sont une dette, pas une ceinture de sécurité. Les quatre premiers étaient déjà chez
+    elle ; je lui ai apporté le cinquième, les « planifiées » — le plus vivant des cinq, puisqu'il
+    bouge à chaque règle branchée sur un test. Deux mutations le confirment, dans les deux sens
+    (le nombre faux dans `CLAUDE.md`, et une règle qui quitte « planifiée » sans que `CLAUDE.md`
+    suive).
+- **2026-11-22** (retouches de phase 0, après le retour de la session de phase 1) : deux défauts
+  dans ce que la phase 0 avait livré.
+  - Le `README.md` annonçait **29 cas** de tests d'architecture là où il y en avait 32 : le chiffre
+    était vrai à l'écriture et faux un commit plus tard. `check-links` validait les liens du README,
+    pas ses affirmations. Corrigé, et la vérification qui l'aurait vu est ajoutée
+    (`tools/check-comptes.mjs`) : tout nombre écrit en prose sur le dépôt doit correspondre à la
+    réalité — nombre de vérifications de `./check`, et comptes des trois piles d'invariants recopiés
+    dans `CLAUDE.md`. Les chiffres purement décoratifs du README ont été retirés plutôt que
+    maintenus : un nombre que personne ne recompte est un mensonge en attente.
+  - `CLAUDE.md` était à **149 lignes sur 150** : plus une seule ligne disponible pour la suite du
+    projet. Les règles qui ne valent que pour le code (zone audio/UI, 400 lignes, échappement, et
+    les trois règles de performance) sont déplacées dans le skill `hean-invariants` — chargé avant
+    toute modif de code, donc exactement quand elles servent. `CLAUDE.md` retombe à **141**.

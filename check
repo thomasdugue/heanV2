@@ -37,6 +37,7 @@ run "skills"              bash tools/check-skills.sh
 run "invariants"          node tools/check-invariants.mjs
 run "zones jamais déléguées" bash tools/check-zones.sh
 run "fixtures audio"      bash tools/check-fixtures-audio.sh
+run "comptes annoncés"    node tools/check-comptes.mjs
 
 if [ -f package.json ]; then
   run "lint"          npm run --silent lint
