@@ -1,9 +1,16 @@
-# 0007 — La chaîne d'outils Rust est épinglée
+# 0008 — La chaîne d'outils Rust est épinglée
 
 - **Date** : 2026-11-22
 - **État** : Acceptée
 - **Décideur** : Thomas
 - **Suit** : [0006](0006-socle-et-harnais-de-phase-0.md)
+
+> **Renuméroté de 0007 en 0008 le 2026-11-22, sur décision de Thomas.** Deux sessions avaient
+> numéroté en parallèle, chacune prenant « le suivant après 0006 » sans voir l'autre :
+> [0007](0007-format-interne-audio-et-preuve-du-bit-perfect.md) était arrivé le premier. Seul
+> le rangement change — ni la décision, ni son raisonnement, ni sa date. L'immuabilité d'un
+> ADR porte sur ce qu'il décide, pas sur le numéro sous lequel il est classé.
+> `tools/check-adr.mjs` empêche désormais la collision de se reproduire.
 
 ## Contexte
 

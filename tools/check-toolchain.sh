@@ -23,7 +23,7 @@ fi
 
 if [ "$qui_tourne" != "$epinglee" ]; then
   echo "  épinglée : $epinglee   en train de tourner : $qui_tourne"
-  echo "  → ./check ne vérifie donc PAS la même chose ici qu'en CI (ADR 0007)."
+  echo "  → ./check ne vérifie donc PAS la même chose ici qu'en CI (ADR 0008)."
   echo "    Si rustup gère ta chaîne, il installe la bonne version tout seul : relance."
   echo "    Si rustc vient d'ailleurs (brew…), c'est lui qui prend le dessus — passer par rustup."
   echo "    Pour monter de version volontairement : changer 'channel' dans rust-toolchain.toml."

@@ -24,7 +24,7 @@ Vert, build compris. `check` est le point d'entrée **unique** : identique en lo
 en CI — la CI est un seul job qui lance `./check` et rien d'autre. Et « identique » veut dire
 identique **jusqu'aux versions des outils** : `package-lock.json` fige celles de npm,
 [`rust-toolchain.toml`](rust-toolchain.toml) celle de Rust, et `./check` vérifie que la version qui
-tourne est bien celle qui est épinglée ([ADR 0007](docs/adr/0007-epingler-la-chaine-doutils.md)).
+tourne est bien celle qui est épinglée ([ADR 0008](docs/adr/0008-epingler-la-chaine-doutils.md)).
 Sans ce dernier point, la promesse était à moitié fausse, et elle l'a été jusqu'au 2026-11-22. Il installe lui-même les dépendances npm si elles manquent.
 
 Pour voir l'application :
