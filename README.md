@@ -20,9 +20,12 @@ exprès : c'est le tableau de bord du projet.
 ./check
 ```
 
-Vert, build compris. `check` est le point d'entrée **unique** : identique en
-local, en pre-commit et en CI — la CI est un seul job qui lance `./check` et rien d'autre, donc elle
-ne peut pas diverger. Il installe lui-même les dépendances npm si elles manquent.
+Vert, build compris. `check` est le point d'entrée **unique** : identique en local, en pre-commit et
+en CI — la CI est un seul job qui lance `./check` et rien d'autre. Et « identique » veut dire
+identique **jusqu'aux versions des outils** : `package-lock.json` fige celles de npm,
+[`rust-toolchain.toml`](rust-toolchain.toml) celle de Rust, et `./check` vérifie que la version qui
+tourne est bien celle qui est épinglée ([ADR 0007](docs/adr/0007-epingler-la-chaine-doutils.md)).
+Sans ce dernier point, la promesse était à moitié fausse, et elle l'a été jusqu'au 2026-11-22. Il installe lui-même les dépendances npm si elles manquent.
 
 Pour voir l'application :
 
@@ -61,6 +64,9 @@ npm run tauri dev
   sans test échoue, un test qui cite une règle disparue aussi, et **les compteurs annoncés sont
   vérifiés** *(leçon V1 : cinq documents annonçaient 19 invariants, il y en avait 20)* ;
 - **zones jamais déléguées** — la liste ne peut pas diverger entre ses deux copies ;
+- **chaîne d'outils** — la version de Rust qui compile est bien celle qui est épinglée
+  *(leçon du 2026-11-22 : la CI tournait avec un clippy plus récent que la machine de Thomas, donc
+  le même code était vert en local et rouge en CI)* ;
 - **fixtures audio** — les 24 fixtures et leurs goldens sont appariés au README dans les deux sens,
   bornés en poids, et **chacune doit être lue par au moins un test** : un binaire commité que
   personne ne lit n'est pas une fixture, c'est du décor ;
