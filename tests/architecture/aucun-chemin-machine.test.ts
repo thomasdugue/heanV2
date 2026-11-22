@@ -23,6 +23,11 @@ export function cheminsMachine(texte: string): string[] {
     .map((l) => l.trim().slice(0, 120));
 }
 
+// `bootstrap/` n'est PAS dans les zones, et c'est un choix, pas un oubli : c'est l'archive
+// figée de V1 (ADR 0004). Ses chemins absolus sont un relevé historique — les « corriger »
+// falsifierait le document. Et `03-architecture/code-reference/rust/sentry_init.rs` y porte
+// des chemins de machine comme **fixtures d'un anonymiseur de chemins** : un faux positif
+// permanent, et la démonstration que toute règle de ce genre doit s'arrêter au code vivant.
 const ZONES = ['src', 'src-tauri/src', 'docs', '.claude', 'tools'] as const;
 const EXTS = ['.ts', '.svelte', '.css', '.rs', '.md', '.sh', '.mjs'] as const;
 

@@ -331,3 +331,27 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     affirmation venant d'une session ne vaut pas constat (la même rapportait trois CI rouges,
     réelles mais périmées). Elle attend sa propre décision : la grouper avec celle-ci aurait élargi
     une approbation donnée pour un autre motif.
+- **2026-11-22** (dépôts imbriqués) : `./check` était **rouge sur `main` dans le clone de Thomas** et
+  vert en CI sur le même commit — l'image inverse du défaut de chaîne d'outils trouvé le même jour,
+  et la même famille : la vérification ne portait pas sur le même ensemble de fichiers des deux
+  côtés. Signalé par la session d'orchestration, reproduit ici avant d'être cru.
+  - Cause : `.claude/worktrees/` contient **un dépôt complet par session ouverte**. La CI part d'un
+    clone neuf et n'en a aucun ; la machine de Thomas en porte autant que de sessions en cours. Les
+    tests d'architecture scannaient donc chez lui le code d'autres branches — y compris
+    `bootstrap/`, volontairement hors zone, et y compris eux-mêmes. 30 signalements.
+  - Correctif : le parcours de fichiers ne descend plus dans un dossier qui contient une entrée
+    `.git`. Ce n'est pas un nom de dossier mis en liste noire mais la **propriété** qui compte : un
+    dépôt à part reste à part. `tools/check-links.py` avait exactement le même angle mort, corrigé
+    de même.
+  - Et le test qui garde la garde : `lecture-depots-imbriques.test.ts` fabrique un worktree dans un
+    dossier temporaire et vérifie que le parcours l'ignore. Sans lui, la correction se perdrait au
+    premier refactoring.
+  - **La CI ne peut pas prouver ce correctif** : un clone neuf n'a aucun worktree, donc le test
+    passait déjà avant et passe après. Vérifié là où le rouge existait — dans le clone de Thomas,
+    qui porte deux worktrees de session : ROUGE avant, VERT après. C'est pourquoi le test de garde
+    **fabrique** son dépôt imbriqué au lieu d'espérer en trouver un. Toute vérification qui porte
+    sur l'environnement de travail plutôt que sur le contenu du dépôt aura cette propriété.
+  - Tranché au passage, par écrit dans le test : **`bootstrap/` reste hors des zones scannées.**
+    C'est l'archive figée de V1 (ADR 0004) — ses chemins absolus sont un relevé historique, et
+    `code-reference/rust/sentry_init.rs` en porte comme **fixtures d'un anonymiseur de chemins**.
+    Une règle de ce genre doit s'arrêter au code vivant.
