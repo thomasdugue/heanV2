@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capacités minimales du socle. Toute permission ajoutée ici élargit la surface d'attaque : une par besoin réel, jamais un wildcard.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

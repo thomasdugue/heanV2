@@ -7,12 +7,16 @@
 # package.json ouvre la porte. Voir docs/PERFORMANCE.md.
 set -uo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DIST_BUDGET_KB=600   # V1 servait 960 Ko non minifiés ; V2 doit faire mieux
+DIST_BUDGET_KB=600   # V1 servait 960 Ko non minifiés ; V2 doit faire mieux (hors sourcemaps)
 DEPS_BUDGET=3        # Svelte est une devDependency : il disparaît au build
 fail=0
 
+# Les sourcemaps sont EXCLUES : elles ne sont jamais chargées par l'application, seulement
+# lues par Sentry et par le navigateur quand on ouvre l'inspecteur. Les compter ferait
+# échouer le budget pour une raison fausse — et un budget qui échoue pour une raison fausse
+# finit par être relevé sans réfléchir.
 if [ -d "$root/dist" ]; then
-  kb=$(du -sk "$root/dist" | cut -f1)
+  kb=$(find "$root/dist" -type f ! -name '*.map' -exec du -k {} + | awk '{s+=$1} END {print s+0}')
   if [ "$kb" -gt "$DIST_BUDGET_KB" ]; then
     echo "  dist/ pèse ${kb} Ko (budget ${DIST_BUDGET_KB} Ko)"
     echo "  → alléger, ou relever le budget dans un ADR en justifiant"

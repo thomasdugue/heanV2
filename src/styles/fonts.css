@@ -1,0 +1,11 @@
+/* Polices embarquées. Aucune requête réseau : la CSP du socle a `font-src 'self'`.
+   Geist Mono est la police de V1 (bootstrap/02-design/reference/GeistMono-Variable.woff2).
+   La question « DM Sans pour les grands titres ? » est reportée (ADR 0002, décision
+   reportée) et n'engage rien ici. */
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/src/assets/fonts/GeistMono-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}

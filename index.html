@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hean</title>
+    <!-- Les polices sont EMBARQUÉES (src/styles/fonts.css). V1 chargeait DM Sans depuis
+         Google Fonts alors que sa CSP ne l'autorisait pas : la feuille était bloquée en
+         silence. En V2 la CSP a un `font-src 'self'` explicite. Voir ADR 0002. -->
+    <link rel="stylesheet" href="/src/styles/fonts.css" />
+    <link rel="stylesheet" href="/src/styles/tokens.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,18 +1,50 @@
 name: check
 
+# UN SEUL job, qui lance UNE SEULE commande : `./check`.
+# C'est volontaire. En V1 la CI avait ses propres étapes (node --check, Jest, cargo test),
+# donc elle pouvait diverger du local sans que personne le voie. Ici elle ne le peut pas :
+# ajouter une vérification se fait dans ./check, et la CI en hérite.
+#
+# macOS obligatoire : l'app est macOS-only (CoreAudio, souvlaki, libsmbclient).
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    name: check
+    runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
       - name: ./check
         run: ./check

@@ -1,87 +1,297 @@
 ---
 name: hean-invariants
-description: Règles « ne JAMAIS casser » de Hean et décisions techniques actées. Charger AVANT toute modif de code (JS ou Rust), avant une review de diff, ou quand on touche à library.albums, excluded_paths, METADATA_CACHE/write_metadata, background scan, SMB retry/credentials, mosaïques playlist, Sentry before_send, option_env!, dylibbundler, CoreAudio/CPAL, media keys.
+description: Règles « ne JAMAIS casser » de heanV2, triées en trois piles (rayées par construction / devenues des tests / irréductibles). Charger AVANT toute modif de code et avant toute review de diff. Contient la gravité de chaque règle, le pourquoi (la régression qu'elle a coûtée en V1), et la couverture mécanique de chacune.
 ---
 
-> ⚠️ **Version V1, à adapter.** Les chemins de fichiers cités ici (`noir-tauri/src/…`,
-> `src-tauri/src/…`) sont ceux de Hean V1 et n'existent pas encore dans ce dépôt. Le *savoir*
-> est valide ; les chemins sont à remplacer au fur et à mesure que le code de V2 apparaît.
-> Référence complète : [`bootstrap/04-invariants/README.md`](../../../bootstrap/04-invariants/README.md).
+# hean-invariants — ce qui ne doit jamais casser (V2)
 
+> **Ce fichier est lu par une machine.** `tools/check-invariants.mjs` en extrait chaque
+> `### INV-NN` avec ses quatre champs et vérifie qu'aucune règle n'est orpheline (sans test)
+> et qu'aucun test ne cite une règle disparue. Garder le format exactement tel quel.
 
-# hean-invariants — ce qui ne doit jamais casser
+## Le tri, et pourquoi il compte
 
-Source de vérité des invariants (le CLAUDE.md n'en garde qu'un résumé d'une ligne). Chaque règle ici a été payée par une régression réelle.
+V1 avait **20 invariants** en prose (ses propres documents en annoncent 19 — le compte
+datait d'avant l'ajout de la règle CSS le 2026-10-29, et rien ne vérifiait ce nombre : c'est
+la dérive de documentation du postmortem, en miniature). **3 sur 20 étaient couverts par un
+test.** Les 17 autres reposaient sur la vigilance de quelqu'un.
 
-## Invariants protégés par des tests (ne JAMAIS casser)
+L'erreur de V1 n'était pas de découvrir ces règles après coup — chacune a été payée par une
+régression réelle, et c'est le legs le plus précieux du projet. L'erreur était de les écrire
+en **prose** : une phrase dans un document ne peut pas échouer. Un test, si.
 
-- **Un album = une seule entrée dans `library.albums`.** Quel que soit le nombre d'artistes différents dans les tracks d'un album, il doit produire exactement UNE entrée dans `library.albums`. La clé d'album est normalisée via `normalizeKey()` (trim + NFC). **Jamais** de clé brute `track.metadata.album` — toujours `normalizeKey(track.metadata.album)`. Tests : Module 13 (AlbumGrouping.test.js), tests 13.5–13.7.
-- **Pas de duplication visuelle sur la homepage.** La section "Recently Played" déduplique par album (clé composite `artiste|||album`), pas seulement par chemin de fichier. Un même album ne doit apparaître qu'une seule fois même si plusieurs tracks ont été écoutées.
-- **SMB : connexion périmée = retry automatique.** `read_file_to_temp_progressive()` doit tenter un retry avec reconnexion fraîche si `open_with()` échoue (connexion expirée). Ne JAMAIS supprimer ce mécanisme de retry.
-- **SMB : credentials = gestion d'erreur explicite.** `retrieve_password()` ne doit JAMAIS utiliser `unwrap_or_default()`. Un échec Keychain doit retourner une erreur claire à l'utilisateur, pas un mot de passe vide silencieux.
-- **SMB : propagation d'erreur du thread de download.** `LAST_DOWNLOAD_ERROR` stocke l'erreur du thread de download. `audio_play` doit la récupérer via `take_last_download_error()` quand `bytes_written == 0` pour afficher l'erreur réelle au lieu d'un message générique.
-- **Suppression de tracks = PERMANENTE.** Quand l'utilisateur supprime des tracks de la bibliothèque, elles ne doivent JAMAIS revenir, même après redémarrage ou re-scan NAS. Mécanisme : `excluded_paths` dans `config.json`. Défense en profondeur — les `excluded_paths` DOIVENT être vérifiés à CHAQUE point d'entrée :
-  1. `init_cache()` : filtre les tracks exclues au chargement du cache depuis le disque
-  2. `start_background_scan()` : filtre les tracks locales via `excluded_paths` + filtre les SMB tracks préservées
-  3. `scan_network_source_cmd()` : filtre les tracks NAS re-scannées par `excluded_paths`
-  Ne JAMAIS ajouter un code path qui charge ou scanne des tracks sans vérifier `excluded_paths`.
-- **Métadonnées éditées = écrites dans le fichier audio.** `write_metadata()` doit TOUJOURS écrire les tags dans le fichier audio réel (via lofty), pas seulement dans le cache. Le cache est un accélérateur, pas la source de vérité — la source de vérité est le fichier audio.
-- **METADATA_CACHE : UPDATE, jamais REMOVE.** `write_metadata()` doit mettre à jour l'entrée `METADATA_CACHE` avec les nouvelles valeurs (`get_mut` + set champs), PAS la supprimer. La suppression créait une race condition fatale : le background scan (concurrent) re-lisait le fichier audio (pas encore écrit par lofty), réinsérait les anciennes métadonnées dans `METADATA_CACHE`, et cette corruption persistait indéfiniment. L'update garantit que : (1) `get_metadata_internal()` retourne les valeurs les plus récentes, (2) `scan_folder_with_metadata()` ne réinsère pas de données stale (check `!contains_key`). Ne JAMAIS revenir à `cache.entries.remove()` dans `write_metadata()`.
-- **`start_background_scan()` : re-application METADATA_CACHE.** Après `cache.tracks = all_tracks`, les métadonnées de chaque track doivent être re-synchronisées depuis un snapshot de `METADATA_CACHE` (pris AVANT le lock `TRACKS_CACHE` pour éviter le deadlock). Cela capture les user edits qui ont eu lieu pendant le scan. Ne JAMAIS supprimer cette re-application.
-- **METADATA_CACHE : jamais de stale data.** `get_metadata_internal()` vérifie `METADATA_CACHE` avant de lire le fichier. L'update dans `write_metadata()` + la re-application dans `start_background_scan()` garantissent que les user edits ne sont jamais perdus. Ne JAMAIS retirer le `save_metadata_cache_to_file()` dans `write_metadata()`.
-- **Playlist mosaic covers : déduplication par album seul.** `getPlaylistAlbumCovers()` déduplique par `album.trim().normalize('NFC')` (nom d'album seul), identique à la clé de `library.albums`. **Ne JAMAIS dédupliquer par `artist+album`** — les variations "feat." dans les noms d'artistes créent de faux albums distincts (même pochette dupliquée × N dans la mosaïque). Régression constatée 2026-03-16.
-- **Playlist mosaic covers : fallback internet OBLIGATOIRE.** `loadPlaylistThumbs()` DOIT avoir 4 niveaux de fallback : (1) `thumbnailCache`/`coverCache` → (2) `get_cover_thumbnail` → (3) `get_cover` → (4) `fetch_internet_cover(artist, album)`. Sans le niveau 4, les albums sans cover embarquée (cover récupérée uniquement via MusicBrainz/Deezer) affichent une cellule noire. Les attributs `data-cover-artist` et `data-cover-album` DOIVENT être injectés par `buildPlaylistThumbHtml` pour que le fallback fonctionne.
-- **Playlist mosaic sidebar : CSS positionnement absolu (pas Grid) pour le petit mosaïque 28×28.** Bug récurrent (fixé 4× avant 2026-05-19). Le CSS Grid de petite taille (28×28) cause des bugs WebKit où les cellules vides résolvent `height:100%` contre le container au lieu du grid area. Fix définitif CSS : positionnement absolu avec `calc(50% - 0.5px)` pour chaque cellule nth-child. Le grand mosaïque (96×96) utilise toujours CSS Grid (pas de bug à cette taille). **Ne JAMAIS revenir au CSS Grid pour `.playlist-cover-grid-sm`.**
-- **Playlist mosaic sidebar : rebuild automatique après chargement async des covers.** Bug récurrent (fixé 2026-05-19). Root cause : `updatePlaylistsSidebar()` est appelé au démarrage AVANT que les covers soient en cache. `loadPlaylistThumbs()` charge les covers en async, mais si un autre `updatePlaylistsSidebar()` arrive entre-temps, le HTML est remplacé et les cellules déconnectées. Les covers finissent dans le cache mais ne sont jamais affichées. Fix définitif : (1) `buildPlaylistThumbHtml()` injecte les covers en inline style depuis le cache via `cellHtml()`, (2) `loadPlaylistThumbs()` skip les cellules `has-cover`, compte les nouvelles covers chargées, et schedule UN rebuild via `requestAnimationFrame` si `newCoversLoaded > 0`, (3) guard `_thumbsRefreshScheduled` empêche la boucle infinie. Au 2e passage, `cellHtml()` trouve les covers dans le cache → inline style → cellules `has-cover` → `loadPlaylistThumbs` skip tout → pas de 3e rebuild. **Ne JAMAIS supprimer le rebuild automatique dans `loadPlaylistThumbs()`.**
-- **Boutons 'Add to Queue' et 'Add to Playlist' au survol des tracks.** Les règles CSS `.track-add-queue` et `.track-add-playlist` (opacity 0 → 1 au hover de `.playlist-track-item`) ne doivent PAS être supprimées. Régression constatée si ces règles sont absentes.
-- **Sentry `before_send` doit drop les events si `SENTRY_ENABLED.load(Relaxed) == false`.** Sans ce check, désactiver le toggle dans Settings ne stoppe pas l'envoi des events qui sont déjà dans le hub Sentry. Le test unitaire `scrubs_*` couvre l'anonymisation des paths mais pas le toggle — vérifier visuellement après chaque modif de `sentry_init.rs`.
-- **`option_env!()` doit être utilisé pour TOUS les secrets compile-time** (`HEAN_SENTRY_DSN`, `NOIR_WORKER_URL`, `NOIR_WORKER_SECRET`). Sans ça, le binaire release est silencieusement privé du secret (pas d'erreur runtime, juste un fallback "save locally" / "no Sentry"). `scripts/release.sh` valide la présence des vars AVANT le build pour éviter ce piège — ne JAMAIS bypass ce script en lançant `npm run tauri build` à nu.
-- **`dylibbundler` doit être suivi du fix LC_RPATH dupliqués.** dylibbundler ajoute systématiquement un `LC_RPATH @executable_path/../Frameworks/` à chaque dylib mais certaines dylibs Samba en avaient déjà un (Homebrew). 66/92 dylibs ont des doublons → macOS dyld refuse depuis Big Sur. Le pipeline doit : (1) `dylibbundler` → (2) boucle sur Frameworks/ qui détecte les doublons et fait `install_name_tool -delete_rpath` une seule fois → (3) re-sign chaque dylib touchée. Ne JAMAIS oublier l'étape 2.
-- **Bouton shuffle : icône fixe, un seul point de mise à jour.** L'icône `⤮` (U+292E, `SHUFFLE_ICON` dans `utils.js`) ne change jamais ; le statut (A = album, ∞ = bibliothèque) s'affiche dans le badge séparé `.shuffle-badge` (position absolue, largeur fixe). Tout changement de mode passe par `cycleShuffleMode()` / `updateShuffleButtonUI()` (`playback.js`, exposés via `app`) — clic souris ET raccourci clavier. Ne JAMAIS réécrire `shuffleBtn.textContent` / `innerHTML` (ça efface l'icône et le badge). Régression constatée 2026-10-29 : le statut collé au texte (`'⤮ᴬ'`) décalait l'icône, et la copie du code dans `shortcuts.js` affichait un autre glyphe (⤢ U+2922). Tests : `ShuffleButton.test.js`.
+D'où les trois piles :
 
-## Gravité (utilisée pour décider si un diff peut être mergé)
+| Pile | Ce que ça veut dire | Combien |
+|---|---|---|
+| **rayé** | L'architecture de V2 rend la faute inexprimable. Plus de règle à retenir. | 6 |
+| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 13 |
+| **irréductible** | Comportement de CoreAudio, de WebKit ou de Gatekeeper. Aucun test ne le prouve. | 2 + 7 pièges |
 
-Classement décidé par Thomas le 2026-10-27. Critère : ce que vit le testeur si la règle casse. Perte de données, app inutilisable, risque légal ou sécurité → BLOQUANT. Défaut visuel ou gênant mais réparable → AVERTISSEMENT. Une nouvelle règle ajoutée sans gravité est BLOQUANT par défaut jusqu'à ce que Thomas la classe.
+**La mesure du succès : la pile « irréductible » ne grossit pas, et la pile « test » se
+remplit.** Une règle `couverture : planifiée` est une dette visible, pas un oubli.
 
-**🔴 BLOQUANT** — le merge est refusé :
-- **Un album = une seule entrée dans `library.albums`** (un album coupé en deux est inacceptable pour les testeurs)
-- **SMB : connexion périmée = retry automatique**
-- **SMB : credentials = gestion d'erreur explicite** (mot de passe vide → risque de verrouillage du compte NAS)
-- **Suppression de tracks = PERMANENTE**
-- **Métadonnées éditées = écrites dans le fichier audio**
-- **METADATA_CACHE : UPDATE, jamais REMOVE**
-- **`start_background_scan()` : re-application METADATA_CACHE**
-- **METADATA_CACHE : jamais de stale data**
-- **Sentry `before_send` drop les events si `SENTRY_ENABLED` est false** (RGPD)
-- **`option_env!()` pour TOUS les secrets compile-time**
-- **`dylibbundler` suivi du fix LC_RPATH dupliqués** (sinon crash au lancement)
+### Champs obligatoires
 
-**🟡 AVERTISSEMENT** — signalé, Thomas décide :
-- **Pas de duplication visuelle sur la homepage**
-- **SMB : propagation d'erreur du thread de download** (seul le message d'erreur se dégrade)
-- **Playlist mosaic covers : déduplication par album seul**
-- **Playlist mosaic covers : fallback internet OBLIGATOIRE**
-- **Playlist mosaic sidebar : positionnement absolu (pas Grid) pour le 28×28**
-- **Playlist mosaic sidebar : rebuild automatique après chargement async**
-- **Boutons 'Add to Queue' / 'Add to Playlist' au survol** (toujours accessibles par clic droit)
-- **Bouton shuffle : icône fixe, un seul point de mise à jour** (défaut visuel, couvert par `ShuffleButton.test.js`)
+- `pile` — `rayé`, `test` ou `irréductible`.
+- `gravité` — 🔴 BLOQUANT (perte de données, app inutilisable, risque légal) ou
+  🟡 AVERTISSEMENT (défaut visuel ou gênant, réparable). **Une règle nouvelle sans gravité
+  est BLOQUANTE par défaut** jusqu'à ce que Thomas la classe.
+- `couverture` — `sans objet` (pile rayé), `test <nom>`, `architecture <nom>`,
+  `planifiée (phase N)` ou `manuelle`.
+- `pourquoi` — la régression que la règle a coûtée. **Sans le pourquoi, la règle finit
+  supprimée par quelqu'un qui la trouve arbitraire.**
+
+---
+
+## Pile 1 — rayées par construction
+
+Ces six règles n'existent plus. Elles ne sont pas « respectées » : elles sont inexprimables.
+La justification est obligatoire — c'est elle qui permet de rouvrir le sujet si
+l'architecture change.
+
+### INV-06 — Suppression de pistes = PERMANENTE
+- pile : rayé
+- gravité : 🔴 BLOQUANT
+- couverture : sans objet — architecture `une-seule-source-de-pistes.test.ts`
+- pourquoi : en V1 la règle disait « le filtre `excluded_paths` doit être vérifié à CHAQUE
+  point d'entrée, et dans tout nouveau point d'entrée » — trois points d'entrée listés à la
+  main. Une règle formulée comme « n'oublie pas de répéter ça partout » sera violée au
+  quatrième point d'entrée. En V2 il n'y a **qu'un** constructeur de liste de pistes
+  (`library/repository`), donc le filtre n'a qu'un endroit où vivre, et un test
+  d'architecture refuse tout appel direct ailleurs.
+
+### INV-08 — METADATA_CACHE : UPDATE, jamais REMOVE
+- pile : rayé
+- gravité : 🔴 BLOQUANT
+- couverture : sans objet — SQLite, un seul écrivain, transactions (ADR 0002)
+- pourquoi : supprimer une entrée au lieu de la mettre à jour créait une race fatale — le
+  scan de fond relisait le fichier audio pas encore écrit par lofty, réinsérait les anciennes
+  métadonnées, et **la corruption persistait indéfiniment**. Cette race supposait sept caches
+  globaux modifiés concurremment sans transaction. Il n'y a plus de cache à supprimer.
+
+### INV-09 — start_background_scan() : re-application du cache de métadonnées
+- pile : rayé
+- gravité : 🔴 BLOQUANT
+- couverture : sans objet — SQLite, un seul écrivain, transactions (ADR 0002)
+- pourquoi : il fallait re-synchroniser les métadonnées depuis un snapshot pris **avant** le
+  lock de `TRACKS_CACHE` « pour éviter le deadlock ». Une règle dont l'énoncé mentionne un
+  ordre de prise de verrous décrit un défaut de conception, pas un invariant métier.
+
+### INV-10 — METADATA_CACHE : jamais de donnée périmée
+- pile : rayé
+- gravité : 🔴 BLOQUANT
+- couverture : sans objet — SQLite, un seul écrivain, transactions (ADR 0002)
+- pourquoi : troisième face du même problème que INV-08 et INV-09. Les éditions de
+  l'utilisateur pouvaient être perdues par un scan concurrent.
+
+### INV-14 — Mosaïque de playlist : rebuild automatique après chargement async des covers
+- pile : rayé
+- gravité : 🟡 AVERTISSEMENT
+- couverture : sans objet — Svelte 5 : le DOM découle de l'état (ADR 0002)
+- pourquoi : les covers arrivaient en async dans des cellules déjà déconnectées par un
+  rebuild concurrent. Le correctif V1 tenait en trois pièces, dont un garde
+  `_thumbsRefreshScheduled` contre la boucle infinie et un rebuild planifié via
+  `requestAnimationFrame`. Avec un modèle de composants réactif, il n'y a ni cellule
+  déconnectée ni rebuild manuel : toute la famille disparaît.
+
+### INV-17 — option_env!() pour TOUS les secrets compile-time
+- pile : rayé
+- gravité : 🔴 BLOQUANT
+- couverture : sans objet — `src-tauri/build.rs` + `compile_error!()`, et architecture
+  `backend.test.ts`
+- pourquoi : `option_env!()` renvoie `None` **en silence** si la variable manque. Le binaire
+  release partait alors sans Sentry et sans feedback, sans aucune erreur — invisible jusque
+  chez les testeurs. V1 s'en protégeait avec un wrapper `release.sh` qu'il suffisait
+  d'oublier une fois. En V2 **le compilateur refuse** : un build release sans secrets ne
+  compile pas. Porte de sortie explicite et tracée : `HEAN_ALLOW_MISSING_SECRETS=1`.
+
+---
+
+## Pile 2 — devenues des tests
+
+La règle a quitté la tête de quelqu'un. `couverture : planifiée (phase N)` veut dire que le
+test n'existe pas encore parce que le code qu'il protège n'existe pas encore — c'est une
+dette **visible**, que `./check` recompte à chaque passage.
+
+### INV-01 — Un album = une seule entrée
+- pile : test
+- gravité : 🔴 BLOQUANT
+- couverture : planifiée (phase 2) — type `AlbumKey` à constructeur unique + property tests
+- pourquoi : trois bugs, une seule cause — une normalisation (trim + NFC) écrite plusieurs
+  fois. L'invariant lui-même, la régression W003 (dédup par `artist+album` au lieu d'`album`
+  seul : les variations « feat. » créaient de faux albums) et un lookup à quatre niveaux dans
+  la home parce que deux formats de clé coexistaient. Si la seule façon d'obtenir une
+  `AlbumKey` est `AlbumKey::new(raw)`, ce n'est plus une règle, c'est le système de types.
+
+### INV-02 — Pas de duplication visuelle sur la home
+- pile : test
+- gravité : 🟡 AVERTISSEMENT
+- couverture : planifiée (phase 3) — test de comportement sur « Recently Played »
+- pourquoi : la section dédupliquait par chemin de fichier, donc un même album écouté par
+  plusieurs pistes apparaissait plusieurs fois.
+
+### INV-03 — SMB : connexion périmée = retry automatique
+- pile : test
+- gravité : 🔴 BLOQUANT
+- couverture : planifiée (phase 5) — conteneur Samba + proxy à injection de panne
+- pourquoi : `read_file_to_temp_progressive()` doit retenter avec une connexion fraîche si
+  `open_with()` échoue. En V1 les tests `network_source` étaient `#[ignore]` : la règle ne
+  se vérifiait qu'avec un vrai NAS, dans le bon état.
+
+### INV-04 — SMB : un échec Keychain remonte une erreur, jamais un mot de passe vide
+- pile : test
+- gravité : 🔴 BLOQUANT
+- couverture : architecture `backend.test.ts`
+- pourquoi : `retrieve_password().unwrap_or_default()` fait tenter au NAS une connexion avec
+  un mot de passe vide — donc un **risque de verrouillage du compte** de l'utilisateur, pour
+  une erreur qui ne s'affiche nulle part. Le test refuse `unwrap_or_default()` sur toute
+  ligne qui parle d'identifiant.
+
+### INV-05 — SMB : l'erreur du thread de download remonte à l'utilisateur
+- pile : test
+- gravité : 🟡 AVERTISSEMENT
+- couverture : planifiée (phase 5) — conteneur Samba
+- pourquoi : sans récupérer `LAST_DOWNLOAD_ERROR` quand `bytes_written == 0`, l'utilisateur
+  voit un message générique au lieu de la cause réelle.
+
+### INV-07 — Une métadonnée éditée est écrite dans le fichier audio
+- pile : test
+- gravité : 🔴 BLOQUANT
+- couverture : planifiée (phase 2) — écriture lofty puis relecture du fichier
+- pourquoi : le cache est un accélérateur, **la source de vérité est le fichier audio**.
+  SQLite règle la cohérence entre caches (INV-08/09/10) mais ne dit rien de ça : si on
+  n'écrit que dans la base, la métadonnée disparaît dès que l'utilisateur ouvre le fichier
+  ailleurs. C'est pour cette raison que cette règle n'est pas rayée avec ses voisines.
+
+### INV-11 — Mosaïque de playlist : déduplication par album seul
+- pile : test
+- gravité : 🟡 AVERTISSEMENT
+- couverture : planifiée (phase 3) — property test « invariant par permutation »
+- pourquoi : dédupliquer par `artist+album` fait réapparaître la même pochette N fois dans
+  une mosaïque dès qu'un album a des variations « feat. ». Régression du 2026-03-16.
+
+### INV-12 — Mosaïque de playlist : le fallback internet est obligatoire
+- pile : test
+- gravité : 🟡 AVERTISSEMENT
+- couverture : planifiée (phase 4) — test des 4 niveaux du pipeline de covers
+- pourquoi : sans le 4ᵉ niveau (`fetch_internet_cover`), tout album dont la pochette ne vient
+  que de MusicBrainz/Deezer affiche une cellule noire.
+
+### INV-15 — Boutons « Add to Queue » / « Add to Playlist » au survol
+- pile : test
+- gravité : 🟡 AVERTISSEMENT
+- couverture : planifiée (phase 4) — régression visuelle, état `hover`
+- pourquoi : les règles CSS d'opacité ont déjà été supprimées une fois. Un état de survol ne
+  se revoit que par hasard — c'est exactement ce que la capture état par état attrape.
+
+### INV-16 — Sentry : before_send jette les events si le toggle est éteint
+- pile : test
+- gravité : 🔴 BLOQUANT
+- couverture : planifiée (phase 6) — test unitaire avec `SENTRY_ENABLED = false`
+- pourquoi : sans ce test, couper le toggle dans Settings ne stoppe pas l'envoi des events
+  déjà dans le hub. C'est un sujet **RGPD**, pas un confort. Les tests `scrubs_*` de V1
+  couvraient l'anonymisation des chemins mais pas le toggle : il fallait « vérifier
+  visuellement après chaque modif », c'est-à-dire ne pas vérifier.
+
+### INV-19 — Bouton shuffle : une seule source pour l'icône et le mode
+- pile : test
+- gravité : 🟡 AVERTISSEMENT
+- couverture : planifiée (phase 3) — un seul module exporte le glyphe et le cycle de mode
+- pourquoi : le statut collé au texte du bouton (`'⤮ᴬ'`) décalait l'icône, et la logique
+  recopiée dans `shortcuts.js` affichait **un autre glyphe** (⤢ au lieu de ⤮). Ce n'est pas
+  un bug d'affichage, c'est un symptôme de duplication. Régression du 2026-10-29.
+
+### INV-20 — Toute variable `var(--x)` utilisée est définie
+- pile : test
+- gravité : 🟡 AVERTISSEMENT
+- couverture : architecture `css-variables-definies.test.ts`
+- pourquoi : **la règle qui rend le plus de toute la liste.** Une variable CSS non définie
+  rend la déclaration invalide « au moment du calcul » : le navigateur l'ignore **sans
+  erreur**, même avec `!important`. Ni la relecture, ni les tests de comportement, ni le
+  type-checking ne l'attrapent. En V1, `--glass-lo` / `--glass-md` / `--glass-hi` ont été
+  utilisées **45 fois sans définition** sur toute une PR de refonte : bordures, survols et
+  état actif de la sidebar invisibles pendant **quatre mois**. Le test tient en vingt lignes.
+
+### INV-21 — Aucun `println!` / `eprintln!` dans le backend
+- pile : test
+- gravité : 🔴 BLOQUANT
+- couverture : architecture `backend.test.ts`
+- pourquoi : **règle née le 2026-11-22**, du postmortem de V1. V1 comptait **252 `println!`
+  contre 3 appels `tracing::`**, et son `logging.rs` ne capturait pas stdout : l'app
+  installée a produit **63 lignes de journal dans toute sa vie**. Les trois bugs trouvés le
+  2026-11-21 — dont la mise à jour automatique qui renvoie 404 depuis le lancement, et qui
+  n'a donc jamais fonctionné pour aucun testeur — étaient tous annoncés en clair par le build
+  de dev et **invisibles en production**. Gravité 🔴 par défaut (règle nouvelle non classée) :
+  à confirmer par Thomas. `build.rs` est hors scope, ses `println!("cargo::…")` sont le
+  protocole de Cargo.
+
+---
+
+## Pile 3 — irréductibles
+
+Ces règles décrivent le comportement de CoreAudio, de WebKit, de dyld et de Gatekeeper, pas
+celui de notre code. Aucun test ne les prouve : elles restent écrites, avec leur gravité.
+C'est **le legs le plus précieux de V1** — sept pièges qui ne se déduisent d'aucune
+documentation Apple et qui coûteraient les mêmes semaines à redécouvrir.
+
+### INV-13 — Mosaïque 28×28 : positionnement absolu, jamais CSS Grid
+- pile : irréductible
+- gravité : 🟡 AVERTISSEMENT
+- couverture : manuelle — piège PLAT-5, détecté a posteriori par la régression visuelle
+- pourquoi : bug WebKit. Dans une grille de 28×28 px, une cellule vide résout `height: 100%`
+  contre le conteneur et non contre son grid area. **Corrigé 4 fois** avant d'abandonner
+  Grid pour `calc(50% - 0.5px)`. La même grille en 96×96 ne pose aucun problème.
+
+### INV-18 — dylibbundler doit être suivi du fix des LC_RPATH dupliqués
+- pile : irréductible
+- gravité : 🔴 BLOQUANT
+- couverture : manuelle — piège PLAT-6, vérifiable dans le pipeline de release (phase 6)
+- pourquoi : `dylibbundler` ajoute un `LC_RPATH` à chaque dylib, mais ~66 des 92 dylibs Samba
+  de Homebrew en avaient déjà un → doublons → **dyld refuse de charger depuis Big Sur**.
+  Sans la passe `install_name_tool -delete_rpath` puis re-signature, l'app crash au lancement
+  sur tout Mac sans Homebrew, donc chez tous les testeurs.
+
+### Les cinq autres pièges de plateforme
+
+Ils n'ont jamais eu de numéro d'invariant parce qu'ils vivaient dans les « décisions
+techniques actées ». Ils sont de la même nature, et ils restent valables en V2.
+
+- **PLAT-1 — AirPlay n'existe dans CoreAudio que tant qu'il est le défaut système.** Dès
+  qu'il perd ce statut, macOS tue la session et le device disparaît du HAL.
+  `set_system_default_device` sur un device stale **accepte silencieusement sans rien
+  faire**. D'où la stratégie de préservation : quand on quitte AirPlay, on ne change pas le
+  défaut système, l'audio est routé par assignement AudioUnit explicite. 🔴 BLOQUANT.
+- **PLAT-2 — `libsmbclient` est un singleton au niveau du process.** Deux `SmbClient`
+  concurrents → EINVAL. Ce n'est pas un choix d'architecture, c'est une contrainte de la
+  bibliothèque C : tout passe par un mutex unique. 🔴 BLOQUANT.
+- **PLAT-3 — Les media keys ne s'attrapent qu'avec `MPRemoteCommandCenter`.** Apple Music
+  intercepte F7/F8/F9 en priorité sur les global shortcuts Tauri. Ne jamais les réajouter.
+  🟡 AVERTISSEMENT.
+- **PLAT-4 — Le drag & drop HTML5 ne fonctionne pas dans la WebView.** Implémentation
+  manuelle mousedown/mousemove/mouseup obligatoire. 🟡 AVERTISSEMENT.
+- **PLAT-7 — Tauri notarise l'app mais pas le DMG.** Sans `xcrun notarytool submit` explicite
+  sur le DMG, Gatekeeper le refuse même si l'app à l'intérieur est notarisée. Notariser
+  **et** stapler les deux. 🔴 BLOQUANT.
+
+(PLAT-5 = INV-13, PLAT-6 = INV-18.)
+
+---
 
 ## Décisions techniques actées
 
-- **Audio engine = coreaudio-rs.** CPAL a été remplacé car il ne donnait pas assez de contrôle sur le buffer interne CoreAudio (seek cassé, pas d'accès à AudioUnitReset, pas de contrôle du buffer size). **NE JAMAIS revenir à CPAL.**
-- **Bit-perfect = pas de resampling.** Le sample rate du device doit correspondre au sample rate du fichier. Hog mode pour accès exclusif au DAC.
-- **Dynamic sample rate switching** entre morceaux de sample rates différents.
-- **Affichage format :** lossless (FLAC, ALAC, WAV, AIFF) → "24-bit / 192kHz". Lossy (MP3, AAC, OGG) → "320 kbps". Partout dans l'interface, sans exception.
-- **Thumbnails des pochettes :** format léger (WebP/JPEG), générées au scan, utilisées dans les listes/carrousels. Pleine résolution uniquement sur la page album.
-- **Un fichier audio = une entrée en base.** Jamais de doublons pour un même chemin.
-- **Tracks triées par** `disc_number` ASC puis `track_number` ASC. Fallback : nom de fichier.
-- **Page d'accueil :** contenu calculé une fois au lancement, stable pendant la session.
-- **SMB réseau :** connexion native gérée par Noir (pas par Finder). Cache local des metadata. Buffering : copie locale avant lecture pour éviter la latence réseau.
-- **Media keys macOS :** souvlaki (`MPRemoteCommandCenter`) utilisé pour que Noir prenne le contrôle des touches multimédia même quand Apple Music tourne. Les global shortcuts Tauri `MediaPlayPause/MediaTrackNext/MediaTrackPrevious` ne suffisent pas — Apple Music les intercepte en priorité. **Ne jamais réajouter F7/F8/F9 comme global shortcuts Tauri.**
-- **Navigation séquentielle en vue tracks :** toujours utiliser `ui.tracksViewOrder` (paths dans l'ordre visuel trié/filtré), jamais `library.tracks[currentTrackIndex ± 1]`. L'ordre de `library.tracks` est l'ordre de scan, qui diffère du tri visuel.
-- **Sentry = un seul DSN côté Rust.** Pas de SDK `@sentry/browser` JS (1.5MB minifié, lourd, pas de bundler). Les erreurs JS sont forwardées via `invoke('report_js_error')` → `sentry::capture_event()` côté Rust. Économie + 1 seul projet Sentry à monitorer + pas de double-comptage.
-- **Tokens secrets compile-time only.** `option_env!()` lit les env vars à la compilation, pas au runtime. **Ne JAMAIS** stocker un token (Sentry DSN, GitHub feedback, Tauri signing key) dans le runtime — toujours via `option_env!`. Wrapper `release.sh` valide les vars AVANT le build pour éviter les builds release silencieusement sans secrets.
-- **Cloudflare Worker pour le feedback** (au lieu d'un GitHub PAT compile-time dans le binaire). Le binaire ne contient plus de credentials GitHub — uniquement l'URL du worker + un secret partagé. Le worker tient le `GITHUB_TOKEN` côté serveur. Si le binaire fuit, le pire qui arrive c'est qu'on doit révoquer le `NOIR_SECRET` (pas un token GitHub avec des droits étendus).
-- **Dylib bundling pour libsmbclient.** Sur macOS, `pavao` linke contre `libsmbclient.0.8.1.dylib` qui dépend transitivement de ~92 dylibs Samba (Homebrew). Sans bundling, l'app crash au lancement chez tous les Macs sans Homebrew. Pipeline release.sh : `dylibbundler` → fix LC_RPATH dupliqués (`install_name_tool -delete_rpath`) → re-sign chaque dylib + l'app entière → notariser. **Ne JAMAIS skipper le bundling**, sous peine de DMG inutilisables chez les testeurs.
-- **DMG ET app sont notarisés séparément.** Tauri notarise l'app mais pas le DMG. Sans notarisation explicite du DMG (`xcrun notarytool submit Hean_*.dmg`), Gatekeeper refuse le DMG même si l'app à l'intérieur est OK. Toujours notariser les deux + stapler les deux.
-- **Privacy toggle = `AtomicBool` runtime + persistence config.json.** Le toggle dans Settings → Privacy ne nécessite pas de redémarrage SI Sentry était init au boot (le `before_send` callback check l'AtomicBool à chaque event). Si Sentry n'a pas été init au boot (`enabled=false` au démarrage), le toggle persiste mais ne prend effet qu'au prochain reboot. UI affiche un hint "Restart Hean to enable error reporting" dans ce cas.
+Elles ne sont pas des invariants : ce sont des choix, et leur place est dans
+[`docs/adr/`](../../../docs/adr/). Les cinq ADR en vigueur : réécrire de zéro (0001), la
+stack (0002), le dossier de données (0003), la cible de parité visuelle (0004), l'entretien
+du harnais et l'orchestration (0005). **Un ADR ne se modifie pas : on en écrit un nouveau.**
+
+Rappel des interdits qui en découlent et qui ne se rouvrent pas : **jamais CPAL** ·
+**bit-perfect = pas de resampling** · **macOS 11+ seulement, hors Mac App Store** ·
+**Svelte 5 en runes, jamais les stores Svelte 4** · **aucune dépendance npm de production
+sans ADR**.
+
+## Mémoire de l'agent de relecture
+
+> La règle de zone « audio **et** UI dans le même diff → AVERTISSEMENT » ne vise que les
+> chemins **Rust** de l'audio. Les fichiers frontend du player sont de l'UI malgré leur nom.
+> *(Faux positif rencontré lors de la relecture du correctif shuffle, 2026-10-29.)*

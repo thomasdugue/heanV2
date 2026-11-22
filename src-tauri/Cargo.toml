@@ -1,0 +1,43 @@
+[package]
+name = "hean"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.82"
+description = "Hean — lecteur de musique audiophile macOS"
+publish = false
+
+[lib]
+name = "hean_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+tauri = { version = "2.12", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+# IPC typée : les types TypeScript du front sont GÉNÉRÉS depuis ces annotations (ADR 0002).
+# Versions épinglées à l'exact : tauri-specta pour Tauri v2 n'existe qu'en release candidate,
+# et specta est lui-même épinglé « = » par tauri-specta.
+specta = { version = "=2.0.0-rc.28", features = ["derive"] }
+specta-typescript = "=0.0.15"
+tauri-specta = { version = "=2.0.0-rc.29", features = ["derive", "typescript"] }
+
+# Observabilité. println!/eprintln! sont INTERDITS dans ce crate (INV, test d'architecture) :
+# V1 en comptait 252 contre 3 appels tracing::, et son logging ne capturait pas stdout —
+# 63 lignes de journal pour toute la vie de l'app installée.
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Store de bibliothèque (ADR 0002). `bundled` compile SQLite dans le binaire : aucune
+# dépendance système, ~1 Mo. Présent dès le socle pour que le choix soit VÉRIFIÉ, pas supposé.
+rusqlite = { version = "0.43", features = ["bundled"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+panic = "abort"
+strip = true

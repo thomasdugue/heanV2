@@ -161,3 +161,41 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   conséquences assumées — dont le fait que la phase 0 grossit, et que l'économie financière de
   l'orchestration est modeste : le gain réel est l'attention du modèle cher.
   Les deux règles sont remontées dans `CLAUDE.md`, donc lues à chaque session.
+- **2026-11-22** (phase 0) : **le socle et le harnais**, avant la première feature. `./check` était
+  vert au départ (5 vérifications) et l'est à l'arrivée (13), sur un dépôt qui ne contenait aucun
+  code applicatif.
+  - **Socle** : Vite + TypeScript `strict` (plus `noUncheckedIndexedAccess` et
+    `exactOptionalPropertyTypes`), Svelte 5 en runes, Tauri v2, `rusqlite` en `bundled`, `tracing`.
+    La chaîne IPC typée fonctionne de bout en bout : un commentaire de doc Rust ressort en JSDoc
+    dans `src/ipc/bindings.ts`, généré par `tauri-specta`. `withGlobalTauri` est à **false** —
+    `window.__TAURI__` n'existe pas, donc `invoke` redevient mockable.
+  - **Un secret manquant ne compile plus.** `build.rs` écrit un `compile_error!()` que `secrets.rs`
+    inclut ; porte de sortie explicite et tracée (`HEAN_ALLOW_MISSING_SECRETS=1`). L'invariant 17
+    de V1 est rayé.
+  - **CSP** : celle de V1, plus un `font-src 'self'` explicite. V1 n'avait pas de `font-src` du
+    tout et son `index.html` chargeait DM Sans depuis Google Fonts : la feuille était donc bloquée
+    en silence. Geist Mono est désormais embarquée.
+  - **10 tests d'architecture** (28 cas), dont les deux nés de bugs réels : toute `var(--x)` lue est
+    définie (INV-20, 45 violations invisibles pendant 4 mois en V1) et aucun `println!` dans le
+    backend (INV-21, 252 contre 3 `tracing::`). **Chaque test embarque un auto-test de son
+    détecteur** : sans cela, un test de forme sur un dossier vide passe au vert sans rien garantir.
+  - **Le harnais s'entretient tout seul** : 4 générateurs de niveau 1 (types IPC, catalogue IPC,
+    tokens, tableaux de couverture) et une CI qui régénère et **échoue si ça diffère du commit**.
+    `src/styles/tokens.css` est désormais **dérivé** de la cible de parité : les tokens ne peuvent
+    plus diverger sans ADR.
+  - **Le contrat de fin de tâche** remplace `invariant-reminder.sh` : 6 règles au lieu d'une, avec
+    la porte de sortie explicite conservée. Au passage — **le hook n'avait jamais été câblé**,
+    `.claude/settings.json` n'existait pas, alors que `CLAUDE.md` l'annonçait.
+  - **Invariants** : V1 en avait **20**, pas 19 — cinq documents annonçaient un compte faux, figé
+    avant l'ajout de la règle CSS du 2026-10-29. Les 20 sont triés (6 rayés, 12 tests,
+    2 irréductibles) et une 21ᵉ naît du postmortem. Le format est lisible par une machine, et
+    `check-invariants` vérifie désormais **les compteurs eux-mêmes**.
+  - **Les 24 comportements de `UX-ANTI-REGRESSION.md` sont des tests, et les 24 sont rouges.**
+    C'est voulu : c'est le tableau de bord de la reconstruction. `./check` les affiche sans les
+    compter dans son verdict, et un test d'appariement garantit qu'aucun n'a été oublié.
+  - **Trouvé au passage** : le skill `hean-frontend` pointait encore vers un design system **hors
+    du dépôt** — la cause racine n°5 du postmortem, encore vivante dans V2. Corrigé, et un test
+    d'architecture l'interdit désormais.
+  - Décisions actées : **ADR [0006](adr/0006-socle-et-harnais-de-phase-0.md)**. Le bloc `updater`
+    de V1 n'est **pas** repris : son endpoint renvoie 404 depuis le lancement, il reviendra en
+    phase 6 avec la vérification qui l'aurait vu.
