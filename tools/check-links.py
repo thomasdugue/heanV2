@@ -5,7 +5,13 @@ import os, re, sys
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 bad = []
 for dirpath, dirnames, filenames in os.walk(root):
-    dirnames[:] = [d for d in dirnames if d not in {'.git', 'node_modules', 'target'}]
+    # Un dossier qui contient une entrée `.git` est un dépôt à part (clone imbriqué, ou
+    # worktree de session sous `.claude/worktrees/`). Ses liens sont ceux d'une AUTRE
+    # branche : les valider ici rendrait ce script rouge en local et vert en CI, qui part
+    # d'un clone neuf. Même famille de défaut que la chaîne d'outils non épinglée (ADR 0007).
+    dirnames[:] = [d for d in dirnames
+                   if d not in {'.git', 'node_modules', 'target'}
+                   and not os.path.exists(os.path.join(dirpath, d, '.git'))]
     for fn in filenames:
         if not fn.endswith('.md'):
             continue
