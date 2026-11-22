@@ -44,9 +44,8 @@ Postmortem de V1 : `heanv2-bootstrap/05-postmortem/DETTE-TECHNIQUE-V1.md`.
 (`writable`, `$:`). Beaucoup d'exemples en ligne sont encore en Svelte 4 : si un doute, vérifier la
 doc officielle Svelte 5, ne pas mélanger les deux syntaxes.
 
-**Reste à trancher** : la typographie (Geist Mono partout, comme le fait V1, ou Geist Mono +
-DM Sans embarquée pour les grands titres). Décision reportée jusqu'à vérification sur V1 — rien en
-phase 0 n'en dépend. Voir [`bootstrap/02-design/ECARTS-DESIGN.md`](bootstrap/02-design/ECARTS-DESIGN.md) §2.
+**Reste à trancher** : la typographie (Geist Mono partout, ou + DM Sans pour les grands titres).
+Reportée, rien en phase 0 n'en dépend — [`ECARTS-DESIGN.md`](bootstrap/02-design/ECARTS-DESIGN.md) §2.
 
 ## Skills — quoi charger avant de travailler
 
@@ -58,6 +57,7 @@ phase 0 n'en dépend. Voir [`bootstrap/02-design/ECARTS-DESIGN.md`](bootstrap/02
 | Vues, covers, playlists, design | `hean-frontend` |
 | Feedback, Sentry, logs, worker, dashboard | `hean-ops` |
 | Build release, signature, notarisation, updater | `hean-release` |
+| Déléguer une tâche à un sous-agent | `hean-orchestration` |
 
 **Agents** : `test-runner` (lance tout, résumé court, ne corrige rien) · `invariant-guardian` (relit
 un diff contre les invariants, verdict BLOQUANT / AVERTISSEMENT / OK, lecture seule).
@@ -75,11 +75,27 @@ Historique des sessions : `docs/HISTORY.md` — **une entrée par session, en ba
 crée pas une deuxième commande. La liste de ce qui reste à y brancher est en commentaire en tête du
 fichier [`check`](check), chacune annotée de sa phase.
 
-⟦À REMPLIR au fur et à mesure : dev, release signée + notarisée⟧
+```bash
+npm run dev        # Vite seul (pas de fenêtre native)
+npm run tauri dev  # l'app complète
+npm run gen        # régénère tout ce qui est généré (./check échoue si ça diffère du commit)
+git config core.hooksPath tools/git-hooks   # une fois par machine : ./check --fast au commit
+```
+
+⟦À REMPLIR en phase 6 : release signée + notarisée⟧
 
 ## Architecture
 
-⟦À REMPLIR au fur et à mesure — garder cette section sous 20 lignes, le détail va dans un skill⟧
+```
+src/            frontend · ipc/ (SEUL à parler à Tauri) · styles/tokens.css (GÉNÉRÉ)
+src-tauri/      backend  · commands/ (toute commande IPC) · secrets.rs (SEUL à lire un secret)
+tests/          architecture/ (forme du code) · ux/ (les 24 comportements) · unit/
+tools/          check-*.sh|mjs et gen/ — tout ce que ./check lance
+docs/generated/ catalogues produits par npm run gen — ne jamais éditer à la main
+```
+
+**Trois points d'entrée uniques**, chacun tenu par un test d'architecture : l'IPC, les secrets, la
+liste de pistes. C'est ce qui fait disparaître « n'oublie pas de répéter ce filtre partout ».
 
 ## Règles de travail (reprises de V1, elles ont fait leurs preuves)
 
@@ -93,30 +109,26 @@ fichier [`check`](check), chacune annotée de sa phase.
 
 ## Règles de performance (voir [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md))
 
-La promesse du produit est une app légère, peu gourmande, aux performances redoutables. Trois règles
-la protègent — les deux premières sont des pièges de Svelte 5, la troisième est le seul risque réel :
-
-1. **La bibliothèque n'est jamais réactive.** `$state.raw` (ou hors de tout état réactif) pour la
-   liste de pistes. La réactivité ne couvre que l'état d'UI : vue, tri, sélection, filtre. Envelopper
-   10 000 pistes dans des signaux multiplie la mémoire et le coût de chaque mutation.
-2. **Le virtual scroll reste explicite** : un pool fixe de 60 nœuds recyclés, item à 48 px,
-   délégation d'événements. C'est ce qui tient 60 fps sur 10 000+ pistes en V1 ; aucun framework ne
-   fera mieux en rendant 10 000 lignes.
-3. **Zéro dépendance npm de production sans ADR** — ce qu'elle apporte, son poids mesuré, pourquoi on
-   ne l'écrit pas à la main. V1 en avait zéro ; `./check` applique un budget.
+Trois règles, détaillées dans le document — les deux premières sont des pièges de Svelte 5 :
+(1) **la bibliothèque n'est jamais réactive** (`$state.raw`), la réactivité ne couvre que l'UI ·
+(2) **le virtual scroll reste explicite** : pool fixe de 60 nœuds, item à 48 px, délégation ·
+(3) **zéro dépendance npm de production sans ADR** — `./check` applique un budget.
 
 ## Invariants
 
-Source de vérité : `.claude/skills/hean-invariants/SKILL.md`. Résumé d'une ligne par règle ici.
+Source de vérité : [`.claude/skills/hean-invariants/SKILL.md`](.claude/skills/hean-invariants/SKILL.md).
+Tableau à jour, **généré** : [`docs/generated/invariants.md`](docs/generated/invariants.md).
 
-Au démarrage de V2, les 19 invariants de V1 sont triés en trois piles :
-1. **Rayés** — devenus impossibles par construction (avec la justification écrite).
-2. **Devenus des tests** — la règle est dans la suite de tests, plus dans la tête de quelqu'un.
-3. **Irréductibles** — pièges de plateforme (CoreAudio/AirPlay, singleton libsmbclient, media keys,
-   drag WebView, petits CSS Grid WebKit, LC_RPATH dyld, notarisation du DMG). Ceux-là restent des
-   règles écrites, avec leur gravité.
+**21 règles** — les 20 de V1 (ses documents en annonçaient 19 : le compte était faux) plus une née
+du postmortem. Triées en trois piles :
 
-⟦À REMPLIR : le résumé numéroté, au fur et à mesure⟧
+1. **Rayées (6)** — INV-06, 08, 09, 10, 14, 17 : inexprimables par construction (point d'entrée
+   unique, SQLite transactionnel, Svelte réactif, `compile_error!` sur un secret manquant).
+2. **Devenues des tests (13)** — dont 3 déjà actives (INV-04, 20, 21) et **10 « planifiées »**,
+   c'est-à-dire une dette visible que `./check` recompte à chaque passage.
+3. **Irréductibles (2 + 7 pièges de plateforme)** — AirPlay/CoreAudio, singleton libsmbclient,
+   media keys, drag WebView, petits CSS Grid WebKit, LC_RPATH dyld, notarisation du DMG. Règles
+   écrites avec leur gravité : aucun test ne les prouvera jamais.
 
 ## Protocole de session
 
@@ -132,4 +144,6 @@ invariants bougent.
 
 ## Bugs connus
 
-⟦À REMPLIR⟧
+Aucun — il n'y a pas encore de feature. Repris de V1, à ne pas réintroduire : l'endpoint de mise à
+jour renvoyait 404 depuis le lancement (le bloc `updater` n'est pas repris avant la phase 6, ADR
+0006), et `logging.rs` ne capturait pas stdout (INV-21).

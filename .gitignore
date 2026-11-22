@@ -4,6 +4,13 @@ dist/
 node_modules/
 *.app
 *.dmg
+# Tauri génère ses schémas de capabilities au build — pas une source.
+src-tauri/gen/
+
+# Les artefacts GÉNÉRÉS sont COMMITÉS, et surtout pas ignorés : c'est le diff entre le
+# fichier commité et le fichier régénéré qui fait échouer la CI sur la dérive
+# (tools/check-generated.sh). Les ignorer désarmerait le mécanisme.
+#   src/ipc/bindings.ts · src/styles/tokens.css · src/styles/tokens.generated.ts · docs/generated/
 
 # Secrets — JAMAIS commités
 .env

@@ -1,0 +1,52 @@
+// Tout chemin de test cité dans un commentaire doit exister.
+//
+// Règle née le 2026-11-22, dans la session qui a posé ce harnais : `secrets.rs` et
+// `client.ts` — les deux fichiers les plus sensibles du socle — annonçaient être « vérifiés
+// par » des fichiers de test renommés en cours de route. La règle était bien tenue, mais
+// ailleurs. Quelqu'un venant vérifier aurait trouvé un fichier absent, conclu « pas de
+// test », et aurait pu supprimer la règle. C'est exactement le mécanisme de dérive que ce
+// harnais existe pour fermer — et rien ne l'attrapait.
+//
+// Relevé par l'agent invariant-guardian, en relecture du diff de la phase 0.
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { RACINE, sources } from './_lecture';
+
+const ZONES = ['src', 'src-tauri/src', 'tools', '.claude/skills', 'docs/adr'] as const;
+const EXTS = ['.ts', '.svelte', '.css', '.rs', '.mjs', '.md'] as const;
+
+/**
+ * Les chemins de fichiers de test cités dans un texte. Le préfixe `src-tauri/` est capturé,
+ * sinon `src-tauri/tests/export_bindings.rs` serait lu comme `tests/export_bindings.rs` et
+ * déclaré absent : un détecteur qui lève un faux positif finit ignoré.
+ */
+export function cheminsDeTestsCites(texte: string): string[] {
+  const re = /(?<![\w/-])(?:src-tauri\/)?tests\/[A-Za-z0-9_./-]*\.(?:test\.)?(?:ts|rs)\b/g;
+  return [...texte.matchAll(re)].map((m) => m[0]);
+}
+
+describe('références de tests', () => {
+  it('tout chemin tests/… cité quelque part existe vraiment', () => {
+    const morts = ZONES.flatMap((z) =>
+      sources(z, EXTS).flatMap(([f, c]) =>
+        cheminsDeTestsCites(c)
+          .filter((p) => !existsSync(join(RACINE, p)))
+          .map((p) => `${f} cite ${p}, qui n'existe pas`),
+      ),
+    );
+    expect(morts, 'une référence morte fait conclure « pas de test » à tort').toEqual([]);
+  });
+
+  it('le détecteur repère le cas rencontré en phase 0', () => {
+    expect(cheminsDeTestsCites('// Vérifié par tests/architecture/ipc-renomme.test.ts.')).toEqual([
+      'tests/architecture/ipc-renomme.test.ts',
+    ]);
+  });
+
+  it('ne tronque pas un chemin préfixé', () => {
+    expect(cheminsDeTestsCites('voir src-tauri/tests/export_bindings.rs')).toEqual([
+      'src-tauri/tests/export_bindings.rs',
+    ]);
+  });
+});

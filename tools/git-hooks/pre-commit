@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Pre-commit : exactement la même commande qu'en local et qu'en CI, en version rapide.
+# Pas de lefthook, pas de seconde liste de vérifications à entretenir — c'est tout l'intérêt
+# d'avoir un point d'entrée unique.
+#
+# À activer une fois par machine, depuis la racine du dépôt :
+#   git config core.hooksPath tools/git-hooks
+#
+# (Volontairement pas activé automatiquement : `core.hooksPath` est une configuration de
+# dépôt, partagée avec les autres worktrees. C'est à Thomas de la poser.)
+exec ./check --fast

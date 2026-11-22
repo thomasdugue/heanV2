@@ -3,9 +3,10 @@
 Réécriture complète de **Hean**, lecteur de musique audiophile pour macOS : même design, même feature
 set, base technique saine.
 
-**État : aucun code applicatif.** Ce dépôt contient pour l'instant le brief, le savoir repris de V1 et
-le harnais. C'est volontaire — la phase 0 consiste à poser le socle et le filet anti-régression
-*avant* la première ligne de code.
+**État : phase 0 faite, aucune feature.** Le socle compile et démarre, et le filet anti-régression
+tourne — *avant* la première feature, c'était tout l'objet de la phase 0. La suite est le moteur
+audio (phase 1). Le contrat de parité (124 features) est encore entièrement à porter, et les
+24 comportements anti-régression sont rouges exprès : c'est le tableau de bord du projet.
 
 ---
 
@@ -15,15 +16,15 @@ le harnais. C'est volontaire — la phase 0 consiste à poser le socle et le fil
 ./check
 ```
 
-Vert. Les vérifications grandissent avec le projet ; `check` est le point d'entrée unique, identique
-en local, en pre-commit et en CI.
+Vert. 14 vérifications, build compris. `check` est le point d'entrée **unique** : identique en
+local, en pre-commit et en CI — la CI est un seul job qui lance `./check` et rien d'autre, donc elle
+ne peut pas diverger. Il installe lui-même les dépendances npm si elles manquent.
 
-Puis, dans une session Claude Code ouverte sur ce dépôt :
+Pour voir l'application :
 
-> Lis `bootstrap/00-BRIEF-V2.md`, `bootstrap/05-postmortem/DETTE-TECHNIQUE-V1.md`,
-> `bootstrap/06-setup-v2/HARNAIS.md` et `bootstrap/06-setup-v2/PLAN-DE-RECONSTRUCTION.md`.
-> On est en phase 0 : pose-moi les 6 arbitrages un par un, avec ta recommandation, et n'écris aucun
-> code avant qu'ils soient tranchés.
+```bash
+npm run tauri dev
+```
 
 ---
 
@@ -33,9 +34,12 @@ Puis, dans une session Claude Code ouverte sur ce dépôt :
 |---|---|
 | `bootstrap/` | **Tout le contexte repris de V1** — brief, contrat de parité (124 features), design de la cible, invariants, postmortem, chantiers repris (MTP + WiFi Sync), plan de reconstruction, spécification du harnais. Autonome : [`bootstrap/README.md`](bootstrap/README.md) donne l'ordre de lecture. |
 | `CLAUDE.md` | Guide de travail, lu en entier à chaque session. Reste **sous 150 lignes** (vérifié par `./check`) : le détail va dans un skill. |
-| `.claude/skills/` | Les 6 skills `hean-*` repris de V1 — le savoir par zone. Leurs chemins de fichiers sont ceux de V1 et sont à adapter au fur et à mesure. |
-| `.claude/agents/` | `test-runner` (lance tout, résumé court) · `invariant-guardian` (relit un diff contre les invariants). |
-| `.claude/hooks/` | `invariant-reminder.sh` — propose d'ajouter une règle quand du code change sans que les invariants bougent. |
+| `src/`, `src-tauri/` | Le socle. `src/ipc/` est le **seul** module qui parle à Tauri ; `src-tauri/src/secrets.rs` le seul qui lit un secret. Des tests d'architecture le garantissent. |
+| `tests/` | `architecture/` (la forme du code) · `ux/` (les 24 comportements anti-régression) · `unit/`. |
+| `docs/generated/` | Catalogues **générés** par `npm run gen` — IPC, tokens, couverture des invariants et des comportements. Ne jamais les éditer : `./check` échoue si ils diffèrent du code. |
+| `.claude/skills/` | 7 skills `hean-*` — le savoir par zone, dont `hean-invariants` (les 21 règles) et `hean-orchestration` (quand déléguer). |
+| `.claude/agents/` | `test-runner` (lance `./check`, résumé court) · `invariant-guardian` (relit un diff contre les invariants). Les deux en lecture seule. |
+| `.claude/hooks/` | `contrat-de-fin-de-tache.sh` — réclame ce qui manque quand un diff touche une zone, avec une porte de sortie explicite. |
 | `docs/adr/` | Un fichier par décision, numéroté, immuable. |
 | `docs/MESURES-V1.md` | Les mesures de référence de V1 : échelle de la bibliothèque, démarrage, mémoire par processus, et deux bugs trouvés en mesurant. |
 | `docs/PERFORMANCE.md` | Les chiffres réels de V1, l'impact de la stack sur poids/mémoire/vitesse, et les 3 règles qui protègent la promesse de légèreté. |
@@ -45,14 +49,29 @@ Puis, dans une session Claude Code ouverte sur ce dépôt :
 
 ## Ce que `./check` vérifie aujourd'hui
 
-- **liens markdown** — tout lien relatif résout ; aucune référence hors du dépôt
-  *(leçon V1 : le meilleur document design du projet vivait hors du dépôt git)* ;
-- **taille de `CLAUDE.md`** — ≤ 150 lignes *(leçon V1 : il avait fini par être tronqué à la lecture)* ;
-- **taille des fichiers source** — ≤ 400 lignes *(leçon V1 : `lib.rs` 4 870, `views.js` 3 512,
-  `styles.css` 10 654 en un seul fichier)* ;
-- **skills** — frontmatter exploitable ;
-- **poids et dépendances** — budget sur `dist/` et sur les dépendances npm de production
-  *(V1 en avait zéro : pas de bundler, donc pas de porte d'entrée)*.
+- **liens markdown** — tout lien relatif résout *(leçon V1 : le meilleur document design du projet
+  vivait hors du dépôt git)* ;
+- **taille de `CLAUDE.md`** ≤ 150 lignes · **taille des fichiers source** ≤ 400 lignes
+  *(leçon V1 : `lib.rs` 4 870, `views.js` 3 512, `styles.css` 10 654 en un seul fichier)* ;
+- **invariants** — chaque règle a une pile, une gravité, une couverture et un *pourquoi* ; une règle
+  sans test échoue, un test qui cite une règle disparue aussi, et **les compteurs annoncés sont
+  vérifiés** *(leçon V1 : cinq documents annonçaient 19 invariants, il y en avait 20)* ;
+- **zones jamais déléguées** — la liste ne peut pas diverger entre ses deux copies ;
+- **lint** (oxlint) · **types** (`tsc` en `strict` + `svelte-check` en échec sur avertissement)
+  *(cause racine n°1 de V1 : 16 076 lignes de JS sans analyse statique)* ;
+- **tests d'architecture** — 29 cas sur la *forme* du code : aucun import circulaire, un seul
+  constructeur de liste de pistes, les zones ne se traversent pas, aucune couleur en dur hors des
+  tokens, toute `var(--x)` lue est définie, aucun `println!` dans le backend ;
+- **build** — le frontend compile *(un `./check` vert sur un projet qui ne compile pas serait
+  exactement la fausse confiance que ce harnais existe pour empêcher)* ;
+- **clippy `-D warnings`** et **`cargo test --locked`** ;
+- **artefacts générés** — régénérés et comparés au commit : la dérive de documentation devient
+  impossible *(cause racine n°5 : 11 affirmations fausses au moment de l'audit)* ;
+- **poids et dépendances** — budget sur `dist/` hors sourcemaps et sur les dépendances npm de
+  production *(V1 en avait zéro : pas de bundler, donc pas de porte d'entrée)*.
+
+Hors verdict, en **tableau de bord** : les 24 comportements de `UX-ANTI-REGRESSION.md`, tous rouges
+tant que la feature correspondante n'est pas portée.
 
 La liste des vérifications à ajouter, dans l'ordre, est en commentaire en tête de
 [`check`](check) et spécifiée dans [`bootstrap/06-setup-v2/HARNAIS.md`](bootstrap/06-setup-v2/HARNAIS.md).
@@ -79,8 +98,7 @@ Reste ouvert : le partage Geist Mono / DM Sans, et cinq points listés dans
 ## Avant d'écrire du code
 
 **[`docs/DEMARRER.md`](docs/DEMARRER.md)** — cinq préalables (figer la cible de parité, capturer V1,
-le mesurer, vérifier la typographie, rapatrier les secrets), comment changer de modèle, et le prompt
-de démarrage de la phase 0 prêt à coller.
+le mesurer, vérifier la typographie, rapatrier les secrets) et comment changer de modèle.
 
 Le préalable le plus important n'est pas technique : **figer la cible**. Si V1 continue d'évoluer
 pendant la reconstruction, la parité est une cible mobile et le travail ne se termine jamais.

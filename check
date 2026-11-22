@@ -1,23 +1,20 @@
 #!/usr/bin/env bash
-# ./check — LE point d'entrée unique des vérifications. Identique en local, en pre-commit et en CI.
-# Leçon V1 : l'agent test-runner devait connaître 4 commandes dans 3 répertoires, avec des cas
-# particuliers. Une seule chose à savoir, une seule chose à maintenir, et la CI ne peut pas
-# diverger du local.
+# ./check — LE point d'entrée unique des vérifications. Identique en local, en pre-commit et
+# en CI. Leçon V1 : l'agent test-runner devait connaître 4 commandes dans 3 répertoires, avec
+# des cas particuliers. Une seule chose à savoir, une seule chose à maintenir, et la CI ne
+# peut pas diverger du local.
 #
 #   ./check          toutes les vérifications
-#   ./check --fast   seulement les rapides (pre-commit)
+#   ./check --fast   seulement les rapides (pre-commit) — pas de Rust, pas de régénération
 #
-# À compléter au fur et à mesure (voir bootstrap/06-setup-v2/HARNAIS.md) :
-#   [ ] tsc --noEmit                      dès que le frontend existe
-#   [ ] lint                              dès que le frontend existe
-#   [ ] tests frontend                    dès que le frontend existe
-#   [ ] cargo clippy -- -D warnings       dès que le Rust existe
-#   [ ] cargo test --locked               dès que le Rust existe
-#   [ ] tests d'architecture              phase 0  (HARNAIS.md §2)
-#   [ ] couverture des invariants         phase 0  (HARNAIS.md §6)
-#   [ ] doc générée à jour                phase 0  (HARNAIS.md §9)
-#   [ ] budgets de performance            phase 5  (HARNAIS.md §8, chiffres de V1 à mesurer)
-#   [ ] régression visuelle               phase 4  (HARNAIS.md §7)
+# Reste à brancher, au fur et à mesure (voir bootstrap/06-setup-v2/HARNAIS.md) :
+#   [ ] fixtures audio + backend « fake »   phase 1  (HARNAIS.md §1)
+#   [ ] property tests de normalisation     phase 2  (HARNAIS.md §4)
+#   [ ] mode parité V1 ↔ V2                 phase 2  (HARNAIS.md §5)
+#   [ ] régression visuelle                 phase 4  (HARNAIS.md §7)
+#   [ ] conteneur Samba + injection panne    phase 5  (HARNAIS.md §12)
+#   [ ] budgets de performance              phase 5  (HARNAIS.md §8, chiffres de V1 à mesurer)
+#   [ ] appel réel sur l'endpoint updater   phase 6  (ENTRETIEN-DU-HARNAIS.md, audit)
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 FAST=0; [ "${1:-}" = "--fast" ] && FAST=1
@@ -25,20 +22,51 @@ fail=0
 run() { echo "→ $1"; shift; "$@" || fail=1; echo; }
 
 echo "=== check heanV2 ==="; echo
+
+# Le harnais s'installe tout seul : V1 avait un cas particulier « si node_modules est absent ».
+if [ -f package.json ] && [ ! -d node_modules ]; then
+  echo "→ installation des dépendances (absentes)"
+  npm ci --silent || npm install --silent || fail=1
+  echo
+fi
+
 run "liens markdown"      python3 tools/check-links.py
 run "taille de CLAUDE.md" bash tools/check-claude-md.sh
 run "taille des fichiers" bash tools/check-sizes.sh
 run "skills"              bash tools/check-skills.sh
-run "poids & deps"        bash tools/check-weight.sh
+run "invariants"          node tools/check-invariants.mjs
+run "zones jamais déléguées" bash tools/check-zones.sh
+
+if [ -f package.json ]; then
+  run "lint"          npm run --silent lint
+  run "types"         npm run --silent typecheck
+  run "tests"         npm run --silent test
+fi
 
 if [ "$FAST" -eq 0 ]; then
-  if [ -f package.json ]; then
-    run "types"  npm run --silent typecheck
-    run "tests"  npm test --silent
-  fi
+  # Le build fait partie des vérifications : un `./check` vert sur un projet qui ne compile
+  # pas serait exactement le genre de fausse confiance que ce harnais existe pour empêcher.
+  [ -f package.json ] && run "build" npm run --silent build
   if [ -f src-tauri/Cargo.toml ]; then
-    run "cargo test" cargo test --locked --manifest-path src-tauri/Cargo.toml
+    run "clippy"      cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+    run "cargo test"  cargo test --locked --manifest-path src-tauri/Cargo.toml
   fi
+  run "artefacts générés" bash tools/check-generated.sh
+fi
+
+# Après le build, pour que dist/ soit frais (en --fast, mesure le dernier build connu).
+run "poids & deps"        bash tools/check-weight.sh
+
+# Tableau de bord — PAS un verdict. Les 24 comportements de UX-ANTI-REGRESSION.md sont
+# rouges tant que la feature correspondante n'est pas portée : c'est l'avancement du projet,
+# pas une régression. Voir docs/generated/ux.md.
+if [ -f package.json ]; then
+  echo "→ comportements UX (tableau de bord, hors verdict)"
+  sortie=$(npm run --silent test:ux 2>&1)
+  verts=$(printf '%s' "$sortie" | grep -oE '[0-9]+ passed' | tail -1 | grep -oE '[0-9]+' || echo 0)
+  rouges=$(printf '%s' "$sortie" | grep -oE '[0-9]+ failed' | tail -1 | grep -oE '[0-9]+' || echo 0)
+  echo "  ${rouges:-0} comportements restent à porter, $(( ${verts:-0} > 3 ? ${verts:-0} - 3 : 0 )) portés (sur 24)"
+  echo
 fi
 
 echo "=== $([ $fail -eq 0 ] && echo 'VERT' || echo 'ROUGE') ==="

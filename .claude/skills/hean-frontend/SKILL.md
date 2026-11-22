@@ -15,7 +15,7 @@ Les patterns transverses (médiateur `app.js`, state par référence, event dele
 
 ## Design system & typography
 
-**Référence design** : `/Users/tsunami25/Documents/Thomas/Noir Design System/noir-design-system.html` — composants : `noir-btn-primary`, `noir-btn-secondary`, `noir-btn-icon`, variables, couleurs, exemples.
+**Référence design** : [`bootstrap/02-design/reference/noir-design-system.html`](../../../bootstrap/02-design/reference/noir-design-system.html) — composants : `noir-btn-primary`, `noir-btn-secondary`, `noir-btn-icon`, variables, couleurs, exemples. (En V1 ce fichier vivait **hors du dépôt** : c'est la cause racine n°5 du postmortem. Il est désormais dedans, et un test d'architecture interdit toute référence externe.) Pour les **valeurs**, la source de vérité est [`bootstrap/02-design/tokens.css`](../../../bootstrap/02-design/tokens.css), dont `src/styles/tokens.css` est généré.
 
 **Polices** :
 - `DM Sans` — police principale du corps/métadonnées, définie comme `--font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif` dans `:root`
