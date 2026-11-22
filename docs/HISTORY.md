@@ -214,3 +214,16 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     défaut d'affichage mais la capacité à voir ce qui se passe chez les testeurs — et elle ne coûte
     rien, écrire dans le journal demandant le même effort qu'écrire dans le vide. Plus aucun
     invariant n'est « non classé ».
+- **2026-11-22** (retouches de phase 0, après le retour de la session de phase 1) : deux défauts
+  dans ce que la phase 0 avait livré.
+  - Le `README.md` annonçait **29 cas** de tests d'architecture là où il y en avait 32 : le chiffre
+    était vrai à l'écriture et faux un commit plus tard. `check-links` validait les liens du README,
+    pas ses affirmations. Corrigé, et la vérification qui l'aurait vu est ajoutée
+    (`tools/check-comptes.mjs`) : tout nombre écrit en prose sur le dépôt doit correspondre à la
+    réalité — nombre de vérifications de `./check`, et comptes des trois piles d'invariants recopiés
+    dans `CLAUDE.md`. Les chiffres purement décoratifs du README ont été retirés plutôt que
+    maintenus : un nombre que personne ne recompte est un mensonge en attente.
+  - `CLAUDE.md` était à **149 lignes sur 150** : plus une seule ligne disponible pour la suite du
+    projet. Les règles qui ne valent que pour le code (zone audio/UI, 400 lignes, échappement, et
+    les trois règles de performance) sont déplacées dans le skill `hean-invariants` — chargé avant
+    toute modif de code, donc exactement quand elles servent. `CLAUDE.md` retombe à **141**.

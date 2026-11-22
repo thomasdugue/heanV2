@@ -281,6 +281,36 @@ techniques actées ». Ils sont de la même nature, et ils restent valables en V
 
 ---
 
+## Règles de travail sur le code
+
+Reprises de V1, elles ont fait leurs preuves. Elles étaient dans `CLAUDE.md` ; elles sont
+ici depuis le 2026-11-22, parce que ce skill est chargé avant toute modif de code — donc
+exactement quand elles servent — et que `CLAUDE.md` doit rester lisible en entier.
+
+- **Ne jamais modifier l'audio quand on travaille sur l'UI ou la bibliothèque. Et
+  inversement.** La règle de zone ne vise que les chemins **Rust** de l'audio ; les fichiers
+  frontend du player sont de l'UI malgré leur nom.
+- **Aucun fichier ne dépasse ~400 lignes.** Si ça arrive, c'est que le découpage est à
+  revoir. `./check` le refuse. (V1 : `lib.rs` 4 870 lignes, `views.js` 3 512,
+  `styles.css` 10 654.)
+- **Toute donnée affichée passe par un échappement**, guillemets compris. C'est le
+  comportement W006 : un tag contenant `"` était tronqué à la sauvegarde.
+
+### Performance — détail dans [`docs/PERFORMANCE.md`](../../../docs/PERFORMANCE.md)
+
+La promesse du produit est une app légère et rapide. Trois règles la protègent ; les deux
+premières sont des pièges de Svelte 5, la troisième est le seul risque réel.
+
+1. **La bibliothèque n'est jamais réactive.** `$state.raw` (ou hors de tout état réactif)
+   pour la liste de pistes. La réactivité ne couvre que l'état d'UI : vue, tri, sélection,
+   filtre. Envelopper 10 000 pistes dans des signaux multiplie la mémoire et le coût de
+   chaque mutation.
+2. **Le virtual scroll reste explicite** : pool fixe de 60 nœuds recyclés, item à 48 px,
+   délégation d'événements. C'est ce qui tient 60 fps sur 10 000+ pistes en V1 ; aucun
+   framework ne fera mieux en rendant 10 000 lignes.
+3. **Zéro dépendance npm de production sans ADR** — ce qu'elle apporte, son poids mesuré,
+   pourquoi on ne l'écrit pas à la main. V1 en avait zéro ; `./check` applique un budget.
+
 ## Décisions techniques actées
 
 Elles ne sont pas des invariants : ce sont des choix, et leur place est dans
