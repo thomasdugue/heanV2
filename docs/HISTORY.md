@@ -130,3 +130,26 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   valider la cible. Le préalable A2 passe donc de **bloquant** à **en pause** : plus rien n'attend,
   et la phase 0 (socle, `./check`, tests d'architecture, tri des invariants, 24 comportements en
   tests) ne touche pas au design — elle peut démarrer pendant la passe.
+- **2026-11-22** : deux recommandations demandées par Thomas, écrites dans `06-setup-v2/`.
+  - **`ENTRETIEN-DU-HARNAIS.md`** — comment le harnais reste à jour sans discipline. Trois niveaux
+    de force : **généré** (un script le produit depuis le code, la CI échoue sur la dérive →
+    impossible à périmer), **apparié** (deux sources, un test les compare), **réclamé** (un garde-fou
+    bloque et pose une question fermée). Le hook `invariant-reminder.sh` de V1 est le modèle du
+    niveau 3, à généraliser en « contrat de fin de tâche ». Plus un audit hebdomadaire pour ce
+    qu'aucun diff ne montre — l'endpoint de mise à jour en 404 depuis le lancement en est l'exemple.
+    Et pour « ce que j'oublie », la seule règle qui couvre l'inconnu : **tout défaut qui atteint
+    Thomas est un trou dans le harnais**, et son correctif inclut la vérification qui l'aurait vu.
+    C'est ainsi que les 19 invariants de V1 sont nés — l'erreur était de les écrire en prose plutôt
+    qu'en tests.
+  - **`ORCHESTRATION.md`** — quel modèle fait quoi. Thèse : **on ne délègue en sécurité que là où le
+    harnais est fort**, donc les deux questions de Thomas n'en font qu'une. Critère de délégation :
+    pouvoir écrire *avant* de lancer la tâche le critère qu'une machine évaluera. Opus 5.5 garde le
+    contexte, découpe, écrit les briefs et **juge la solution** (un test vert ne dit rien de la
+    maintenabilité) ; Sonnet et Haiku exécutent contre un critère ; `test-runner` et
+    `invariant-guardian` vérifient en lecture seule. Cinq zones ne se délèguent jamais — moteur
+    audio, migration, release, secrets, choix produit — parce qu'un test vert n'y prouve rien.
+
+  Branchés dans `HARNAIS.md`, l'ordre de lecture du bootstrap, le socle de la phase 0 et le prompt
+  de démarrage. Au passage : le tableau des 6 arbitrages du `PLAN-DE-RECONSTRUCTION.md` était resté
+  « à prendre » alors que les ADR 0002/0003/0004 les ont tranchés — corrigé, pour que la session de
+  phase 0 ne les rouvre pas.

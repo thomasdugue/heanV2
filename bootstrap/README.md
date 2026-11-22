@@ -25,6 +25,8 @@ branche `claude/refonte-fab-5-2-3901f8`, commit `02508ea` (Hean v0.2.0-beta.1).
 | 5 | [`02-design/ECARTS-DESIGN.md`](02-design/ECARTS-DESIGN.md) | ⭐ Avant de reproduire le design : il existe **trois designs** de Hean et **six documents** qui les décrivent. Dit lequel est la cible, et pourquoi la PR #37 est cassée. |
 | 6 | [`06-setup-v2/PLAN-DE-RECONSTRUCTION.md`](06-setup-v2/PLAN-DE-RECONSTRUCTION.md) | Les 6 arbitrages de la phase 0, puis 8 phases avec leurs critères de sortie. |
 | 7 | [`06-setup-v2/HARNAIS.md`](06-setup-v2/HARNAIS.md) | **Le harnais.** Les 12 ajouts qui font qu'un projet ne régresse pas, par rendement, et ce que chaque faiblesse de V1 devient. |
+| 8 | [`06-setup-v2/ENTRETIEN-DU-HARNAIS.md`](06-setup-v2/ENTRETIEN-DU-HARNAIS.md) | **Comment le harnais ne périme pas.** Généré / apparié / réclamé, le contrat de fin de tâche, et la règle qui couvre ce qu'on oublie. |
+| 9 | [`06-setup-v2/ORCHESTRATION.md`](06-setup-v2/ORCHESTRATION.md) | **Quel modèle fait quoi**, et la règle qui décide : on ne délègue que là où le harnais est fort. |
 
 Le reste se consulte au besoin.
 
@@ -95,6 +97,8 @@ MANIFEST.md                 d'où vient chaque fichier, et ce qui a été volont
   README.md                 ce qui s'installe tel quel, et où
   PLAN-DE-RECONSTRUCTION.md ⭐ phase 0 (6 arbitrages) + 8 phases
   HARNAIS.md                ⭐ les 12 ajouts au harnais, ce qu'il ne faut PAS ajouter, table de correspondance V1
+  ENTRETIEN-DU-HARNAIS.md   comment le harnais reste à jour tout seul (généré / apparié / réclamé)
+  ORCHESTRATION.md          quel modèle fait quoi, et pourquoi c'est la même question
   CLAUDE.md                 template prêt à poser à la racine de heanV2
   agents/                   test-runner, invariant-guardian
   hooks/                    invariant-reminder.sh

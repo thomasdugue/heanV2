@@ -30,6 +30,15 @@ documentation ; il ne la rend pas vraie.
 
 ---
 
+> **Deux compléments, écrits le 2026-11-22 à la demande de Thomas.** Ce document dit *quoi
+> construire*. Les deux autres disent comment ça tient dans le temps :
+> - [`ENTRETIEN-DU-HARNAIS.md`](ENTRETIEN-DU-HARNAIS.md) — comment le harnais reste à jour tout
+>   seul : trois niveaux de force (généré / apparié / réclamé), le contrat de fin de tâche, l'audit
+>   hebdomadaire, et la seule règle qui couvre « ce que j'oublie ».
+> - [`ORCHESTRATION.md`](ORCHESTRATION.md) — quel modèle fait quoi. Sa thèse : **on ne délègue en
+>   sécurité que là où le harnais est fort**, donc chaque vérification ajoutée ici déplace la
+>   frontière du délégable.
+
 ## Les 12 ajouts, par rendement
 
 ### 1. Rendre l'audio testable — fixtures + backend « fake » 🔴 priorité absolue

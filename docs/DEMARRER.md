@@ -166,6 +166,16 @@ quatre fichiers, pas cent quatorze. Le reste se charge à la demande, par zone, 
 >    profil release, et le câblage tauri-specta qui génère les types TS.
 > 2. Brancher dans `./check` : `tsc --noEmit`, le lint, les tests frontend, `cargo clippy -- -D
 >    warnings`, `cargo test --locked`. `./check` doit rester le point d'entrée unique.
+> 2bis. L'entretien du harnais — lis `bootstrap/06-setup-v2/ENTRETIEN-DU-HARNAIS.md` et pose ses
+>    deux pièces de phase 0 : les **générateurs de niveau 1** (types TS, catalogue IPC, tokens) avec
+>    la CI qui échoue sur la dérive, et le **contrat de fin de tâche** — le hook qui réclame ce qui
+>    manque quand un diff touche une zone. Le hook `invariant-reminder.sh` de V1 en est le modèle :
+>    généralise-le, et garde sa porte de sortie explicite.
+> 2ter. L'orchestration — lis `bootstrap/06-setup-v2/ORCHESTRATION.md` et pose la politique de
+>    routage (un `.claude/agents/` par rôle avec son modèle), le gabarit de brief à six points, et la
+>    liste en dur des zones jamais déléguées. Règle à respecter toi-même dès cette phase : **tu ne
+>    délègues une tâche que si tu peux écrire son critère de réussite exécutable avant de la
+>    lancer.**
 > 3. Les tests d'architecture (`HARNAIS.md` §2) : pas d'imports circulaires, un seul constructeur de
 >    liste de pistes, `audio/` n'importe jamais `ui/`, aucune couleur en dur hors du fichier de
 >    tokens.

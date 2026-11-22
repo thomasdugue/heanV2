@@ -14,6 +14,14 @@
 
 ### Les 6 décisions à prendre
 
+> ✅ **Les six sont prises depuis le 2026-11-21.** Le tableau ci-dessous garde le raisonnement, qui
+> reste utile ; les décisions elles-mêmes font foi dans les ADR :
+> [`0002`](../../docs/adr/0002-stack-technique.md) (TypeScript strict + Vite, Svelte 5 en runes,
+> tauri-specta, SQLite), [`0003`](../../docs/adr/0003-dossier-de-donnees.md) (`hean/` + migration),
+> [`0004`](../../docs/adr/0004-cible-de-parite.md) (cible de parité = redesign v3, `e12a200`).
+> **Ne pas les rouvrir.** Seule la ligne 6 reste partiellement ouverte : l'échelle typographique est
+> tranchée, le partage Geist Mono / DM Sans attend la passe de design de Thomas.
+
 | # | Décision | Options | Mon avis |
 |---|---|---|---|
 | 1 | **Langage frontend** | TypeScript strict / JS vanilla comme V1 | **TypeScript.** C'est la cause racine n°1 du postmortem. |
@@ -38,6 +46,11 @@ Trois décisions sont déjà prises et ne se rouvrent pas : **Tauri v2 + Rust**,
 - [ ] `build.rs` avec `compile_error!()` sur les secrets manquants en profil release (remplace la
       moitié de [`ci/release.sh.v1`](ci/release.sh.v1)).
 - [ ] Limite dure de taille de fichier vérifiée en CI (~400 lignes).
+- [ ] **Le contrat de fin de tâche** et les générateurs de niveau 1 — voir
+      [`ENTRETIEN-DU-HARNAIS.md`](ENTRETIEN-DU-HARNAIS.md). C'est ce qui fait que le harnais ne
+      périme pas ; le reste des niveaux arrive avec ce qu'il vérifie.
+- [ ] **La politique de routage des modèles** + le gabarit de brief à six points + la liste des
+      zones jamais déléguées — voir [`ORCHESTRATION.md`](ORCHESTRATION.md).
 - [ ] **Captures d'écran de V1** : chaque vue, chaque panel, chaque modal → dans
       `02-design/reference/captures/`. Sans ça, « le design à l'identique » n'est pas vérifiable.
 
