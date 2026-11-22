@@ -32,6 +32,14 @@ tauri-specta = { version = "=2.0.0-rc.29", features = ["derive", "typescript"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+# Décodage audio (ADR 0002 : jamais CPAL — mais le décodage, lui, est celui de V1).
+# Les features sont EXPLICITES et limitées aux formats annoncés comme supportés : FLAC, WAV,
+# AIFF, ALAC, MP3, AAC/M4A, OGG Vorbis. WMA, DSD, Opus et MQA ne le sont pas, et les laisser
+# hors de cette liste est ce qui rend l'absence de support vérifiable au lieu d'accidentelle.
+symphonia = { version = "0.5", default-features = false, features = [
+  "flac", "wav", "aiff", "alac", "mp3", "aac", "isomp4", "vorbis", "ogg", "pcm",
+] }
+
 # Store de bibliothèque (ADR 0002). `bundled` compile SQLite dans le binaire : aucune
 # dépendance système, ~1 Mo. Présent dès le socle pour que le choix soit VÉRIFIÉ, pas supposé.
 rusqlite = { version = "0.43", features = ["bundled"] }

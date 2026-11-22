@@ -214,3 +214,70 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     défaut d'affichage mais la capacité à voir ce qui se passe chez les testeurs — et elle ne coûte
     rien, écrire dans le journal demandant le même effort qu'écrire dans le vide. Plus aucun
     invariant n'est « non classé ».
+- **2026-11-22** : **phase 1 — le bit-perfect devient une assertion.** Pas en commençant par
+  CoreAudio, mais par ce qui le rend vérifiable. Point de départ `./check` vert (14 vérifications,
+  32 tests d'architecture, 5 tests Rust) ; point d'arrivée vert aussi, avec **15 vérifications** et
+  **51 tests Rust** (33 unitaires, 4 de bit-perfect, 13 de décodage, 1 de bindings).
+  - **Le test central est vert** : `src-tauri/tests/bit_perfect.rs` décode une fixture FLAC vers un
+    WAV à travers le backend de test, égaliseur absent et volume à 100 %, et compare **octet par
+    octet** à un fichier de référence commité — en 16/44,1 **et** en 24/192. Le golden est écrit par
+    **ffmpeg**, donc par un décodeur et un encodeur indépendants des nôtres : comparer notre sortie
+    à elle-même n'aurait rien prouvé.
+  - **Le test a été muté pour vérifier qu'il peut échouer** : perdre un bit, inverser les canaux,
+    tronquer le 24 bits à 16 — les trois sont attrapés, et le message dit l'octet, puis s'il est
+    dans l'en-tête ou dans l'audio et à quelle trame. Les deux premières mutations ont révélé un
+    défaut dans mon propre message d'erreur (frontière en-tête/audio codée à 68 en dur, fausse en
+    16 bits) : corrigé.
+  - **Décision structurante : le format interne est `i32` mis à l'échelle 32 bits, pas `f32`** —
+    ADR [0007](adr/0007-format-interne-audio-et-preuve-du-bit-perfect.md). `f32` n'était pas faux,
+    mais il fallait *démontrer* l'exactitude en raisonnant sur la mantisse ; un décalage de bits se
+    constate. Le pipeline du skill `hean-audio` annonçait `f32` : corrigé, il était devenu faux.
+  - **Mesuré, pas supposé** : symphonia rend ses tampons `S32` déjà décalés vers les bits hauts, et
+    ses tampons `S16` non décalés. Le chemin FLAC ne fait donc aucune conversion. Comme cette
+    convention n'est garantie par aucun contrat de version, elle est isolée dans un seul fichier et
+    un test nommé échoue en disant quoi corriger — sans lui, une mise à jour de symphonia rendrait
+    le son 65 536 fois trop faible **sans faire échouer aucun test de lecture**.
+  - **ALAC et AAC ne déclarent pas leur nombre de canaux.** Découvert en voyant deux tests échouer,
+    pas en lisant la doc. Le décodeur décode donc un premier paquet pour connaître le format, et
+    **garde son audio**. Deviner « stéréo » aurait joué un mono sur un seul canal sans le dire.
+  - **Le README des fixtures de phase 0 était faux sur un point**, et c'est la trouvaille la plus
+    utile de la session : il annonçait qu'un fichier tronqué « doit produire une erreur propre ».
+    Mesuré : sur les **trois** façons dont un fichier s'abîme, **une seule** produit une erreur.
+    Un en-tête STREAMINFO incohérent est refusé ; des trames abîmées ou un fichier tronqué passent
+    en **silence**, symphonia sautant les trames invalides — **un seul octet abîmé fait disparaître
+    un bloc entier, 4 608 trames, un dixième de seconde.** Les trois comportements sont désormais
+    fixés par trois tests et trois fixtures. Conséquence écrite dans l'ADR : l'intégrité d'un
+    fichier ne se déduit pas du décodeur, il faudra la vérifier autrement en phase 5.
+  - **Et je m'étais trompé en route** : ma première fixture « abîmée » visait l'octet 4 000, qui
+    tombe dans le bloc PADDING de 8 192 octets qu'ffmpeg écrit par défaut. Elle n'abîmait donc
+    rien, et j'en avais tiré une conclusion trop large. `tools/abimer-fixture.py` **calcule**
+    maintenant le début des trames en parcourant les blocs de métadonnées, au lieu de le supposer.
+  - **24 fixtures, 2 Mo**, une par piège réel de V1, avec leurs goldens.
+    `tools/check-fixtures-audio.sh` (branché dans `./check`) apparie dans les deux sens README ↔
+    disque, borne les poids, et **refuse qu'une fixture ne soit lue par aucun test** — un binaire
+    commité que personne ne lit n'est pas une fixture, c'est du décor. L'inventaire a été muté lui
+    aussi : fichier non documenté, fixture absente, fixture plus lue — les trois rougissent.
+  - **Le trait de backend ne porte aucune méthode de choix de périphérique**, et c'est délibéré :
+    un `set_device()` serait exactement l'appel que PLAT-1 décrit comme « accepte silencieusement
+    sans rien faire » sur un périphérique AirPlay périmé. En revanche `preparer()` rend le format
+    **réellement obtenu** et non `()`, ce qui permet de constater qu'un DAC ne sert pas le format
+    demandé — donc de le refuser, puisque le rééchantillonnage est interdit.
+  - **Pas touché** : le moteur CoreAudio, l'égaliseur (les fréquences de ses 8 bandes sont une
+    donnée de parité absente du bootstrap — les inventer aurait créé l'écart silencieux qu'on
+    cherche à éviter), le gapless, le frontend, la bibliothèque, le NAS. Les 24 comportements UX
+    restent à **0 porté sur 24** : aucune régression, et aucun progrès de ce côté — c'était attendu,
+    cette phase construit la vérification, pas la feature.
+  - **`invariant-guardian` : OK**, et il a trouvé un trou que ce travail venait de créer — le
+    garde-fou d'**INV-21** (🔴) ne scannait que `src-tauri/src/`, donc les deux nouveaux tests
+    d'intégration échappaient à la règle. Ils étaient propres, mais la couverture était plus
+    étroite que la règle : tant que `src-tauri/tests/` ne contenait qu'un fichier, le trou ne se
+    voyait pas. `backend.test.ts` scanne désormais les deux dossiers, et la mutation le confirme
+    (un `println!` ajouté dans `decodage.rs` fait rougir le test). Une règle qui n'est tenue que là
+    où quelqu'un y a pensé est le modèle de défaut que V1 a payé le plus cher.
+  - **Ce travail n'a été délégué à aucun modèle moins coûteux** : le moteur audio et les ADR sont
+    deux zones jamais déléguées (ADR 0005), et aucun test vert n'y prouverait rien. Les deux
+    sous-agents employés sont en lecture seule — `test-runner` et `invariant-guardian`.
+  - **Règle candidate, à trancher par Thomas** : « l'intégrité d'un fichier audio ne se vérifie
+    jamais avec le décodeur — un fichier abîmé ou tronqué joue court, ou joue du bruit, sans aucune
+    erreur ». Elle n'a pas été ajoutée à `hean-invariants` : seul Thomas classe une gravité, et une
+    règle non classée y serait bloquante par défaut.

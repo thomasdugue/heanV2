@@ -8,7 +8,7 @@
 #   ./check --fast   seulement les rapides (pre-commit) — pas de Rust, pas de régénération
 #
 # Reste à brancher, au fur et à mesure (voir bootstrap/06-setup-v2/HARNAIS.md) :
-#   [ ] fixtures audio + backend « fake »   phase 1  (HARNAIS.md §1)
+#   [x] fixtures audio + backend « fake »   phase 1  (HARNAIS.md §1) — fait
 #   [ ] property tests de normalisation     phase 2  (HARNAIS.md §4)
 #   [ ] mode parité V1 ↔ V2                 phase 2  (HARNAIS.md §5)
 #   [ ] régression visuelle                 phase 4  (HARNAIS.md §7)
@@ -36,6 +36,7 @@ run "taille des fichiers" bash tools/check-sizes.sh
 run "skills"              bash tools/check-skills.sh
 run "invariants"          node tools/check-invariants.mjs
 run "zones jamais déléguées" bash tools/check-zones.sh
+run "fixtures audio"      bash tools/check-fixtures-audio.sh
 
 if [ -f package.json ]; then
   run "lint"          npm run --silent lint

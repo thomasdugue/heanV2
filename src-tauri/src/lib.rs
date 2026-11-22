@@ -3,6 +3,7 @@
 //! Limite dure : aucun fichier de ce crate ne dépasse 400 lignes (lib.rs de V1 en faisait
 //! 4 870). `./check` le vérifie.
 
+pub mod audio;
 pub mod commands;
 pub mod observability;
 pub mod secrets;

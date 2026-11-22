@@ -3,10 +3,14 @@
 Réécriture complète de **Hean**, lecteur de musique audiophile pour macOS : même design, même feature
 set, base technique saine.
 
-**État : phase 0 faite, aucune feature.** Le socle compile et démarre, et le filet anti-régression
-tourne — *avant* la première feature, c'était tout l'objet de la phase 0. La suite est le moteur
-audio (phase 1). Le contrat de parité (124 features) est encore entièrement à porter, et les
-24 comportements anti-régression sont rouges exprès : c'est le tableau de bord du projet.
+**État : phase 0 faite ; phase 1 entamée par ce qui rend l'audio vérifiable.** Le socle compile et
+démarre, le filet anti-régression tourne, et **« bit-perfect » n'est plus une promesse** : un test
+décode une fixture FLAC vers un WAV à travers un backend de test et compare le résultat *octet par
+octet* à un fichier écrit par ffmpeg, donc par un décodeur indépendant du nôtre — en CI, sans
+matériel ([ADR 0007](docs/adr/0007-format-interne-audio-et-preuve-du-bit-perfect.md)). Le moteur
+CoreAudio lui-même, l'égaliseur et le gapless ne sont pas portés. Le contrat de parité
+(124 features) est encore entièrement à porter, et les 24 comportements anti-régression sont rouges
+exprès : c'est le tableau de bord du projet.
 
 ---
 
@@ -16,7 +20,7 @@ audio (phase 1). Le contrat de parité (124 features) est encore entièrement à
 ./check
 ```
 
-Vert. 14 vérifications, build compris. `check` est le point d'entrée **unique** : identique en
+Vert. 15 vérifications, build compris. `check` est le point d'entrée **unique** : identique en
 local, en pre-commit et en CI — la CI est un seul job qui lance `./check` et rien d'autre, donc elle
 ne peut pas diverger. Il installe lui-même les dépendances npm si elles manquent.
 
@@ -57,6 +61,9 @@ npm run tauri dev
   sans test échoue, un test qui cite une règle disparue aussi, et **les compteurs annoncés sont
   vérifiés** *(leçon V1 : cinq documents annonçaient 19 invariants, il y en avait 20)* ;
 - **zones jamais déléguées** — la liste ne peut pas diverger entre ses deux copies ;
+- **fixtures audio** — les 24 fixtures et leurs goldens sont appariés au README dans les deux sens,
+  bornés en poids, et **chacune doit être lue par au moins un test** : un binaire commité que
+  personne ne lit n'est pas une fixture, c'est du décor ;
 - **lint** (oxlint) · **types** (`tsc` en `strict` + `svelte-check` en échec sur avertissement)
   *(cause racine n°1 de V1 : 16 076 lignes de JS sans analyse statique)* ;
 - **tests d'architecture** — 29 cas sur la *forme* du code : aucun import circulaire, un seul

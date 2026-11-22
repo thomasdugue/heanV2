@@ -3,10 +3,17 @@ name: hean-audio
 description: Moteur audio Hean — pipeline CoreAudio, bit-perfect, hog mode, sample rate switching, gapless, resampler, EQ, AirPlay/Bluetooth device switching, media keys souvlaki. Charger avant de toucher src-tauri/src/audio/, audio_engine.rs, audio_decoder.rs, coreaudio_*.rs, eq.rs, resampler.rs, media_controls.rs, ou la partie device/gapless de playback.js.
 ---
 
-> ⚠️ **Version V1, à adapter.** Les chemins de fichiers cités ici (`noir-tauri/src/…`,
-> `src-tauri/src/…`) sont ceux de Hean V1 et n'existent pas encore dans ce dépôt. Le *savoir*
-> est valide ; les chemins sont à remplacer au fur et à mesure que le code de V2 apparaît.
+> ⚠️ **Savoir de V1, chemins à remplacer au fur et à mesure.** Les chemins cités plus bas
+> (`coreaudio_backend.rs`, `coreaudio_stream.rs`, `playback.js`…) sont ceux de Hean V1 et
+> n'existent pas encore ici. Le *savoir* est valide.
 > Référence complète : [`bootstrap/04-invariants/README.md`](../../../bootstrap/04-invariants/README.md).
+>
+> **Ce qui existe en V2** (phase 1, [ADR 0007](../../../docs/adr/0007-format-interne-audio-et-preuve-du-bit-perfect.md)) :
+> [`src-tauri/src/audio/`](../../../src-tauri/src/audio/) — le trait de backend, le décodage
+> symphonia, et un **backend de test qui écrit un WAV** au lieu de parler au HAL. Le
+> bit-perfect n'est plus une promesse : `src-tauri/tests/bit_perfect.rs` compare la sortie
+> **octet par octet** à un fichier écrit par ffmpeg. Ni le moteur CoreAudio, ni l'égaliseur,
+> ni le gapless ne sont portés.
 
 
 # hean-audio — moteur audio & devices
@@ -16,17 +23,30 @@ Règle de zone : quand tu travailles ici, ne touche pas à l'UI/library (et inve
 ## Audio pipeline (end-to-end)
 
 ```
-File / SmbProgressiveFile → [Symphonia decoder] → f32 interleaved
-  → [Resampler FFT] (only if DAC doesn't support source rate)
-  → [RingBuffer lock-free] (5s capacity, HeapRb<f32>)
+File / SmbProgressiveFile → [Symphonia decoder] → i32 entrelacé, à l'échelle 32 bits
+  → [RingBuffer lock-free] (5s capacity)
   → (real-time callback thread)
-  → [EQ 8-band biquad] (bypassed if all gains ≈ 0 dB)
-  → [Volume] (sample × volume f32)
+  → [EQ 8-band biquad] ─┐  CONTOURNÉS ENSEMBLE si l'EQ est plat ET le volume à 100 % :
+  → [Volume]           ─┘  c'est LE chemin bit-perfect, pas une optimisation
   → [CoreAudio HAL] (kAudioUnitSubType_HALOutput, direct to device)
   → DAC
 ```
 
+**Deux corrections par rapport à V1**, actées par l'[ADR 0007](../../../docs/adr/0007-format-interne-audio-et-preuve-du-bit-perfect.md) :
+
+1. Le format interne est **`i32` mis à l'échelle sur 32 bits**, pas `f32`. L'aller-retour
+   vers 16 ou 24 bits est un décalage de bits, donc exact par construction au lieu de
+   dépendre d'un raisonnement sur la mantisse. Les tampons `S32` de symphonia portent déjà
+   cette échelle : le chemin FLAC ne fait **aucune conversion**.
+2. Il n'y a **pas d'étage de resampling** : le rééchantillonnage est interdit (ADR 0002), la
+   fréquence du périphérique suit celle du fichier. Un périphérique qui ne peut pas servir le
+   format est une erreur, pas un repli — d'où `preparer()` qui rend le format *réellement*
+   obtenu.
+
 - **Bit-perfect** when: no resampling + EQ off + volume 100% + hog mode on
+- **Et l'intégrité d'un fichier ne se déduit PAS du décodeur** : mesuré, des trames abîmées
+  ou un fichier tronqué passent en silence (symphonia saute les trames invalides). Seul un
+  en-tête STREAMINFO incohérent est refusé. À vérifier autrement quand le NAS arrivera.
 - **Sample rate auto-switch**: `coreaudio_backend.rs` negotiates with the DAC via `kAudioDevicePropertyNominalSampleRate`
 - **Hog Mode**: `kAudioDevicePropertyHogMode` in `coreaudio_backend.rs` — exclusive device access
 - **Supported formats**: FLAC, WAV, AIFF, ALAC, MP3, AAC/M4A, OGG Vorbis

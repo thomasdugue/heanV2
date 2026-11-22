@@ -4,9 +4,15 @@ import { sources } from './_lecture';
 import { defautsSilencieuxSurIdentifiants, ecrituresDirectes, lecturesDeSecret } from './regles-backend';
 
 const MODULE_DES_SECRETS = 'src-tauri/src/secrets.rs';
-// `build.rs` est hors de src-tauri/src/ : ses `println!("cargo::…")` sont le protocole
-// obligatoire de Cargo, pas de la journalisation. Il n'est donc jamais scanné.
-const RUST = () => sources('src-tauri/src', ['.rs']);
+// `build.rs` reste hors scope : ses `println!("cargo::…")` sont le protocole obligatoire de
+// Cargo, pas de la journalisation. Il n'est dans aucun des deux dossiers scannés.
+//
+// `src-tauri/tests/` EST scanné, et ça n'a pas toujours été le cas : tant que ce dossier ne
+// contenait qu'un fichier, le trou ne se voyait pas. La phase 1 y a ajouté deux tests
+// d'intégration, qui échappaient donc à une règle 🔴. Le garde-fou doit couvrir la règle, pas
+// seulement l'endroit où on pensait qu'elle s'appliquait — sinon la règle n'est tenue que là
+// où quelqu'un y a pensé, et c'est le modèle de défaut que V1 a payé le plus cher.
+const RUST = () => [...sources('src-tauri/src', ['.rs']), ...sources('src-tauri/tests', ['.rs'])];
 
 describe('INV-21 — rien n’écrit directement sur stdout', () => {
   it('aucun println!/eprintln!/dbg! dans le backend', () => {
