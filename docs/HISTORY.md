@@ -642,10 +642,15 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   d'intégration.** `tools/check-sizes.sh` bouclait sur `src`, `src-tauri/src`, `tests`, `tools` ;
   `src-tauri/tests/bibliotheque.rs` y faisait 416 lignes sans que rien ne bronche. Relevé par
   `invariant-guardian` à la relecture du correctif du champ `format`, qui sortait de son périmètre.
-  C'est la troisième fois que ce dossier est l'angle mort d'un garde-fou (INV-21, INV-01, et
+  C'est la troisième fois que ce dossier est l'angle mort d'un garde-fou (INV-21, INV-06, et
   celui-ci).
-  - **Dans cet ordre, parce que l'inverse faisait rougir `./check` pour tout le monde** : d'abord
-    le découpage, ensuite l'élargissement. `bibliotheque.rs` devient la cible `bibliotheque/`
+  - **L'élargissement de `check-sizes.sh` n'est PAS dans cette branche** : ce fichier est tenu par
+    la session `harnais-detecteurs` (elle y refait la règle pour mesurer tous les fichiers suivis
+    par git), et l'écrire en parallèle, c'était écraser son travail. Sa liste de zones
+    (`src src-tauri/src tests tools check`) **n'a toujours pas `src-tauri/tests`** : il faut l'y
+    ajouter, et **seulement après** que cette branche a fusionné, sinon `./check` rougit sur
+    `bibliotheque.rs`. D'où l'ordre, non négociable : découpage d'abord, élargissement ensuite.
+  - **Le découpage** : `bibliotheque.rs` devient la cible `bibliotheque/`
     (`main.rs` + `album.rs`, `edition.rs`, `scan.rs`, de 41 à 178 lignes) ; le bac à sable `Bac`
     vit dans `tests/commun/mod.rs`, que Cargo ne prend pas pour une cible (il ne compile que
     `tests/*.rs` et `tests/*/main.rs`) et que la cible déclare par `#[path]`. Le découpage
@@ -657,9 +662,12 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     (`library/metadonnees.rs`, deux fichiers de `tests/ux/`) : ils pointent vers le dossier ou le
     module qui porte la preuve. Le recensement des comportements (6 portés sur 24) n'a pas
     bougé : `check-comportements` lit `tests/ux/`, pas les tests Rust.
-  - **Éprouvé par injection** : un fichier de 450 lignes posé dans `src-tauri/tests/`, puis dans
-    `src-tauri/tests/bibliotheque/` (la forme du découpage), fait rougir `check-sizes` en le nommant
-    — `trop gros (450 lignes > 400) : src-tauri/tests/…`. Retiré par suppression, pas par `git checkout`.
+  - **Éprouvé par injection, sur l'élargissement écrit puis retiré de cette branche** : un fichier
+    de 450 lignes posé dans `src-tauri/tests/`, puis dans `src-tauri/tests/bibliotheque/` (la forme
+    du découpage), fait rougir `check-sizes` en le nommant — `trop gros (450 lignes > 400) :
+    src-tauri/tests/…`. Retiré par suppression, pas par `git checkout`. À refaire sur la version
+    de `harnais-detecteurs` quand elle ajoutera la zone : l'épreuve porte sur la boucle, pas sur la
+    sienne.
   - **Les autres garde-fous au périmètre écrit à la main, passés en revue** (liste des
     `tools/check-*` et des tests d'`architecture/`) :
     - **`aucun-chemin-machine.test.ts` et `references-de-tests.test.ts` oubliaient
@@ -678,5 +686,14 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     - **`src-tauri/examples/` n'existe pas** : aucun garde-fou ne peut l'oublier tant qu'il n'est pas
       créé, et `backend.test.ts` refuse déjà tout `.rs` hors des dossiers scannés (ADR 0011). Le
       jour où il est créé, ces deux listes de zones sont à relire.
+    - **Un garde-fou hors `tools/` et `architecture/`, signalé par `invariant-guardian` et non
+      corrigé** : `.claude/hooks/contrat-de-fin-de-tache.sh`, ligne 56, ne reconnaît un test de
+      régression que dans `^(tests/|src-tauri/src/.*test)`. Un correctif dont le test arrive dans
+      `src-tauri/tests/` déclenche donc la relance « aucun test n'a bougé » : fausse alerte
+      bruyante, pas un trou silencieux. Correction : ajouter `src-tauri/tests/` au motif.
+    - **Une fragilité d'INV-07, préexistante** : `check-invariants.mjs` compare la couverture au
+      **nom de fichier seul**. `edition.rs` est générique : un futur `src-tauri/src/**/edition.rs`
+      qui citerait INV-07 garderait la règle 🔴 verte même si son test disparaissait. À corriger en
+      comparant des chemins — mais c'est un changement de contrat du skill, donc une tâche à part.
     - **Déjà signalé ailleurs, non repris ici** : `check-sizes` ne lit ni `.py` ni `.sh`
       (entrée de la passe de vérité ci-dessus).
