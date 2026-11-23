@@ -27,7 +27,10 @@
 #     une LISTE. Il y manque `src-tauri/tests/` et `src-tauri/examples/`. **La PR #13 a déjà
 #     tranché que `src-tauri/tests` entre dans les garde-fous** — elle l'a ajouté aux ZONES de
 #     `aucun-chemin-machine` et de `references-de-tests`, mais PAS ici. L'écart est donc un
-#     oubli, pas un choix. Et **le préalable est tombé** : son découpage de `bibliotheque.rs`
+#     oubli, pas un choix. ⚠️ Et son TITRE annonce « `src-tauri/tests` entre dans les
+#     garde-fous » sans la nuance : qui lit l'historique sans ouvrir ce fichier en conclura que
+#     la règle de taille les couvre. Son corps, lui, est exact et ne l'affirme pas. Un titre
+#     plus large que son périmètre est la même famille de défaut qu'une règle écrite en prose. Et **le préalable est tombé** : son découpage de `bibliotheque.rs`
 #     (416 lignes, qui dépassait la limite sans faire rougir quoi que ce soit depuis la phase 2)
 #     ramène le plus gros fichier du dossier à `decodage.rs`, **274 lignes**. L'ajouter ne
 #     rougit donc plus rien. `src-tauri/examples/` arrivera avec la migration (PR #8).
@@ -45,6 +48,16 @@
 #     échapperait donc à INV-06. Vérifié le 2026-11-23 : rien de tel aujourd'hui (`migrer.rs`,
 #     51 lignes, zéro `excluded_paths`, sur la branche de migration). Relevé par
 #     invariant-guardian en relecture de la PR #8.
+#     ⚠️ ET NE PAS SE FIER AU FILET QU'ON CROIT AVOIR. L'entrée d'historique de la PR #13 dit
+#     que « `backend.test.ts` refuse déjà tout `.rs` hors des dossiers scannés (ADR 0011) »,
+#     donc qu'aucun garde-fou ne peut oublier `examples/`. Mesuré en simulant son arrivée avec
+#     du `excluded_paths` dedans : `backend.test.ts` rougit bien **une fois** — mais par le
+#     mécanisme de la note « muet » de sa dérogation, qui signale que le dossier vient
+#     d'apparaître, PAS la faute. Et `une-seule-source-de-pistes.test.ts` reste à **zéro test
+#     rouge** : la violation d'INV-06 passe en silence, complètement. Donc le filet existe, il
+#     ne dure qu'un instant, et il ne protège pas la règle qu'on croit. Ce signal unique est
+#     exactement le moment où « ces deux listes de zones sont à relire » — à ne pas éteindre
+#     sans faire le tour.
 #   - Rien ne vérifie qu'un fichier de `docs/generated/` **s'annonce réellement généré**, alors
 #     que `CLAUDE.md` l'affirme. Une phrase dans un document ne peut pas échouer : c'est
 #     précisément ce que ce harnais existe pour remplacer. Trouvé en éprouvant l'option D.
