@@ -1,269 +1,39 @@
-#!/usr/bin/env python3
-"""OUTIL TEMPORAIRE — la moitié « comparaison » de la passe de vérité. À jeter.
+"""OUTIL TEMPORAIRE — passe de vérité : le rapport en français. À jeter.
 
-Il ne fait partie du produit ni de ./check : il lit le JSON qu'a produit
+La moitié « mise en forme et verdict ». Les lectures, les comptes et l'arbitrage vivent
+dans `donnees.py`, à côté — voir son en-tête pour les deux conventions du rapport.
+
+Il ne fait partie ni du produit ni de ./check : il lit le JSON produit par
 `tools/passe-de-verite/` (le vrai code d'indexation de la V2, lancé sur la vraie
-bibliothèque) et le compare aux données de la V1, puis écrit un rapport en français.
+bibliothèque) et le compare aux données de la V1.
 
-LECTURE SEULE sur les données de la V1, sans exception : ce script ouvre ses fichiers en
-'r' et n'écrit qu'à l'endroit qu'on lui donne en argument. Aucun chemin de machine n'est
-écrit ici — tout arrive en argument.
-
-Deux conventions qui tiennent tout le rapport :
-
-  - « clé » veut dire trim + NFC, c'est-à-dire exactement ce que fait `AlbumKey::new`
-    côté V2 (src-tauri/src/library/cle.rs). La même normalisation est appliquée aux
-    chaînes de la V1, sinon on mesurerait la normalisation au lieu de mesurer la parité.
-  - une mesure que la V2 ne fait pas encore (les pochettes) est annoncée comme une mesure
-    DE L'OUTIL. On ne présente jamais un chiffre de l'outil comme un chiffre de la V2.
+Aucun chemin de machine n'est écrit ici — tout arrive en argument. La seule écriture est
+celle du fichier de détail, dont le chemin est donné en argument.
 """
 
-import json
 import os
-import shutil
-import subprocess
 import sys
-import unicodedata
 from collections import Counter, defaultdict
 
+# `donnees.py` est dans le même dossier que ce fichier, donc Python le trouve seul.
+from donnees import (
+    CHAMPS,
+    FFPROBE,
+    charger_v1,
+    charger_v2,
+    cle,
+    conforme,
+    doublons,
+    en_secondes,
+    identiques,
+    image_dans_le_dossier,
+    nb_doublons,
+    nfc,
+    reference,
+    valeurs_distinctes,
+)
+
 EXEMPLES = 5  # « une poignée » : de quoi aller voir, pas de quoi noyer
-
-
-def nfc(s):
-    return unicodedata.normalize("NFC", s or "")
-
-
-def cle(s):
-    """trim + NFC — la normalisation d'`AlbumKey::new`, appliquée des deux côtés."""
-    return nfc((s or "").strip())
-
-
-def lire_json(chemin):
-    with open(chemin, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-# --- chargement ----------------------------------------------------------------------
-
-
-def charger_v2(chemin):
-    d = lire_json(chemin)
-    pistes = {}
-    for p in d["pistes"]:
-        pistes[nfc(p["path"])] = p
-    return {
-        "racine": d["racine"],
-        "secondes": d["secondes"],
-        "rapport": d["rapport"],
-        "trouvees": [nfc(c) for c in d["trouvees"]],
-        "pistes": pistes,
-        "illisibles": [nfc(c) for c in d["illisibles"]],
-        "pochette": {nfc(c) for c in d["pochette_integree"]},
-    }
-
-
-def charger_v1(dossier, racine):
-    """Les pistes de la V1 qui sont sous la racine scannée, plus son cache de pochettes."""
-    racine = nfc(racine).rstrip("/") + "/"
-    pistes = {}
-    hors_racine = 0
-    for t in lire_json(os.path.join(dossier, "tracks_cache.json"))["tracks"]:
-        chemin = nfc(t["path"])
-        if not chemin.startswith(racine):
-            hors_racine += 1
-            continue
-        pistes[chemin] = t["metadata"]
-    pochettes = set()
-    chemin_couvertures = os.path.join(dossier, "cover_cache.json")
-    if os.path.exists(chemin_couvertures):
-        for c, jpg in lire_json(chemin_couvertures)["entries"].items():
-            if jpg:
-                pochettes.add(nfc(c))
-    return {"pistes": pistes, "pochettes": pochettes, "hors_racine": hors_racine}
-
-
-# --- les six comptes -----------------------------------------------------------------
-
-
-def valeurs_distinctes(pistes, champ):
-    return {cle(m.get(champ)) for m in pistes.values() if cle(m.get(champ))}
-
-
-def doublons(pistes, titre, artiste, duree_s):
-    """Groupes de pistes que la MÊME règle désigne comme un même morceau, des deux côtés.
-
-    Ni la V1 ni la V2 ne stockent de drapeau « doublon » : la V1 le calculait à la volée,
-    et la V2 a laissé la question ouverte pour la phase 3. Comparer deux chiffres venus de
-    deux règles différentes ne dirait rien — donc l'outil applique SA règle, la même aux
-    deux jeux de données, et l'annonce.
-
-    La règle : même artiste, même titre (casse ignorée) et même durée à la seconde.
-    """
-    groupes = defaultdict(list)
-    for chemin, m in pistes.items():
-        d = duree_s(m)
-        if d is None:
-            continue
-        k = (cle(artiste(m)).lower(), cle(titre(m)).lower(), round(d))
-        if not k[1]:
-            continue
-        groupes[k].append(chemin)
-    return {k: v for k, v in groupes.items() if len(v) > 1}
-
-
-def nb_doublons(groupes):
-    """Le nombre de fichiers EN TROP : un groupe de 3 compte 2 doublons."""
-    return sum(len(v) - 1 for v in groupes.values())
-
-
-def image_dans_le_dossier(chemin, cache={}):
-    """Une image posée à côté du fichier (cover.jpg, folder.png…), comme la V1 en cherchait."""
-    dossier = os.path.dirname(chemin)
-    if dossier not in cache:
-        try:
-            noms = os.listdir(dossier)
-        except OSError:
-            noms = []
-        cache[dossier] = any(
-            n.lower().endswith((".jpg", ".jpeg", ".png", ".webp")) for n in noms
-        )
-    return cache[dossier]
-
-
-# --- comparaison champ par champ -----------------------------------------------------
-
-# V1 et V2 ne nomment pas les mêmes choses pareil. Chaque ligne : nom lisible, champ V1,
-# champ V2, et comment on décide que deux valeurs disent la même chose.
-CHAMPS = [
-    ("titre", "title", "titre", "texte"),
-    ("artiste", "artist", "artiste", "texte"),
-    ("album", "album", "album", "texte"),
-    ("genre", "genre", "genre", "texte"),
-    ("année", "year", "annee", "nombre"),
-    ("n° de piste", "track", "piste", "nombre"),
-    ("n° de disque", "disc", "disque", "nombre"),
-    ("durée", "duration", "duree_ms", "duree"),
-    ("échantillonnage", "sampleRate", "echantillonnage", "nombre"),
-    ("profondeur (bits)", "bitDepth", "bits", "nombre"),
-    ("format", "codec", "format", "casse"),
-    ("débit", "bitrate", "debit", "debit"),
-]
-
-
-def identiques(mode, v1, v2):
-    if mode == "texte":
-        return cle(v1) == cle(v2)
-    if mode == "casse":
-        return cle(v1).lower() == cle(v2).lower()
-    if mode == "nombre":
-        return (v1 or None) == (v2 or None)
-    if mode == "duree":
-        # V1 en secondes flottantes, V2 en millisecondes. Une seconde de tolérance : les
-        # deux arrondissent, et un écart d'une seconde n'est pas un bug de bibliothèque.
-        if v1 is None or v2 is None:
-            return v1 == v2
-        return abs(float(v1) - (v2 / 1000.0)) <= 1.0
-    if mode == "debit":
-        # Le débit est un calcul, pas un tag : la V1 et lofty ne l'arrondissent pas
-        # pareil. 2 % de tolérance, et au-delà c'est un vrai écart.
-        if not v1 or not v2:
-            return (v1 or None) == (v2 or None)
-        return abs(v1 - v2) <= max(2, 0.02 * max(v1, v2))
-    raise ValueError(mode)
-
-
-# --- l'arbitre : un outil tiers tranche --------------------------------------------
-#
-# Sans arbitre, « la V1 dit Rap, la V2 dit Rap/Hip Hop » n'apprend rien : on ne sait pas
-# laquelle se trompe. C'est le même raisonnement que `src-tauri/tests/bit_perfect.rs`, qui
-# ne compare pas notre sortie à elle-même mais à un fichier écrit par ffmpeg : on demande à
-# un décodeur indépendant ce que le fichier contient vraiment, et on attribue l'écart.
-#
-# Si ffprobe est absent, le rapport reste descriptif et le dit — il ne devine pas.
-
-FFPROBE = shutil.which("ffprobe")
-
-
-def reference(chemin, cache={}):
-    """Ce qu'un tiers (ffprobe) lit dans le fichier. `None` s'il ne sait pas le lire."""
-    if chemin in cache:
-        return cache[chemin]
-    valeur = None
-    if FFPROBE:
-        try:
-            r = subprocess.run(
-                [FFPROBE, "-v", "error", "-print_format", "json",
-                 "-show_format", "-show_streams", chemin],
-                capture_output=True, text=True, timeout=30,
-            )
-            d = json.loads(r.stdout) if r.stdout.strip() else {}
-            tags = {k.lower(): v for k, v in (d.get("format", {}).get("tags") or {}).items()}
-            flux = next((f for f in d.get("streams", []) if f.get("codec_type") == "audio"), {})
-            for k, v in (flux.get("tags") or {}).items():
-                tags.setdefault(k.lower(), v)
-            valeur = {
-                "titre": tags.get("title"),
-                "artiste": tags.get("artist"),
-                "album": tags.get("album"),
-                "genre": tags.get("genre"),
-                "année": entier(tags.get("date") or tags.get("year")),
-                "n° de piste": entier(tags.get("track")),
-                "n° de disque": entier(tags.get("disc") or tags.get("discnumber")),
-                "durée": flottant(d.get("format", {}).get("duration")),
-                "échantillonnage": entier(flux.get("sample_rate")),
-                "profondeur (bits)": entier(flux.get("bits_per_raw_sample")
-                                            or flux.get("bits_per_sample")),
-                "format": flux.get("codec_name"),
-            }
-        except Exception:
-            valeur = None
-    cache[chemin] = valeur
-    return valeur
-
-
-def entier(v):
-    """« 2/12 » → 2, « 2016-05-01 » → 2016, « » → None. Les tags sont du texte libre."""
-    if v in (None, "", 0):
-        return None
-    t = str(v).split("/")[0].split("-")[0].strip()
-    try:
-        n = int(t)
-    except ValueError:
-        return None
-    return n or None
-
-
-def flottant(v):
-    try:
-        return float(v)
-    except (TypeError, ValueError):
-        return None
-
-
-def conforme(mode, ref, val):
-    """La valeur dit-elle la même chose que la référence du tiers ?
-
-    Pour un texte, la référence peut être MULTIPLE : un tag Vorbis ou ID3 sépare ses
-    valeurs par des points-virgules (« Rap/Hip Hop;Rap français »). Une valeur qui est
-    l'une d'elles est conforme ; un fragment (« Rap ») ne l'est pas.
-    """
-    if mode in ("texte", "casse"):
-        attendues = {cle(x) for x in str(ref).split(";") if cle(x)}
-        if mode == "casse":
-            return cle(val).lower() in {a.lower() for a in attendues}
-        return cle(val) in attendues
-    if mode == "nombre":
-        return (val or None) == (ref or None)
-    if mode == "duree":
-        return val is not None and abs(val - ref) <= 1.0
-    return None
-
-
-def en_secondes(nom, v1, v2):
-    """Ramène les deux côtés à la même unité : la V1 compte en secondes, la V2 en ms."""
-    if nom != "durée":
-        return v1, v2
-    return (flottant(v1), (v2 / 1000.0) if v2 else None)
 
 
 # --- mise en forme -------------------------------------------------------------------
@@ -344,7 +114,8 @@ def main():
 
     # --- les six comptes ---
     alb1 = valeurs_distinctes(p1, "album")
-    alb2 = {cle(m["cle_album"]) for m in p2.values() if cle(m["cle_album"])}
+    # TELLE QUELLE, sans repasser par `cle()` : voir `normalisation_de_la_cle` plus bas.
+    alb2 = {m["cle_album"] for m in p2.values() if m["cle_album"]}
     art1 = valeurs_distinctes(p1, "artist")
     art2 = valeurs_distinctes(p2, "artiste")
 
@@ -383,6 +154,20 @@ def main():
         lignes_detail.extend(f"  {l}" for l in lignes)
 
     # --- les écarts, un par un ---
+    # INV-01 sur de VRAIES données. Les property tests de `cle.rs` éprouvent
+    # `AlbumKey::new` pour toute chaîne générée ; ils ne disent rien de ce qui est
+    # réellement dans la base de Thomas. Ici on relit les clés que la V2 a écrites et on
+    # affirme qu'elles sont déjà normalisées : si l'une ne l'est pas, c'est qu'une clé est
+    # entrée sans passer par le constructeur, et INV-01 (🔴) est tombée.
+    mal_normalisees = [c for c, m in p2.items() if cle(m["cle_album"]) != m["cle_album"]]
+    print()
+    if mal_normalisees:
+        print(f"  ⚠ INV-01 : {len(mal_normalisees)} clé(s) d’album NON normalisée(s) dans la base.")
+        print("    Une clé n’est censée pouvoir naître que d’AlbumKey::new, qui normalise.")
+    else:
+        print(f"  ✓ INV-01 : les {len(p2)} clés d’album de la base sont déjà normalisées")
+        print("    (trim + NFC) — vérifié sur tes fichiers, pas sur des chaînes générées.")
+
     print()
     print("  ── Les écarts, avec de quoi aller voir ──────────────────────────────────")
 
@@ -399,6 +184,12 @@ def main():
             garder("dans la V2 mais pas dans la V1", nouveau_v2)
     else:
         print("\n  Les deux versions indexent EXACTEMENT les mêmes fichiers.")
+
+    if mal_normalisees:
+        bloc(f"Clés d’album non normalisées ({len(mal_normalisees)}) — INV-01",
+             [f"« {p2[c]['cle_album']} » devrait être « {cle(p2[c]['cle_album'])} »\n      "
+              + c[len(racine):].lstrip("/") for c in mal_normalisees], detail)
+        garder("clés d’album non normalisées", mal_normalisees)
 
     if v2["illisibles"]:
         bloc(f"Fichiers que la V2 n’a pas su lire ({len(v2['illisibles'])})",
@@ -517,7 +308,7 @@ def main():
     communs_2 = {c: p2[c] for c in communs}
     cascade = (
         len(valeurs_distinctes(communs_1, "album"))
-        == len({cle(m["cle_album"]) for m in communs_2.values() if cle(m["cle_album"])})
+        == len({m["cle_album"] for m in communs_2.values() if m["cle_album"]})
         and len(valeurs_distinctes(communs_1, "artist"))
         == len(valeurs_distinctes(communs_2, "artiste"))
     )

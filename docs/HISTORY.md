@@ -614,3 +614,25 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     et un chiffre faux dans un rapport de vérité est pire qu'une case vide.
   - **Le NAS n'a pas été touché** : 3 137 pistes V1 en SMB, mises de côté et comptées comme telles.
     C'est une autre affaire (phase 5).
+  - **Ce que la relecture d'invariants a corrigé dans l'outil lui-même** (AVERTISSEMENT, aucune 🔴) :
+    un **vrai bug** — si l'analyse de la profondeur annoncée échouait, `verifier` retombait
+    silencieusement sur 24 bits, demandait à ffmpeg la mauvaise profondeur et **accusait la chaîne
+    audio** d'un écart venu de l'outil ; il s'arrête maintenant. Deux affirmations trop larges
+    resserrées (« la chaîne audio » → « la chaîne transparente, volume à 100 % » ; « c'est un défaut
+    de bit-perfect » → où regarder d'abord). Et le rapport **renormalisait la clé d'album de la V2**
+    avant de la comparer, ce qui aurait réparé en silence un défaut d'INV-01 : il la prend désormais
+    telle qu'elle est dans la base et **affirme** qu'elle est normalisée. Les 305 clés le sont —
+    c'est une mesure que les property tests ne peuvent pas faire, puisqu'ils éprouvent
+    `AlbumKey::new` et non ce qui est réellement écrit sur de vraies données.
+  - **Et un angle mort du harnais, qui n'est pas réparé ici** : `tools/passe-de-verite-rapport.py`
+    faisait 569 lignes et `check-sizes` restait vert, parce qu'il ne lit ni `.py` ni `.sh` — premier
+    fichier du dépôt à franchir la limite, dans une langue que le détecteur ne lit pas. Le fichier
+    est découpé (272 + 360, sous `tools/passe-de-verite/`), le trou du détecteur est signalé à la
+    session du harnais plutôt que rafistolé ici. `aucun-chemin-machine.test.ts` ne lit pas `.py`
+    non plus.
+  - **Née de tout ça : INV-23** — un libellé destiné à l'affichage ne vient jamais d'un `{:?}`
+    (🟡, couverture planifiée). Et le défaut `format` entre dans « Bugs connus » de `CLAUDE.md`,
+    que le protocole de fin de session demandait de tenir à jour et que personne ne réclamait :
+    le hook de fin de tâche ne se déclenche que si `src/` ou `src-tauri/src/` a bougé, et ici rien
+    n'avait bougé. Un défaut connu d'une session et invisible à la suivante, c'est la dérive de
+    documentation de V1 en miniature.

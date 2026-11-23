@@ -31,10 +31,18 @@
 //! Rien ici ne touche aux données de la V1 : c'est le script Python qui les lit, et en
 //! lecture seule.
 //!
-//! Et aucune suppression, nulle part : pas un `remove`, pas un `rename`. Le scanner
-//! **refuse** un chemin de base déjà occupé au lieu de l'écraser. La seule écriture du
-//! `jouer` est celle du `BackendAudio` dans le WAV temporaire — `backend.ecrire`, qui n'a
-//! du nom de `metadonnees::ecrire` que la ressemblance.
+//! Et aucune suppression, nulle part : pas un `remove`, pas un `rename`.
+//!
+//! **L'asymétrie sur l'écrasement est voulue, et il faut la dire** — sans quoi le prochain
+//! lecteur « corrigera » l'un des deux côtés. Le scanner **refuse** un chemin de base déjà
+//! occupé : une base qui existe déjà est le signe qu'on vise un fichier qui n'est pas à
+//! nous. Les **sorties**, elles, sont réécrites à chaque lancement — le JSON du scan, le
+//! WAV décodé, le golden d'ffmpeg, le fichier de détail : ce sont les résultats de l'outil,
+//! à un chemin que l'appelant a donné, et refuser de les refaire rendrait l'outil
+//! inutilisable deux fois de suite.
+//!
+//! La seule écriture du `jouer` est celle du `BackendAudio` dans le WAV temporaire —
+//! `backend.ecrire`, qui n'a du nom de `metadonnees::ecrire` que la ressemblance.
 //!
 //! Aucun chemin de machine n'est écrit dans ce dossier : la racine à scanner arrive en
 //! argument (`tests/architecture/aucun-chemin-machine.test.ts` l'exige, et il a raison).

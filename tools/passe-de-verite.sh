@@ -106,7 +106,7 @@ case "$cas" in
     # que « ne supprime rien d'important ».
     "$binaire" scanner "$racine" "$travail/jetable-$$.db" "$travail/v2.json" || exit 1
     echo
-    python3 "$racine_depot/tools/passe-de-verite-rapport.py" \
+    python3 "$racine_depot/tools/passe-de-verite/rapport.py" \
       "$travail/v2.json" "$donnees_v1" "$travail/detail.txt"
     ;;
 
@@ -143,8 +143,22 @@ case "$cas" in
     echo "   $fichier"
     "$binaire" jouer "$fichier" "$travail/ecoute.wav" > "$travail/jouer.txt" || exit 1
     cat "$travail/jouer.txt"
+    # La profondeur est LUE dans ce que le décodeur vient d'annoncer, et il n'y a pas de
+    # valeur de repli : un `*)` qui supposerait 24 bits ferait demander à ffmpeg la mauvaise
+    # profondeur, et `cmp` dirait « ils diffèrent » pour une raison qui n'est pas un défaut
+    # de la chaîne. Une fausse accusation de défaut de bit-perfect coûte du temps de Thomas
+    # au seul endroit où son oreille est le seul juge. Relevé par invariant-guardian.
     bits="$(sed -n 's/^format : \([0-9]*\) bits.*/\1/p' "$travail/jouer.txt")"
-    case "$bits" in 16) codec=pcm_s16le;; 32) codec=pcm_s32le;; *) codec=pcm_s24le;; esac
+    case "$bits" in
+      16) codec=pcm_s16le;;
+      24) codec=pcm_s24le;;
+      32) codec=pcm_s32le;;
+      *)
+        echo "Je n'ai pas su lire la profondeur annoncée par le décodeur (« $bits »)."
+        echo "Je m'arrête plutôt que de comparer à une profondeur devinée : l'écart"
+        echo "qui en sortirait viendrait de cet outil, pas de la chaîne audio."
+        exit 1;;
+    esac
     echo "→ décodage du même fichier par ffmpeg ($codec), puis comparaison"
     # Les mêmes drapeaux que les goldens du dépôt (tools/make-fixtures-audio.sh) : sans eux
     # ffmpeg écrit un en-tête bavard, et la comparaison échouerait sur des octets qui ne
@@ -153,10 +167,12 @@ case "$cas" in
       -fflags +bitexact -map_metadata -1 "$travail/golden.wav" || exit 1
     echo
     if cmp -s "$travail/ecoute.wav" "$travail/golden.wav"; then
-      echo "IDENTIQUES, octet pour octet. La chaîne audio de la V2 ne modifie aucun bit"
-      echo "entre ton fichier et sa sortie — sur CE fichier, pas sur une fixture."
+      echo "IDENTIQUES, octet pour octet. La chaîne TRANSPARENTE de la V2 (volume à 100 %,"
+      echo "aucun traitement) ne modifie aucun bit entre ton fichier et sa sortie — sur CE"
+      echo "fichier, pas sur une fixture. Un volume ailleurs qu'à 100 % traiterait, lui."
     else
-      echo "ILS DIFFÈRENT. C'est un défaut de bit-perfect, et voici où :"
+      echo "ILS DIFFÈRENT. Voici où — et avant d'accuser la chaîne audio, vérifie que la"
+      echo "profondeur demandée à ffmpeg ($codec) est bien celle du fichier :"
       cmp -l "$travail/ecoute.wav" "$travail/golden.wav" | head -5
       echo "  (octets différents : $(cmp -l "$travail/ecoute.wav" "$travail/golden.wav" | wc -l))"
       exit 1
