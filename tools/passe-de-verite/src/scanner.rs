@@ -48,8 +48,19 @@ pub fn executer(racine: &Path, base: &Path, sortie: &Path) -> Result<(), Box<dyn
             .into());
         }
     }
+    // Cet outil ne supprime et n'écrase RIEN, pas même un fichier qui porte le nom de sa
+    // propre base jetable : il refuse. C'était la seule ligne de tout l'outil capable
+    // d'effacer un fichier, et un garde-fou qui n'autorise que le bon dossier n'est pas la
+    // même chose qu'une absence de suppression. L'appelant passe un nom neuf à chaque fois
+    // (tools/passe-de-verite.sh y met le numéro de processus), donc le cas ne se présente
+    // pas — et s'il se présentait, ce serait le signe qu'on est en train de viser un
+    // fichier qui n'est pas à nous.
     if base.exists() {
-        std::fs::remove_file(base)?;
+        return Err(format!(
+            "{} existe déjà. Cet outil n'écrase aucun fichier : donne-lui un autre chemin.",
+            base.display()
+        )
+        .into());
     }
 
     let depart = Instant::now();
