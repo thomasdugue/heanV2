@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 
 use rusqlite::{params, Connection, OptionalExtension};
 
-use super::lignes::{en_i64, inserer, ligne_en_track, maintenant};
+use super::lignes::{self, en_i64, inserer, ligne_en_track, maintenant};
 
 use super::migrations::{self, Migration};
 use super::metadonnees;
@@ -217,6 +217,17 @@ impl Depot {
             .query_map([], |r| r.get::<_, String>(0))?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(out)
+    }
+
+    /// Vrai si la base ne contient **aucune** ligne, dans aucune table (ADR 0012).
+    ///
+    /// Sert au démarrage à distinguer « V2 a créé son fichier de base en démarrant » de
+    /// « V2 a une bibliothèque », parce que le premier cas ne doit pas empêcher la migration
+    /// du dossier de V1 et que le second l'arrête. Le verdict autorise une suppression :
+    /// `lignes::est_vierge` le dérive donc du schéma au lieu de consulter une liste de
+    /// tables écrite à la main, qui serait muette le jour où une table arrive.
+    pub fn est_vierge(&self) -> Result<bool, Erreur> {
+        Ok(lignes::est_vierge(&self.conn)?)
     }
 
     // --- marqueurs de reprise (ADR 0010) -----------------------------------------------

@@ -59,8 +59,8 @@ Donc **un échec de migration empêche le démarrage**, et c'est l'inverse de ce
 avait accepté. La raison du renversement tient en une phrase : **ne pas démarrer est
 rattrapable, démarrer ne l'est pas.**
 
-- ne pas démarrer : les données sont intactes dans leur dossier d'origine, le message dit
-  lequel et dit que relancer réessaiera, et le lancement suivant réessaie vraiment ;
+- ne pas démarrer : les données sont intactes dans leur dossier d'origine, le message le
+  **nomme** et dit que relancer réessaiera, et le lancement suivant réessaie vraiment ;
 - démarrer : la bibliothèque est vide, le dossier de données est créé, et la migration est
   éteinte pour toujours — sans que l'utilisateur ait de quoi s'en apercevoir.
 
@@ -69,10 +69,18 @@ l'ancien dossier intact ») est **retourné par la mesure** : démarrer ne laiss
 dossier intact et utilisable, il le condamnait. Le choix n'était pas entre « vide » et
 « intact », il était entre « temporairement indisponible » et « définitivement perdu ».
 
-Le message d'erreur est écrit pour être lu par quelqu'un qui ne lit pas de code, parce que
-c'est lui qui s'affichera : « la migration de vos données depuis l'ancienne version a échoué,
-et Hean n'a donc rien créé : vos données sont intactes dans leur dossier d'origine. Relancer
-Hean réessaiera. »
+Le message d'erreur est écrit pour être lu par quelqu'un qui ne lit pas de code : « la
+migration de vos données depuis l'ancienne version a échoué, et Hean n'a donc rien créé : vos
+données sont intactes dans <le dossier, nommé>. Relancer Hean réessaiera. »
+
+**Réserve, relevée en relecture et assumée** : ce message n'a pas encore de canal pour
+atteindre quelqu'un. L'échec se produit avant que Tauri ne démarre — donc ni fenêtre ni
+dialogue — et `observability` n'écrit aujourd'hui que sur stdout, la journalisation sur
+fichier étant datée de la phase 6. Pour un testeur qui double-clique l'application, elle
+rebondit dans le Dock et s'arrête sans un mot visible. C'est le mode de défaut d'INV-21
+appliqué au message censé le réparer. Le choix de ne pas démarrer reste le bon — les données
+sont intactes, relancer réessaie — mais **la lisibilité de ce message dépend de la phase 6**,
+et un dialogue natif avant de paniquer reste à trancher.
 
 **Écarté** : démarrer en mode dégradé, sur une bibliothèque en mémoire. Ça demandait un
 second chemin d'exécution pour toute l'application — donc un second ensemble de défauts
@@ -167,6 +175,6 @@ se manifeste que si une insertion échoue au milieu.
   à la main. L'information perdue l'est de toute façon : ce qui change, c'est qu'on ne le
   cache plus.
 - **Un nouvel invariant** : [INV-24](../../.claude/skills/hean-invariants/SKILL.md) — rien
-  n'écrit dans le dossier de données avant que la migration ait rendu son verdict. Classé
+  n'est créé dans le dossier de données avant que la migration ait rendu son verdict. Classé
   🔴 BLOQUANT par défaut, en attente du classement de Thomas, et couvert par
   `src-tauri/tests/demarrage.rs`.

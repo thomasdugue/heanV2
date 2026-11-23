@@ -21,14 +21,26 @@ pub const IGNORES: &[&str] = &["smb_buffer"];
 /// ne permet pas de constater après coup qu'il manque quelque chose.
 pub const TEMOIN: &str = "migration-depuis-noir.json";
 
+/// Vrai si ce nom de fichier est caché, donc n'est pas une donnée de l'application.
+///
+/// **Un seul endroit le dit, et c'est voulu.** La convention était écrite trois fois — ici,
+/// dans le test « ce dossier contient-il des données ? » et dans le déplacement avant
+/// l'échange — avec un commentaire disant que les trois devaient s'accorder, et rien pour
+/// l'imposer. Relevé en relecture : c'est la forme exacte du défaut qu'INV-06 a coûté à V1,
+/// « n'oublie pas de répéter ça partout ». Celui des trois qui aurait changé d'avis aurait
+/// fait de ces fichiers une donnée d'un côté et pas de l'autre — et l'un des trois chemins
+/// supprime.
+pub fn est_cache(nom: &std::ffi::OsStr) -> bool {
+    nom.to_string_lossy().starts_with('.')
+}
+
 /// Vrai si ce chemin relatif, sous le dossier source, doit être migré.
 pub fn a_migrer(relatif: &Path) -> bool {
     let premier = relatif.components().next();
     match premier {
         Some(std::path::Component::Normal(n)) => {
-            let nom = n.to_string_lossy();
             // Les fichiers cachés (`.DS_Store`) ne sont pas des données de l'application.
-            !IGNORES.contains(&nom.as_ref()) && !nom.starts_with('.')
+            !IGNORES.contains(&n.to_string_lossy().as_ref()) && !est_cache(n)
         }
         _ => false,
     }

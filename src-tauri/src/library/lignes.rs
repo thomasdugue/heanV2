@@ -16,6 +16,38 @@ use super::cle::AlbumKey;
 use super::scan::Trouvee;
 use super::types::Track;
 
+/// Vrai si **aucune** table de la base ne contient de ligne.
+///
+/// Les tables sont lues dans `sqlite_master`, **jamais énumérées ici**, et c'est tout
+/// l'objet de cette fonction. Relevé en relecture du 2026-11-23 : le verdict « cette base
+/// est vierge » autorise sa **suppression** (`demarrage::ecarter_une_bibliotheque_vierge`),
+/// et il était rendu en consultant trois listes nommées à la main — les pistes, les racines,
+/// les exclusions. Vrai à la date d'écriture, et **faux en silence** le jour où la phase 3
+/// ajoute `playlists`, `favoris` ou `historique` : une base contenant trois playlists et
+/// aucune piste aurait été déclarée vide, donc effacée, sans qu'aucun test ne rougisse.
+///
+/// C'est la forme exacte du défaut qu'INV-06 a coûté à V1 — « n'oublie pas de répéter ça
+/// partout » — appliquée cette fois à une destruction. En dérivant du schéma, la question
+/// n'a plus de liste à tenir à jour : une table qui arrive est vue le jour où elle arrive.
+///
+/// Le nom de table interpolé vient de `sqlite_master`, donc du schéma que nous avons écrit,
+/// jamais d'une entrée de l'utilisateur. Même justification que le `PRAGMA user_version`
+/// de `migrations.rs`, qui ne peut pas être un paramètre lié non plus.
+pub(super) fn est_vierge(conn: &rusqlite::Connection) -> Result<bool, rusqlite::Error> {
+    let tables: Vec<String> = conn
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")?
+        .query_map([], |r| r.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    for table in tables {
+        let lignes: i64 =
+            conn.query_row(&format!("SELECT count(*) FROM \"{table}\""), [], |r| r.get(0))?;
+        if lignes > 0 {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 /// L'écriture d'une piste. `INSERT OR REPLACE` et **jamais** un `DELETE` suivi d'un
 /// `INSERT` : c'est la leçon d'INV-08, où supprimer au lieu de mettre à jour ouvrait une
 /// fenêtre pendant laquelle la piste n'existait nulle part. Ici la fenêtre n'existe pas,

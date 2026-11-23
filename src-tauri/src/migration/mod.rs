@@ -141,9 +141,14 @@ pub fn migrer_si_necessaire(source: &Path, cible: &Path) -> Result<Rapport, Erre
             // d'arrivée qui ne contient qu'un `.DS_Store` est vide au sens où nous
             // l'entendons (voir `contient_des_donnees`) mais pas au sens du système : sans
             // cette ligne, la migration partirait puis échouerait à la dernière étape, à
-            // chaque démarrage. Les fichiers cachés sont **déplacés** dans le provisoire,
-            // jamais supprimés : ils retrouvent ainsi leur place après l'échange, et nous
-            // n'avons rien détruit chez quelqu'un pour la commodité de notre `rename`.
+            // chaque démarrage. Les fichiers cachés sont donc **déplacés** dans le
+            // provisoire, et non supprimés : ils retrouvent leur place après l'échange.
+            //
+            // **La nuance, relevée en relecture** : si le `rename` juste en dessous échoue,
+            // ils restent dans le provisoire — que le démarrage suivant efface. Ils seraient
+            // donc perdus sur ce chemin-là, et « jamais supprimés » serait trop dire. Ce qui
+            // est en jeu est un fichier de préférences d'affichage du Finder, que le Finder
+            // réécrit ; ce qui compte ici est de ne pas l'écrire plus fort que ce n'est vrai.
             deplacer_les_fichiers_caches(cible, &provisoire);
 
             std::fs::rename(&provisoire, cible).map_err(|source| Erreur::Echange {
@@ -193,23 +198,34 @@ fn contient_des_donnees(dossier: &Path) -> bool {
         e.any(|x| {
             x.is_ok_and(|x| {
                 let nom = x.file_name();
-                nom != inventaire::TEMOIN && !nom.to_string_lossy().starts_with('.')
+                nom != inventaire::TEMOIN && !inventaire::est_cache(&nom)
             })
         })
     })
 }
 
 /// Déplace les fichiers cachés du dossier d'arrivée vers le provisoire, pour que l'échange
-/// trouve une cible vide. Silencieux par choix : l'échange qui suit dira lui-même s'il reste
-/// quoi que ce soit, et avec un message qui nomme la cible.
+/// trouve une cible vide.
+///
+/// Chaque échec est **journalisé**, et c'est la correction d'un `let _ =` muet relevé en
+/// relecture : un fichier caché qu'on ne sait pas déplacer fait échouer l'échange, donc
+/// désormais refuser le démarrage (INV-24) — et l'erreur d'échange nomme la cible, pas le
+/// fichier qui bloque. Sans cette ligne, le refus de démarrer serait indiagnosticable.
 fn deplacer_les_fichiers_caches(cible: &Path, provisoire: &Path) {
     let Ok(entrees) = std::fs::read_dir(cible) else {
         return;
     };
     for entree in entrees.flatten() {
         let nom = entree.file_name();
-        if nom.to_string_lossy().starts_with('.') {
-            let _ = std::fs::rename(entree.path(), provisoire.join(&nom));
+        if !inventaire::est_cache(&nom) {
+            continue;
+        }
+        if let Err(e) = std::fs::rename(entree.path(), provisoire.join(&nom)) {
+            tracing::warn!(
+                fichier = %entree.path().display(),
+                erreur = %e,
+                "fichier caché non déplaçable : l'échange du dossier va échouer à cause de lui"
+            );
         }
     }
 }

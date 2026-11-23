@@ -44,7 +44,7 @@ pub fn run() {
 
     // Migration du dossier de V1, ouverture de la base, reprise de la configuration : la
     // séquence est dans `demarrage`, pas ici, parce que son ORDRE est un invariant et qu'un
-    // invariant écrit dans `run()` n'est pas testable (ADR 0011). Elle échoue si et seulement
+    // invariant écrit dans `run()` n'est pas testable (ADR 0012). Elle échoue si et seulement
     // si démarrer causerait une perte — un échec de migration en est un, parce qu'ouvrir la
     // base rendrait cet échec définitif.
     let ancien = library::dossier::ancien_dossier_de_donnees()

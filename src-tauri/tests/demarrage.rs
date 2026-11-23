@@ -11,7 +11,7 @@
 //! de `demarrage::preparer`, et jamais ses morceaux pris à part. Un test qui saute une étape
 //! prouve quelque chose au sujet d'un programme qui n'existe pas.
 //!
-//! Règles couvertes : **INV-24** (rien n'écrit dans le dossier de données avant que la
+//! Règles couvertes : **INV-24** (rien n'est créé dans le dossier de données avant que la
 //! migration ait rendu son verdict) et **INV-06** à travers la migration — une piste
 //! supprimée dans V1 ne revient pas dans V2. Décisions : ADR 0012, qui remplace sur ce point
 //! la conséquence acceptée de l'ADR 0010.
@@ -343,4 +343,50 @@ fn une_reprise_reussie_ne_se_rejoue_pas_au_demarrage_suivant() {
         "la reprise ne doit pas rejouer : sinon elle écraserait ce que l'utilisateur a changé"
     );
     assert_eq!(depot.racines().expect("racines").len(), 1);
+}
+
+/// **Le test qui empêche la prochaine table d'être effacée en silence.**
+///
+/// Le verdict « cette base est vierge » autorise sa suppression. Il était rendu, dans la
+/// première version du correctif, en consultant trois listes nommées à la main : les pistes,
+/// les racines, les exclusions. C'était juste à la date d'écriture — et faux le jour où la
+/// phase 3 ajoute `playlists`, `favoris` ou `historique`, précisément les données que la
+/// migration annonce protéger : une base contenant trois playlists et aucune piste aurait
+/// été déclarée vide, donc **effacée**, sans qu'aucun test ne rougisse.
+///
+/// La table créée ici n'est dans aucune migration : elle tient le rôle de celle que la phase
+/// suivante ajoutera. Si la vacuité redevenait une liste écrite à la main, ce test tombe.
+#[test]
+fn une_table_que_le_schema_ne_connait_pas_encore_empeche_le_verdict_vierge() {
+    let bac = Bac::neuf("vacuite-derivee");
+    bac.poser_un_dossier_v1("/Musique/supprimee.flac");
+    let base = bac.nouveau().join("library.db");
+
+    // Une base de V2 vierge, plus une table de la phase à venir, avec une ligne dedans.
+    {
+        let depot = Depot::ouvrir(&base).expect("base");
+        assert!(depot.est_vierge().expect("vacuité"), "une base neuve est vierge");
+    }
+    {
+        let conn = rusqlite::Connection::open(&base).expect("base");
+        conn.execute_batch(
+            "CREATE TABLE donnees_de_la_phase_suivante (x TEXT);
+             INSERT INTO donnees_de_la_phase_suivante VALUES ('une playlist de Thomas');",
+        )
+        .expect("table de la phase suivante");
+    }
+    {
+        let depot = Depot::ouvrir(&base).expect("base");
+        assert!(
+            !depot.est_vierge().expect("vacuité"),
+            "une base qui contient quelque chose, où que ce soit, n'est pas vierge"
+        );
+    }
+
+    // Donc la migration ne l'efface pas, et ne fusionne pas par-dessus.
+    let depot = bac.preparer().expect("l'application démarre");
+    drop(depot);
+    assert!(base.exists(), "la base n'a pas été effacée");
+    assert!(bac.ancien().join("playlists.json").exists(), "le dossier de V1 est intact");
+    assert!(!bac.nouveau().join("playlists.json").exists(), "et rien n'a été migré");
 }

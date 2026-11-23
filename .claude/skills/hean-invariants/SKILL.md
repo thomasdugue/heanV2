@@ -298,7 +298,7 @@ dette **visible**, que `./check` recompte à chaque passage.
   Et la règle vaut au-delà du champ `format` : `{:?}` est fait pour un journal, pas pour un
   œil. Tout libellé que l'interface montre se décide ici, explicitement.
 
-### INV-24 — Rien n'écrit dans le dossier de données avant que la migration ait rendu son verdict
+### INV-24 — Rien n'est créé dans le dossier de données avant que la migration ait rendu son verdict
 - pile : test
 - gravité : 🔴 BLOQUANT
 - couverture : test `demarrage.rs` — la séquence réelle de `run()`, rejouée en entier
@@ -323,6 +323,11 @@ dette **visible**, que `./check` recompte à chaque passage.
   la séquence réelle n'éprouve pas le produit. C'est la leçon fondatrice du projet — une
   phrase dans un document ne peut pas échouer — retrouvée dans le code le plus sensible qu'il
   contienne.
+  **« Créé » et non « écrit », et la nuance est mesurée** : juger si une base existante est
+  vierge demande de l'ouvrir, donc d'appliquer les migrations de schéma qui lui manquent —
+  une écriture, avant la migration du dossier. La conséquence est nulle (une base non vierge
+  arrête la migration de toute façon, et une base vierge est effacée juste après), mais
+  l'énoncé devait coller au code plutôt que l'inverse. Relevé en relecture du 2026-11-23.
 
 ---
 
