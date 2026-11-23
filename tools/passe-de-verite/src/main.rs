@@ -26,8 +26,15 @@
 //! sait aussi écrire des tags, et cet outil n'appelle jamais `ecrire`. La base SQLite qu'il
 //! crée est jetable et son chemin est donné en argument — jamais
 //! `~/Library/Application Support/hean/`, pour que l'outil ne puisse pas abîmer la
-//! bibliothèque de l'application. Rien ici ne touche aux données de la V1 : c'est le script
-//! Python qui les lit, et en lecture seule.
+//! bibliothèque de l'application, **ni même la créer** : ce dossier n'existe pas encore chez
+//! Thomas, et la migration `noir/` → `hean/` s'éteindrait définitivement s'il apparaissait.
+//! Rien ici ne touche aux données de la V1 : c'est le script Python qui les lit, et en
+//! lecture seule.
+//!
+//! Et aucune suppression, nulle part : pas un `remove`, pas un `rename`. Le scanner
+//! **refuse** un chemin de base déjà occupé au lieu de l'écraser. La seule écriture du
+//! `jouer` est celle du `BackendAudio` dans le WAV temporaire — `backend.ecrire`, qui n'a
+//! du nom de `metadonnees::ecrire` que la ressemblance.
 //!
 //! Aucun chemin de machine n'est écrit dans ce dossier : la racine à scanner arrive en
 //! argument (`tests/architecture/aucun-chemin-machine.test.ts` l'exige, et il a raison).

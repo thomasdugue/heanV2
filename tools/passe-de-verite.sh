@@ -101,7 +101,10 @@ case "$cas" in
     fi
     batir
     echo "→ scan de « $racine » par le code d'indexation de la V2"
-    "$binaire" scanner "$racine" "$travail/jetable.db" "$travail/v2.json" || exit 1
+    # Un nom neuf à chaque lancement ($$ = numéro de processus) : le scanner refuse
+    # d'écraser un fichier existant, et c'est ce qui rend « ne supprime rien » exact plutôt
+    # que « ne supprime rien d'important ».
+    "$binaire" scanner "$racine" "$travail/jetable-$$.db" "$travail/v2.json" || exit 1
     echo
     python3 "$racine_depot/tools/passe-de-verite-rapport.py" \
       "$travail/v2.json" "$donnees_v1" "$travail/detail.txt"
