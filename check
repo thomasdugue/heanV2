@@ -17,18 +17,46 @@
 #   [ ] appel réel sur l'endpoint updater   phase 6  (ENTRETIEN-DU-HARNAIS.md, audit)
 #   [ ] « une version plus récente de la chaîne Rust existe »  (audit hebdo — ADR 0008 :
 #       la contrepartie de l'épinglage, signalée en une ligne et non par un build rouge)
-#   [ ] élargir les ZONES de check-sizes            (2026-11-23 — PAS GRATUIT, voir ci-dessous)
-#   [ ] « un fichier de docs/generated/ s'annonce-t-il généré ? »  (2026-11-23)
+#   [ ] ajouter src-tauri/tests et src-tauri/examples aux ZONES de check-sizes  (2026-11-23)
+#   [ ] le même angle mort sur INV-06 (🔴) — voir ci-dessous                     (2026-11-23)
+#   [ ] « un fichier de docs/generated/ s'annonce-t-il généré ? »                (2026-11-23)
 #
-# Les deux dernières, nées le 2026-11-23 en fermant les trous d'extensions de check-sizes :
+# Les trois dernières, nées le 2026-11-23 en fermant les trous d'extensions de check-sizes :
 #
-#   - Les ZONES de `check-sizes.sh` (`src src-tauri/src tests tools check`) sont, elles aussi,
-#     une LISTE — avec la faiblesse exacte de celle des extensions qu'on vient de supprimer.
-#     `src-tauri/tests/` n'y est pas, et **`src-tauri/tests/bibliotheque.rs` fait déjà
-#     416 lignes**, donc au-dessus de la limite : élargir les zones rend `./check` ROUGE tant
-#     que ce fichier n'est pas découpé. Ce n'est donc pas un correctif d'une ligne, et le
-#     fichier appartient au Rust de la bibliothèque, pas au harnais. 234 fichiers suivis vivent
-#     hors zones à la racine : élargir demande de dire lesquels comptent.
+#   - Les ZONES de `check-sizes.sh` sont, elles aussi, une LISTE. `src-tauri/tests` y est entré
+#     le 2026-11-23 sur décision de Thomas — voir le commentaire des ZONES dans
+#     `tools/check-sizes.sh`, qui dit ce que l'oubli avait coûté. **Il manque encore
+#     `src-tauri/examples/`**, qui n'existe pas sur main : il arrive avec la migration (PR #8),
+#     et c'est à ce moment-là qu'il faut l'ajouter.
+#     ⚠️ Le TITRE de la PR #13 annonçait « `src-tauri/tests` entre dans les garde-fous » sans la
+#     nuance : qui lit l'historique sans ouvrir les fichiers en conclut que la règle de taille
+#     les couvrait, ce qui est resté faux deux heures de plus. Son corps, lui, est exact et ne
+#     l'affirme pas. Un titre plus large que son périmètre est la même famille de défaut qu'une
+#     règle écrite en prose : il ne peut pas échouer.
+#     ⚠️ MAIS LE RACCOURCI NE MARCHE PAS : dériver le périmètre de `git ls-files '*.rs'`, comme
+#     proposé en relecture, ramène les **36 fichiers Rust de `bootstrap/`** — l'archive figée de
+#     V1 (ADR 0004), dont **13 dépassent 400 lignes**, le plus gros à **2 664**. Les « corriger »
+#     falsifierait le relevé historique. On troquerait donc une liste contre une autre. La
+#     leçon : **on retourne une liste quand elle énumère ce qu'on a oublié, pas quand elle
+#     énumère ce qu'on a choisi.** Celle des extensions décrivait un oubli ; celle des zones
+#     décrit une décision — où vit le code vivant, par opposition à l'archive. Donc on
+#     l'allonge, on ne la retourne pas.
+#   - **Le même angle mort sur une règle 🔴** : le volet Rust du détecteur d'INV-06
+#     (`tests/architecture/une-seule-source-de-pistes.test.ts`) ne scanne que `src-tauri/src` et
+#     `src-tauri/tests`. Du SQL sur la liste d'exclusion écrit dans `src-tauri/examples/`
+#     échapperait donc à INV-06. Vérifié le 2026-11-23 : rien de tel aujourd'hui (`migrer.rs`,
+#     51 lignes, zéro `excluded_paths`, sur la branche de migration). Relevé par
+#     invariant-guardian en relecture de la PR #8.
+#     ⚠️ ET NE PAS SE FIER AU FILET QU'ON CROIT AVOIR. L'entrée d'historique de la PR #13 dit
+#     que « `backend.test.ts` refuse déjà tout `.rs` hors des dossiers scannés (ADR 0011) »,
+#     donc qu'aucun garde-fou ne peut oublier `examples/`. Mesuré en simulant son arrivée avec
+#     du `excluded_paths` dedans : `backend.test.ts` rougit bien **une fois** — mais par le
+#     mécanisme de la note « muet » de sa dérogation, qui signale que le dossier vient
+#     d'apparaître, PAS la faute. Et `une-seule-source-de-pistes.test.ts` reste à **zéro test
+#     rouge** : la violation d'INV-06 passe en silence, complètement. Donc le filet existe, il
+#     ne dure qu'un instant, et il ne protège pas la règle qu'on croit. Ce signal unique est
+#     exactement le moment où « ces deux listes de zones sont à relire » — à ne pas éteindre
+#     sans faire le tour.
 #   - Rien ne vérifie qu'un fichier de `docs/generated/` **s'annonce réellement généré**, alors
 #     que `CLAUDE.md` l'affirme. Une phrase dans un document ne peut pas échouer : c'est
 #     précisément ce que ce harnais existe pour remplacer. Trouvé en éprouvant l'option D.

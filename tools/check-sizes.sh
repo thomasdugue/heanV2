@@ -25,7 +25,50 @@ limit=400
 
 # Les zones, PLUS le point d'entrée lui-même : `./check` applique la règle aux autres et y
 # échappait, n'étant dans aucun dossier scanné. Trouvé en mesurant, le 2026-11-23.
-ZONES=(src src-tauri/src tests tools check)
+#
+# `src-tauri/tests` est entré le 2026-11-23, sur décision de Thomas, et ce n'était pas un
+# choix nouveau : la PR #13 avait déjà tranché que ce dossier entre dans les garde-fous — elle
+# l'avait ajouté aux zones de `aucun-chemin-machine` et de `references-de-tests`, mais pas ici.
+# L'écart était un oubli. Et il coûtait cher en silence : `src-tauri/tests/bibliotheque.rs`
+# dépassait la limite depuis la phase 2 (416 lignes) sans faire rougir quoi que ce soit, parce
+# que la règle ne regardait pas là. Son découpage par la PR #13 a ramené le plus gros fichier
+# du dossier à 274 lignes, ce qui a rendu l'ajout gratuit — mais c'est l'ordre inverse qui
+# aurait dû se produire : la règle aurait dû crier, et c'est le découpage qui aurait dû suivre.
+#
+# ⚠️ `src-tauri/examples/` MANQUE ENCORE, et c'est écrit dans la liste « reste à brancher » en
+# tête de `check` : ce dossier n'existe pas sur main, il arrive avec la migration (PR #8).
+#
+# ⚠️ QUI VA ROUGIR LE PREMIER, écrit d'avance pour que ce rouge ne soit pas pris pour un faux
+# positif. Les deux fichiers les plus tendus du dépôt, mesurés le 2026-11-23 :
+#
+#   1. `src-tauri/src/library/repository.rs` — **398 lignes sur main, 2 de marge.** C'est LUI le
+#      prochain, et il n'a rien à voir avec l'élargissement ci-dessus : il est dans
+#      `src-tauri/src`, donc couvert depuis toujours. Deux raisons de le savoir avant d'ouvrir le
+#      fichier. D'abord la phase 3 y touchera forcément — playlists, favoris et historique
+#      veulent des tables, donc des migrations de schéma et des méthodes. Ensuite **la frontière
+#      du découpage est contrainte** : `repository.rs` décide ce qui entre et sort, `lignes.rs`
+#      sait comment une piste s'écrit, et le schéma ne peut pas déménager sans rouvrir INV-06,
+#      puisque ce fichier est le seul autorisé à nommer la table des chemins exclus. Le découpage
+#      se prépare donc AVANT d'écrire, pas après avoir vu le rouge.
+#      ⚠️ Et ce point chaud est sur `main` AUJOURD'HUI : il n'est pas apporté par la migration.
+#      La PR #8 fait même l'inverse — vérifié : elle sort quatre fonctions de ce fichier vers un
+#      nouveau `lignes.rs` (109 lignes) et le ramène de 398 à **397**, alors qu'elle y ajoute une
+#      migration de schéma, deux constantes et une méthode. Elle RÉTABLIT de la marge à iso-taille.
+#      La prochaine coupe est d'ailleurs déjà visible : `repository.rs` décide ce qui entre et
+#      sort, `lignes.rs` sait comment une piste s'écrit, et ce qui reste à sortir est un troisième
+#      thème — marqueurs de reprise et racines, qui ne nomment ni la table des chemins exclus ni
+#      les pistes, donc peuvent déménager sans rouvrir INV-06. Question posée à Thomas, pas faite.
+#   2. `src-tauri/tests/demarrage.rs` — 392 lignes, 8 de marge, arrive avec la migration (PR #8).
+#      Celui-là est bien dans la zone ajoutée ci-dessus, et c'est là qu'atterrira chaque test
+#      futur de la séquence de démarrage.
+#
+# Dans les deux cas, un dépassement sera un VRAI signal, pas un défaut de ce détecteur : il
+# faudra découper, pas désactiver. Et ne pas découper par avance est le bon choix — rien ne
+# dépasse, et ce dépôt découpe quand ça arrive. Mesures de la session de relecture de la PR #8,
+# qui a corrigé une première version de ce commentaire : elle annonçait `demarrage.rs` comme le
+# prochain à rougir, alors que c'est `repository.rs`. Un avertissement qui nomme le mauvais
+# fichier envoie chercher au mauvais endroit — le même défaut qu'une référence de test morte.
+ZONES=(src src-tauri/src tests src-tauri/tests tools check)
 
 # Ce qui n'est pas du code à lire d'un bout à l'autre. Chaque exception a sa raison :
 #   - les binaires : `wc -l` n'y veut rien dire, et le compte serait du bruit ;
