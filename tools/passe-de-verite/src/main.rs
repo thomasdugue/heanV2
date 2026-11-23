@@ -50,12 +50,28 @@ passe-de-verite — outil temporaire, hors produit
 
   passe-de-verite scanner <racine> <base.db> <sortie.json>
   passe-de-verite jouer   <fichier-audio> <sortie.wav>
+
+Passe plutôt par tools/passe-de-verite.sh, qui enchaîne les deux et écrit le rapport.
 ";
 
 fn main() -> ExitCode {
     // L'outil n'initialise PAS `observability` : les journaux de l'app partent dans un
     // fichier, et ici on veut les avertissements du scan sous les yeux, sur stderr.
+    //
+    // Mais SEULEMENT les nôtres. lofty émet un avertissement par fichier MP3 lu
+    // (« MPEG: Using bitrate to estimate duration », « Found a v2 frame ID in a v3 tag »),
+    // et `tracing-subscriber` les capte parce qu'il installe un pont depuis le crate `log`.
+    // Sur 306 fichiers, Thomas a eu soixante lignes de bruit AVANT son rapport — et le
+    // défaut m'avait échappé parce que je redirigeais `stderr` dans mes propres essais.
+    //
+    // D'où un filtre par défaut qui éteint tout sauf nos deux crates : ce que dit lofty de
+    // l'encodage d'un MP3 n'est pas une information pour l'utilisateur de cet outil, alors
+    // que « tags illisibles, piste ignorée » en est une, et c'est la nôtre. `RUST_LOG`
+    // reprend la main quand on veut tout voir pour diagnostiquer.
+    let filtre = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("off,hean_lib=info,passe_de_verite=info"));
     tracing_subscriber::fmt()
+        .with_env_filter(filtre)
         .with_writer(std::io::stderr)
         .with_target(false)
         .without_time()
