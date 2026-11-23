@@ -166,7 +166,7 @@ se manifeste que si une insertion échoue au milieu.
   L'erreur est journalisée, l'application démarre, et l'utilisateur peut ajouter ses dossiers
   à la main. L'information perdue l'est de toute façon : ce qui change, c'est qu'on ne le
   cache plus.
-- **Un nouvel invariant** : [INV-23](../../.claude/skills/hean-invariants/SKILL.md) — rien
+- **Un nouvel invariant** : [INV-24](../../.claude/skills/hean-invariants/SKILL.md) — rien
   n'écrit dans le dossier de données avant que la migration ait rendu son verdict. Classé
   🔴 BLOQUANT par défaut, en attente du classement de Thomas, et couvert par
   `src-tauri/tests/demarrage.rs`.

@@ -11,7 +11,7 @@
 //! de `demarrage::preparer`, et jamais ses morceaux pris à part. Un test qui saute une étape
 //! prouve quelque chose au sujet d'un programme qui n'existe pas.
 //!
-//! Règles couvertes : **INV-23** (rien n'écrit dans le dossier de données avant que la
+//! Règles couvertes : **INV-24** (rien n'écrit dans le dossier de données avant que la
 //! migration ait rendu son verdict) et **INV-06** à travers la migration — une piste
 //! supprimée dans V1 ne revient pas dans V2. Décisions : ADR 0012, qui remplace sur ce point
 //! la conséquence acceptée de l'ADR 0010.

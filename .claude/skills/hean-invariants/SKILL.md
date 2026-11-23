@@ -25,7 +25,7 @@ D'où les trois piles :
 | Pile | Ce que ça veut dire | Combien |
 |---|---|---|
 | **rayé** | L'architecture de V2 rend la faute inexprimable. Plus de règle à retenir. | 6 |
-| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 15 |
+| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 16 |
 | **irréductible** | Comportement de CoreAudio, de WebKit ou de Gatekeeper. Aucun test ne le prouve. | 2 + 7 pièges |
 
 **La mesure du succès : la pile « irréductible » ne grossit pas, et la pile « test » se
@@ -277,7 +277,28 @@ dette **visible**, que `./check` recompte à chaque passage.
   symphonia se mettait à signaler ces cas, ces tests échoueraient : cet échec serait la bonne
   nouvelle.
 
-### INV-23 — Rien n'écrit dans le dossier de données avant que la migration ait rendu son verdict
+### INV-23 — Un libellé destiné à l'affichage ne vient jamais d'un `{:?}`
+- pile : test
+- gravité : 🟡 AVERTISSEMENT
+- couverture : planifiée (phase 3) — table `FileType` → libellé, une assertion par fixture audio
+- pourquoi : **règle née le 2026-11-23 de la passe de vérité**, c'est-à-dire du premier
+  passage du code sur la vraie bibliothèque de Thomas. `library/metadonnees.rs` remplissait
+  le champ `format` avec `format!("{:?}", fichier.file_type())` : le **`Debug`** d'un type de
+  lofty, envoyé tel quel vers l'interface. Résultat sur ses 40 MP3 : `Mpeg`, là où la V1
+  écrivait `MP3` et où le fichier dit `mp3`. Seul écart sur 182 où la V1 avait raison.
+  Deux raisons de la retenir, et la seconde est la vraie. D'abord c'est une rupture de
+  parité visible par l'utilisateur, et la parité est la cible (ADR 0004). Ensuite **la valeur
+  change avec la version de la dépendance** : renommer un variant d'énumération chez lofty
+  est un changement anodin de leur côté, et personne ici ne le verrait — aucun test ne porte
+  sur une chaîne que rien n'épingle. C'est le mode de défaut d'INV-21 déplacé d'un cran :
+  non pas un défaut invisible, mais un défaut dont la cause est hors du dépôt.
+  Ce qu'une table explicite donne en plus de la correction : elle **épingle** la
+  correspondance, donc une montée de version qui renomme un variant fait échouer la
+  compilation ou le test au lieu de changer ce que Thomas lit à l'écran.
+  Et la règle vaut au-delà du champ `format` : `{:?}` est fait pour un journal, pas pour un
+  œil. Tout libellé que l'interface montre se décide ici, explicitement.
+
+### INV-24 — Rien n'écrit dans le dossier de données avant que la migration ait rendu son verdict
 - pile : test
 - gravité : 🔴 BLOQUANT
 - couverture : test `demarrage.rs` — la séquence réelle de `run()`, rejouée en entier
