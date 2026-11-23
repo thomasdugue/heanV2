@@ -53,4 +53,16 @@ describe('graphe d’imports', () => {
       franchissementsDeZone('src/lib/audio/moteur.ts', ['../ui/vue'], ZONES),
     ).toEqual(['src/lib/audio/moteur.ts → ../ui/vue']);
   });
+
+  it('le graphe contient de vraies arêtes', () => {
+    // Un graphe sans arête n'a jamais de cycle. `resoudre()` rend `null` pour tout import
+    // qu'il n'arrive pas à faire correspondre à un fichier, et sa liste d'extensions
+    // (`'', '.ts', '.svelte', '/index.ts'`) est écrite à la main : le jour où une convention
+    // change — un `.svelte.ts`, un sous-dossier avec `index.svelte` — les imports concernés
+    // se résolvent silencieusement en `null`. Le détecteur de cycles tourne alors sur un
+    // nuage de nœuds isolés : vert à jamais, et pour rien. Son auto-test, lui, resterait
+    // vert aussi, puisqu'il travaille sur un graphe écrit à la main.
+    const aretes = [...graphe().values()].flat();
+    expect(aretes.length, 'aucun import résolu : le détecteur de cycles ne voit rien').toBeGreaterThan(0);
+  });
 });
