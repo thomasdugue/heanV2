@@ -137,7 +137,7 @@ invariants bougent.
 ## Bugs connus
 
 Aucun. Le champ `format` qui valait `Mpeg` au lieu de `MP3` est corrigé — INV-23 est née de ce
-défaut et elle est désormais tenue par un test (`src-tauri/tests/bibliotheque.rs`).
+défaut et elle est désormais tenue par un test (`src-tauri/tests/bibliotheque/format.rs`).
 
 Repris de V1, à ne pas réintroduire — l'endpoint de mise à jour renvoyait 404 depuis le lancement
 (bloc `updater` repris en phase 6, ADR 0006), et `logging.rs` ne capturait pas stdout (INV-21).

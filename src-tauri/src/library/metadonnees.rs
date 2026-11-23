@@ -72,7 +72,7 @@ pub const FORMAT_INCONNU: &str = "Unknown";
 ///
 /// Et surtout : une table explicite est liée par un contrat, un `Debug` ne l'est pas. Une
 /// mise à jour de lofty peut renommer un variant sans que rien ne bronche — ici, elle ne
-/// compile plus ou fait rougir `src-tauri/tests/bibliotheque.rs`.
+/// compile plus ou fait rougir `src-tauri/tests/bibliotheque/format.rs`.
 pub fn nom_de_format(type_fichier: FileType, bits: Option<u8>) -> Option<&'static str> {
     Some(match type_fichier {
         FileType::Flac => "FLAC",
