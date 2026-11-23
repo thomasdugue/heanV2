@@ -2,13 +2,22 @@
 
 - **Date** : 2026-11-23
 - **État** : Acceptée
-- **Décideur** : **Thomas pour la décision de corriger**, le 2026-11-23 : la relecture
-  d'invariants de la PR #8 avait relevé quatre défauts 🔴, il a demandé qu'ils soient
-  corrigés avant la fusion. **Les choix de méthode ci-dessous sont ceux de la session.** Même
-  distinction que pour les [ADR 0009](0009-bibliotheque-cle-dalbum-et-source-de-verite.md) et
+- **Décideur** : **Thomas pour la décision de corriger**, le 2026-11-23. Ses mots, puisque
+  c'est ce qui rend l'attribution revérifiable : la relecture d'invariants de la PR #8 lui a
+  rendu un verdict de quatre défauts 🔴, et il a répondu **« corrige les 4 défauts
+  bloquants »**. Le découpage de `library/repository.rs`, proposé ensuite dans la même
+  session, a reçu **« Non, plus tard »** — il n'est donc pas fait.
+  **Les choix de méthode ci-dessous sont ceux de la session.** Même distinction que pour les
+  [ADR 0009](0009-bibliotheque-cle-dalbum-et-source-de-verite.md) et
   [0010](0010-methode-de-migration-des-donnees-v1.md), et pour la même raison : « Thomas a
   décidé ceci » est ce qui fait qu'une règle ne se rediscute pas, donc ça ne s'écrit que
   quand c'est vrai.
+  **Et ça s'écrit avec ses mots, pas avec les nôtres** — leçon du 2026-11-23, née d'un relais
+  entre deux sessions : une attribution paraphrasée ne peut pas être revérifiée, donc elle se
+  reformule à chaque passage. « Thomas a décidé d'étendre la limite de 400 lignes » et
+  « Thomas a décidé d'étendre le périmètre de la règle des 400 lignes » sonnent pareil et
+  disent le contraire : l'un affaiblit la règle, l'autre l'applique à plus d'endroits. Une
+  citation entre guillemets se vérifie ; un résumé se déforme.
 - **Remplace** : la conséquence acceptée de l'[ADR 0010](0010-methode-de-migration-des-donnees-v1.md)
   « la migration peut échouer sans empêcher l'application de démarrer ». Le reste de
   l'ADR 0010 — les quatre temps, l'inventaire explicite, la reprise de la configuration, la
