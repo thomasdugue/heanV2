@@ -826,6 +826,18 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     - **`src-tauri/examples/` n'existe pas** : aucun garde-fou ne peut l'oublier tant qu'il n'est pas
       créé, et `backend.test.ts` refuse déjà tout `.rs` hors des dossiers scannés (ADR 0011). Le
       jour où il est créé, ces deux listes de zones sont à relire.
+      > ⚠️ **Nuance mesurée le 2026-11-23, ajoutée sans retirer la phrase ci-dessus.** Ce filet est
+      > plus mince qu'il n'y paraît, et la deuxième moitié de la phrase — « ces deux listes de
+      > zones sont à relire » — est en fait tout ce sur quoi on peut compter. Simulé : à l'arrivée
+      > d'un `src-tauri/examples/` contenant du `excluded_paths`, `backend.test.ts` rougit **une
+      > fois**, par la note « muet » de sa dérogation, qui signale que **le dossier vient
+      > d'apparaître** et non la faute qu'il contient — et il se taira dès que la note sera
+      > retirée, puisque c'est le but de la dérogation accordée par l'ADR 0011. Pendant ce temps
+      > `une-seule-source-de-pistes.test.ts` reste à **zéro test rouge** : la violation d'**INV-06
+      > (🔴)** passe en silence, complètement. Donc le filet ne couvre qu'INV-21, et pour un seul
+      > passage. Ajouté par la session du harnais parce que la session qui a écrit la phrase est
+      > archivée et ne peut plus la nuancer elle-même ; ses mots sont laissés intacts, une
+      > affirmation fausse effacée sans trace étant pire qu'une affirmation fausse encadrée.
     - **Un garde-fou hors `tools/` et `architecture/`, signalé par `invariant-guardian` et non
       corrigé** : `.claude/hooks/contrat-de-fin-de-tache.sh`, ligne 56, ne reconnaît un test de
       régression que dans `^(tests/|src-tauri/src/.*test)`. Un correctif dont le test arrive dans
@@ -918,3 +930,30 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     n'ait à s'en souvenir — `./check` recomptait.
   - **Reste à l'arbitrage de Thomas** : le nom affiché pour le `.ogg` (`Vorbis`, là où la V1
     repliait sur « Other »). Zone `choix-produit`, aucun `.ogg` dans sa bibliothèque.
+
+- **2026-11-23** (zones de la règle de taille) : **`src-tauri/tests` entre enfin dans la règle des
+  400 lignes**, sur décision de Thomas. Ce n'était pas un choix nouveau : la PR #13 avait déjà
+  tranché que ce dossier entre dans les garde-fous — elle l'avait ajouté aux zones de
+  `aucun-chemin-machine` et de `references-de-tests`, **mais pas à `check-sizes.sh`**. L'écart
+  était un oubli, et son titre (« `src-tauri/tests` entre dans les garde-fous ») promettait plus
+  large que son périmètre. **88 → 96 fichiers mesurés.**
+  - **Ce que l'oubli coûtait, en silence** : `src-tauri/tests/bibliotheque.rs` dépassait la limite
+    **depuis la phase 2** (416 lignes) sans faire rougir quoi que ce soit, parce que la règle ne
+    regardait pas là. Son découpage par la PR #13 a ramené le plus gros fichier du dossier à 274
+    lignes, ce qui a rendu l'ajout gratuit — **mais c'est l'ordre inverse qui aurait dû se
+    produire** : la règle aurait dû crier, et le découpage aurait dû suivre. Un garde-fou qui
+    arrive après le correctif n'a protégé personne.
+  - **Éprouvé dans les trois sens**, dont celui qui prouve que le changement sert : un test Rust
+    de 450 lignes **passe vert sur `main`** et rouge après l'ajout. Même fichier, deux verdicts.
+  - ⚠️ **Et j'ai failli supprimer une zone en croyant en ajouter une.** Ma première écriture
+    donnait `ZONES=(src src-tauri/src src-tauri/tests tools check)` : `tests`, le TypeScript,
+    avait disparu. 15 fichiers sortaient de la surveillance, et **`check-sizes` restait VERT** —
+    puisqu'il ne restait rien de trop gros dans ce qu'il regardait encore. Ce qui l'a attrapé est
+    le **compte affiché** : 88 → 73 au lieu de monter. La leçon, qui vaut pour tout détecteur de
+    ce genre : **afficher la taille du corpus n'est pas de la décoration, c'est la seule chose qui
+    distingue « rien à signaler » de « je ne regarde plus ».** Un corpus qui rétrécit mériterait
+    sa propre assertion ; écrit ici, pas fait.
+  - `src-tauri/examples/` manque encore : il n'existe pas sur `main`, il arrive avec la migration
+    (PR #8), et c'est à ce moment-là qu'il faudra l'ajouter. Écrit dans la liste « reste à
+    brancher » en tête de [`check`](../check), avec l'angle mort d'INV-06 qui le double.
+
