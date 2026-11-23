@@ -666,8 +666,8 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
       `src-tauri/tests/`** : élargis, et c'est resté vert. Éprouvés par injection (un chemin de
       machine, une référence morte posés dans `src-tauri/tests/` les font rougir en nommant le fichier).
     - **Les mêmes deux oublient aussi `tests/` (le TypeScript), et ceux-là ne sont PAS élargis** :
-      ils rougiraient. Chacun contient ses propres échantillons fautifs (`/Users/thomas/dev/…`,
-      `tests/architecture/ipc-renomme.test.ts`, `tests/export_bindings.rs`) et se signalerait
+      ils rougiraient. Chacun contient ses propres échantillons fautifs (un chemin de machine de V1,
+      deux références de test mortes) et se signalerait
       lui-même. Ce qu'il faut corriger d'abord : une exception par **chemin exact**, comme
       `AUTO_TEST` dans `une-seule-cle-dalbum.test.ts` — pas par motif.
     - **Déjà complets sur `src-tauri/tests/`** : `backend.test.ts` (INV-21, INV-04, secrets),
