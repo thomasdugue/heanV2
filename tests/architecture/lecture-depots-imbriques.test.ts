@@ -44,12 +44,41 @@ afterAll(() => rmSync(racine, { recursive: true, force: true }));
 
 describe('parcours de fichiers', () => {
   it('voit les fichiers du dépôt', () => {
-    expect(fichiers('.', ['.md'], racine)).toContain('a-moi.md');
+    expect(fichiers('.', ['.md'], { racine })).toContain('a-moi.md');
   });
 
   it('ne descend pas dans un dépôt imbriqué', () => {
-    const vus = fichiers('.', ['.md'], racine);
+    const vus = fichiers('.', ['.md'], { racine });
     expect(vus.filter((f) => f.includes('une-session'))).toEqual([]);
     expect(vus).toEqual(['a-moi.md']);
+  });
+
+  // Les deux cas suivants éprouvent la SECONDE garde de ce lecteur, posée le 2026-11-23 :
+  // un corpus vide lève une erreur. Elle répond, pour tous les détecteurs d'un coup, à la
+  // question « est-ce que je regarde quelque chose ? » — celle qu'un détecteur pointé sur
+  // un dossier renommé ne pose jamais, parce qu'il passe au vert en ne voyant rien.
+  //
+  // Comme le test du dépôt imbriqué juste au-dessus, ils FABRIQUENT la situation au lieu
+  // d'espérer la rencontrer : aucune zone du projet n'est vide aujourd'hui, donc rien dans
+  // le dépôt ne prouverait cette garde. C'est la même propriété, et pour la même raison.
+  it('refuse un corpus vide', () => {
+    expect(() => fichiers('.', ['.rs'], { racine })).toThrow(/corpus vide/);
+  });
+
+  it('tolère un corpus vide dont la raison est écrite', () => {
+    expect(fichiers('.', ['.rs'], { racine, videPrevu: 'aucun Rust dans ce dépôt de test' })).toEqual(
+      [],
+    );
+  });
+
+  it('refuse une dérogation sans raison écrite', () => {
+    // Relevé en relecture : une garde qui accepte `videPrevu: ''` accepte exactement le
+    // « silence non écrit » qu'elle existe pour fermer. Et `HORS_SCAN`, dans
+    // `backend.test.ts`, était déjà plus exigeant que le lecteur partagé — le harnais était
+    // moins strict que le test qui l'utilise.
+    expect(() => fichiers('.', ['.rs'], { racine, videPrevu: '' })).toThrow(/sans raison écrite/);
+    expect(() => fichiers('.', ['.rs'], { racine, videPrevu: 'plus tard' })).toThrow(
+      /sans raison écrite/,
+    );
   });
 });
