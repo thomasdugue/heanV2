@@ -837,3 +837,84 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
       comparant des chemins — mais c'est un changement de contrat du skill, donc une tâche à part.
     - **Déjà signalé ailleurs, non repris ici** : `check-sizes` ne lit ni `.py` ni `.sh`
       (entrée de la passe de vérité ci-dessus).
+- **2026-11-23** (suite) : **le champ `format` disait `Mpeg`, il dit `MP3`.** Le seul défaut des
+  182 écarts de la passe de vérité où la V1 avait raison, corrigé avec la vérification qui
+  l'aurait vu.
+  - **La faute, et sa famille.** `metadonnees::lire` remplissait `format` avec
+    `format!("{:?}", fichier.file_type())` — la représentation de **débogage** d'un type de lofty
+    envoyée telle quelle vers l'affichage. Les 40 MP3 de la bibliothèque de Thomas annonçaient
+    `Mpeg` ; ffprobe dit `mp3`, la V1 écrivait `MP3`, et la parité avec elle est la cible
+    (ADR 0004). Les FLAC cachaient le reste : `Flac` ressemble à `FLAC`. Et un `Debug` **n'est lié
+    par aucun contrat** — une mise à jour de lofty peut renommer un variant sans que rien ne
+    bronche.
+  - **Le défaut invisible que le `Debug` cachait vraiment : ALAC et AAC confondus.** Les deux
+    s'affichaient `Mp4`, le nom du conteneur. C'est pourtant la distinction qui compte pour un
+    auditeur — sans perte contre avec perte. La table les sépare par la profondeur de bits, que
+    lofty ne renseigne que pour l'ALAC : le test sur `alac.m4a` et `aac.m4a` le prouve sur de
+    vrais fichiers, et c'est **le même test qu'employait la V1**.
+  - **Les sept noms, et un seul choix neuf.** `FLAC`, `MP3`, `WAV`, `AIFF`, `ALAC`, `AAC` sont
+    relevés dans le code de la V1, et les trois qui existent dans la bibliothèque de Thomas sont
+    confirmés par son cache (`FLAC` ×3 319, `MP3` ×79, `WAV` ×1). Le `.ogg` est le seul cas sans
+    précédent utilisable : la V1 le repliait sur « Other », qui n'est pas un nom de format. Choisi
+    **`Vorbis`**, le codec — comme ALAC et AAC — puisque OGG n'est que le conteneur. Aucun `.ogg`
+    dans la bibliothèque de Thomas : rien ne change pour lui, et le nom reste à son arbitrage.
+  - **Le repli se voit deux fois, et c'est la décision du correctif.** Un `FileType` hors des sept
+    ne retombe pas sur le `Debug` : il affiche `Unknown` **et** écrit une ligne dans le journal
+    (`tracing::warn!`, INV-21). Pourquoi deux : `Mpeg` ou `Mp4` passent pour des noms de format et
+    ne se signalent jamais, là où `Unknown` se lit comme un défaut ; et le scan n'accepte que sept
+    extensions, donc ce cas veut dire que le **contenu** d'un fichier ne correspond pas à son nom —
+    ce que Thomas doit pouvoir voir chez lui, pas seulement en dev. Pas une erreur : une piste dont
+    on ne sait pas nommer le format reste écoutable et reste dans la bibliothèque.
+  - **Quatre tests, et chacun éprouvé par injection.** `chaque_format_supporte_rend_son_nom_daffichage`
+    lit les **sept fixtures réelles** et attend les sept noms ; remettre le `{:?}` fait rougir six
+    des sept lignes (seul `Vorbis` coïncide avec son `Debug`). Vérifié : faute injectée → rouge sur
+    `flac-16-44.flac` (`Flac` au lieu de `FLAC`), puis remise par **copie**, jamais par
+    `git checkout <fichier>` (payé le 2026-11-22). S'y ajoutent la prémisse épinglée — le `Debug` de
+    lofty vaut bien `Mpeg`, donc si une version future écrivait `MP3` le test rougirait, et cet
+    échec serait la bonne nouvelle — et le type hors liste éprouvé sur quatre variants que l'app ne
+    supporte pas (`Opus`, `Ape`, `Speex`, `WavPack`).
+  - **`invariant-guardian` a trouvé un faux test dans mon propre travail.** Un quatrième test,
+    « les noms ne se recouvrent pas », dédupliquait un **tableau littéral** et comparait sa
+    longueur à elle-même : vert quoi que fasse le code de production, avec une docstring qui
+    promettait le contraire. La famille exacte du détecteur d'INV-06 refermé la veille — celui
+    qui cherchait `\bTrack\b` là où specta émet `Track_Serialize[]` : zéro trouvaille sur huit
+    commandes, auto-test vert pendant tout ce temps. Réécrit pour **interroger la fonction** au
+    lieu de recopier sa table (sept appels, le conteneur MP4 comptant pour deux), puis éprouvé :
+    faire rendre « AAC » à l'ALAC rougit. Un test qui ne peut pas échouer coûte plus qu'un test
+    absent — il fait lire une garantie au lieu de l'écrire.
+  - **Rien ne s'appuyait sur l'ancienne valeur** : aucune vue n'affiche encore `format` (phase 3),
+    et `src/ipc/bindings.ts` le voit comme un `string`. Les deux fausses données de test qui
+    portaient `'Flac'` (`tests/ux/_faux-backend.ts`, `tests/unit/groupement.test.ts`) passent à
+    `'FLAC'` : un faux backend qui rend une valeur que le vrai ne peut plus produire est le début
+    d'une dérive.
+  - **`./check` était rouge au démarrage, et pour rien** : `fast-check` est déclaré dans
+    `package.json` depuis la phase 2 mais absent du `node_modules` de ce worktree, créé avant.
+    `npm install` suffit. Au passage, `npm` normalise une ligne de `package-lock.json`
+    (`^4.11.0` → `4.11.0`, le lockfile gardait le caret là où `package.json` épingle) : **rétablie,
+    hors scope**, mais la dérive est réelle et reviendra au prochain `npm install`.
+  - **Signalé sans être corrigé — `check-sizes.sh` ne voit pas `src-tauri/tests/`.** Sa boucle
+    nomme `src`, `src-tauri/src`, `tests` et `tools`. Or `src-tauri/tests/bibliotheque.rs` est
+    à **487 lignes**, au-delà de la limite de 400 que la règle dit « refusée par `./check` » —
+    dépassement antérieur à ce diff, mais qui grossit avec lui, et c'est le fichier où
+    atterriront les tests d'intégration des phases suivantes. Même angle mort, au même endroit,
+    que celui d'INV-21 refermé le 2026-11-22 (`src-tauri/tests/` était hors du scan de
+    `backend.test.ts`). **Ordre obligatoire** pour le correctif : découper `bibliotheque.rs`
+    d'abord — ses sections sont déjà marquées —, **puis** ajouter le dossier à la boucle ;
+    l'inverse rend `./check` rouge sur le champ. Sa propre tâche.
+  - **Signalé sans être corrigé — une correction de dérivation n'atteint pas une base déjà
+    peuplée.** `appliquer_scan` est différentiel (B03) : un fichier dont la taille **et** la
+    mtime n'ont pas bougé n'est pas relu, donc une base existante garderait `Mpeg`
+    indéfiniment. Impact nul aujourd'hui — aucune bibliothèque livrée, aucune vue n'affiche
+    `format` — mais le mécanisme doit être nommé avant la phase 6, sinon le prochain correctif
+    de ce genre sera vert au test et invisible chez les testeurs.
+  - **La règle candidate existait déjà, et les deux sessions l'ont écrite de la même main.** En
+    fusionnant `main`, INV-23 — « un libellé destiné à l'affichage ne vient jamais d'un `{:?}` »,
+    🟡 — était là : la passe de vérité l'avait posée en même temps qu'elle trouvait le défaut,
+    avec `couverture : planifiée (phase 3)`. Je ne l'ai donc pas proposée à Thomas, je l'ai
+    **branchée** : `couverture : test bibliotheque.rs`, la section du test cite la règle, et les
+    comptes de `CLAUDE.md` suivent (6 actives, 9 planifiées). Le défaut quitte « Bugs connus »
+    par la même occasion. Une règle née d'un défaut et refermée par le correctif du même défaut :
+    c'est exactement la boucle que l'ADR 0005 demande, et elle s'est fermée sans que personne
+    n'ait à s'en souvenir — `./check` recomptait.
+  - **Reste à l'arbitrage de Thomas** : le nom affiché pour le `.ogg` (`Vorbis`, là où la V1
+    repliait sur « Other »). Zone `choix-produit`, aucun `.ogg` dans sa bibliothèque.
