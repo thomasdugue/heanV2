@@ -579,3 +579,87 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     rend le plus de toute la liste », ne surveille que **cinq** lectures `var(--x)` sans repli
     dans tout le projet : le chiffre est juste en phase 2, il mérite d'être revu quand les vues
     arriveront.
+
+- **2026-11-23** (extensions non lues) : **la règle des 400 lignes ne lisait ni shell ni Python, et
+  un fichier de 569 lignes est passé vert.** Signalé par la session de la « passe de vérité », qui
+  le tenait d'`invariant-guardian` relisant son diff : son rapport Python était **le premier fichier
+  du dépôt à franchir la limite**, et il l'a franchie dans une langue que le détecteur ne lit pas.
+  Troisième variante du défaut du 2026-11-22 (`\bTrack\b` contre `Track_Serialize[]`) et du vieux
+  trou d'INV-21 sur `src-tauri/tests/` : **une règle n'est tenue que là où le garde-fou regarde.**
+  - **Mesuré avant de décider, et c'est ce qui a emporté la décision** : aucun fichier concerné
+    ne dépasse la limite, donc fermer le trou ne coûtait rien — ce qui enlevait la seule bonne
+    raison d'attendre. Dans six mois, il aurait fallu découper un fichier d'abord. **Et aucun
+    chemin de machine ne dormait dans les fichiers nouvellement couverts** : vérifié aussi avant,
+    pour ne pas introduire un rouge en même temps que le correctif.
+  - **Le chiffre que j'ai d'abord annoncé à Thomas était trompeur, et c'est la session de la
+    « passe de vérité » qui l'a corrigé.** J'avais dit « le plus gros fait 126 lignes sur 400 »,
+    mesuré sur `main` — or sa branche, encore en PR, porte `tools/passe-de-verite/rapport.py` à
+    **360 lignes** (vérifié : 360, 272, 191). Dès que sa PR fusionne, la marge n'est donc pas de
+    274 lignes mais de **40**. La conclusion ne change pas — le correctif reste gratuit — mais la
+    règle devient **immédiatement mordante**, et le prochain ajout à ce fichier la fera rougir.
+    C'est ce qu'on veut ; encore faut-il le dire à l'avance plutôt que de le découvrir. Leçon de
+    méthode : **mesurer sur `main` alors que des branches vivent à côté, c'est mesurer le passé** —
+    la même myopie que celle de `check-adr.mjs` sur les numéros d'ADR, trouvée la veille.
+  - **Le correctif n'est pas « ajouter deux extensions », c'est inverser la liste.** Une règle
+    tenue par la liste de ce qu'elle surveille oublie la langue qu'on ajoutera demain. Désormais
+    `check-sizes.sh` mesure **tout, sauf une liste d'exceptions écrite** — les binaires (`wc -l`
+    n'y veut rien dire) et `zones-interdites.txt` (une table lue par un script). Le **sens de
+    l'échec** change, et c'est là tout l'intérêt : un binaire nouveau fait rougir, et quelqu'un
+    écrit l'exception ; un langage nouveau ne passe plus en silence. **65 → 81 fichiers mesurés.**
+  - **Un troisième trou, trouvé en mesurant : `./check` lui-même.** 79 lignes, et mesuré par rien
+    — il n'est dans aucun dossier scanné. Le point d'entrée unique de tout le harnais échappait à
+    la règle qu'il applique aux autres. Il est dans les zones maintenant, avec
+    `tools/git-hooks/pre-commit`, qui n'a pas d'extension et qu'aucune recherche par extension ne
+    pouvait attraper.
+  - **Et le corpus se dérive de `git ls-files`**, comme `check-adr.mjs`. Ce n'était pas le sujet,
+    mais inverser la liste l'imposait : en lisant *tout* sur le disque, un `.DS_Store` aurait fait
+    rougir chez Thomas et passer en CI — le défaut du 2026-11-22 à l'envers, réintroduit par le
+    correctif d'un autre. Éprouvé : un fichier de 999 lignes non suivi par git est bien ignoré.
+  - **`aucun-chemin-machine.test.ts` : `.py`, `.json` et `.txt` manquaient**, et `.json` n'est pas
+    un détail — `.claude/settings.json` porte une commande de hook, donc c'est exactement un
+    fichier où un chemin en dur ne se résoudrait que chez une personne. **Inversé lui aussi** :
+    il lit tout le suivi moins les binaires, écrits avec leur raison. **90 → 96 fichiers lus.**
+    J'avais d'abord gardé sa liste en lui ajoutant une assertion de couverture ; la session de la
+    « passe de vérité » a fait remarquer que scanner par extension est précisément ce qui avait
+    créé les trois trous, et elle avait raison contre ma propre moitié de correctif. Garder une
+    liste d'un côté et l'inverser de l'autre aurait laissé une incohérence que quelqu'un
+    « simplifierait » plus tard en la trouvant arbitraire. Avant, les quatre tests du fichier
+    prouvaient que le détecteur *sait lire* un chemin de machine ; aucun qu'il *était passé
+    partout*.
+  - **Deux assertions de corpus plutôt qu'une**, parce que retourner une liste crée un risque
+    neuf : une exception trop large viderait le corpus en silence. Donc « il lit plus de 50
+    fichiers » **et** « les exceptions écrites correspondent à de la matière réelle » — cette
+    dernière se périme d'elle-même le jour où ces zones ne portent plus un seul binaire. Seuil
+    volontairement « au moins un » et non un compte exact : ajouter une police ou une icône est
+    banal et ne doit pas faire rougir une règle sur les chemins de machine.
+  - **Onze injections**, toutes rouges puis remises par copie, dont le cas réel (un Python de 569
+    lignes), `./check` à 420 lignes, une langue nouvelle (`.rb`) avec et sans chemin de machine,
+    le fichier sans extension, une exception volontairement trop large qui vide le corpus, et les
+    deux cas où le vert est la bonne réponse (fichier non suivi par git, dans les deux
+    détecteurs). `./check` vert, 19 vérifications — aucune vérification nouvelle, les deux
+    détecteurs existaient déjà. **65 → 81 fichiers mesurés, 90 → 96 fichiers lus.**
+  - **⚠️ UNE DÉCISION ATTEND THOMAS, et elle est née du mécanisme lui-même.** La branche de la
+    « passe de vérité » ajoute `tools/passe-de-verite/Cargo.lock`, **5 109 lignes**. Le détecteur
+    inversé le mesure — il fait donc exactement son travail : une forme imprévue échoue au lieu de
+    passer en silence, et il se trouve que le premier cas arrive le jour même. **Mais la suite
+    n'est pas une correction, c'est un changement de portée d'invariant**, donc elle ne se prend
+    pas seule (ADR 0005). Trois options remontées : une exception nommée pour les fichiers de
+    verrouillage, qui tient sur une propriété vérifiable — un lock est écrit par un outil et
+    régénéré, jamais relu, alors que la leçon de V1 porte sur ce qu'on **relit** (`lib.rs`,
+    4 870 lignes) ; ou la portée générale « la règle ne vise que les fichiers écrits à la main » ;
+    ou le retrait du lock de leur branche, qu'ils proposent eux-mêmes.
+    **Mesure qui élargit la question** : `src/ipc/bindings.ts` est généré, déjà mesuré, et à
+    **152 lignes pour 8 commandes IPC** — au même rythme il franchit 400 vers la vingtaine, et V1
+    en avait **86**. La règle se heurtera donc à un fichier que personne n'écrit à la main, lock ou
+    pas. Le lock n'est que le premier arrivé.
+    **Et aucune urgence** : les deux PR fusionnent seules sans rien casser — l'ancien détecteur ne
+    lit pas les `.lock`, et ma branche ne porte pas leur lock. **Seule la deuxième des deux fusions
+    rougit.**
+  - **Deux corrections venues des autres sessions, sur mon propre travail.** (1) J'avais annoncé à
+    Thomas « le plus gros fichier concerné fait 126 lignes sur 400 » : c'était la mesure de `main`,
+    alors que leur branche porte un fichier à **360**. La marge réelle après leur fusion est de
+    **40 lignes**, pas 274 — la conclusion tenait, le chiffre non. (2) J'avais gardé une liste
+    d'extensions dans `aucun-chemin-machine.test.ts` ; ils ont fait remarquer que scanner par
+    extension est précisément ce qui avait créé les trois trous. Ils avaient raison contre ma
+    moitié de correctif, et l'inversion a été étendue là aussi — ce qui a couvert, du même coup,
+    `tools/git-hooks/pre-commit`, qu'aucune liste d'extensions ne pouvait atteindre.
