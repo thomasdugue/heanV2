@@ -280,7 +280,7 @@ dette **visible**, que `./check` recompte à chaque passage.
 ### INV-23 — Un libellé destiné à l'affichage ne vient jamais d'un `{:?}`
 - pile : test
 - gravité : 🟡 AVERTISSEMENT
-- couverture : test `bibliotheque/format.rs` — table `FileType` → libellé, une assertion par fixture audio
+- couverture : test `format.rs` (cible `bibliotheque`) — table `FileType` → libellé, une assertion par fixture audio
 - pourquoi : **règle née le 2026-11-23 de la passe de vérité**, c'est-à-dire du premier
   passage du code sur la vraie bibliothèque de Thomas. `library/metadonnees.rs` remplissait
   le champ `format` avec `format!("{:?}", fichier.file_type())` : le **`Debug`** d'un type de
