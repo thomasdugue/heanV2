@@ -711,7 +711,26 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     pas. Le lock n'est que le premier arrivé.
     **Et aucune urgence** : les deux PR fusionnent seules sans rien casser — l'ancien détecteur ne
     lit pas les `.lock`, et ma branche ne porte pas leur lock. **Seule la deuxième des deux fusions
-    rougit.**
+    rougit.** C'est arrivé : la PR #10 a fusionné, donc cette branche porte la décision.
+  - **Une quatrième option, venue de la même session, et meilleure que mes trois** : l'exception
+    reconnaît **les fichiers qui s'annoncent générés**. Vérifié — les cinq fichiers générés du
+    dépôt le déclarent en tête. L'exception cesse alors d'être une liste de noms et **se maintient
+    toute seule** : un générateur nouveau obtient la dérogation en émettant son en-tête, un
+    générateur qui n'en émet pas provoque un rouge qui pose la question. C'est l'inversion du
+    corpus, appliquée à l'exception.
+    **Ses deux faiblesses, mesurées et transmises avec elle.** (1) Les formulations divergent —
+    trois phrasés en deux langues, et le marqueur n'est pas toujours en première ligne
+    (`docs/generated/*.md` le mettent en troisième). Une expression régulière couvrant tout serait
+    fragile ; la forme solide veut un **marqueur canonique** émis par `npm run gen`, `Cargo.lock`
+    restant le seul cas étranger nommé. (2) Keyer sur le **contenu** ouvre une porte : coller le
+    marqueur en tête d'un fichier écrit à la main échappe à la règle. Moins grave qu'une extension
+    oubliée — ça se voit dans un diff — mais ça existe, et les options A et B n'ont pas ce défaut.
+    **Donc D est la bonne forme et A la bonne étape** : A s'écrit en une ligne et ne ferme aucune
+    porte, D mérite son ADR.
+  - **Signalé sans être corrigé, troisième lot** : rien ne vérifie qu'un fichier de
+    `docs/generated/` **s'annonce réellement généré**. `CLAUDE.md` affirme qu'ils le sont — une
+    phrase dans un document, donc exactement ce que ce harnais existe pour remplacer. Vérification
+    nouvelle, donc sa propre tâche. Trouvée en éprouvant l'option D.
   - **Deux corrections venues des autres sessions, sur mon propre travail.** (1) J'avais annoncé à
     Thomas « le plus gros fichier concerné fait 126 lignes sur 400 » : c'était la mesure de `main`,
     alors que leur branche porte un fichier à **360**. La marge réelle après leur fusion est de
