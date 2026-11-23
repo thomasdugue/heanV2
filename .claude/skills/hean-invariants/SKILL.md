@@ -167,7 +167,7 @@ dette **visible**, que `./check` recompte à chaque passage.
 ### INV-07 — Une métadonnée éditée est écrite dans le fichier audio
 - pile : test
 - gravité : 🔴 BLOQUANT
-- couverture : test `bibliotheque.rs` — écriture lofty, puis relecture du fichier
+- couverture : test `edition.rs` — écriture lofty, puis relecture du fichier
 - pourquoi : le cache est un accélérateur, **la source de vérité est le fichier audio**.
   SQLite règle la cohérence entre caches (INV-08/09/10) mais ne dit rien de ça : si on
   n'écrit que dans la base, la métadonnée disparaît dès que l'utilisateur ouvre le fichier

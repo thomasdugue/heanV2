@@ -29,7 +29,11 @@ export function cheminsMachine(texte: string): string[] {
 // falsifierait le document. Et `03-architecture/code-reference/rust/sentry_init.rs` y porte
 // des chemins de machine comme **fixtures d'un anonymiseur de chemins** : un faux positif
 // permanent, et la démonstration que toute règle de ce genre doit s'arrêter au code vivant.
-const ZONES = ['src', 'src-tauri/src', 'docs', '.claude', 'tools'] as const;
+// `src-tauri/tests` y est depuis le 2026-11-23 : c'était le même angle mort que celui de
+// `check-sizes.sh` et d'INV-21. `tests/` (le TypeScript) n'y est PAS, et ce n'est pas un choix :
+// élargir le ferait rougir sur les échantillons fautifs de ce fichier et de son voisin, qui
+// demandent une exception par chemin exact (voir `AUTO_TEST` dans `une-seule-cle-dalbum`).
+const ZONES = ['src', 'src-tauri/src', 'src-tauri/tests', 'docs', '.claude', 'tools'] as const;
 
 /**
  * Les fichiers des zones que ce détecteur ne lit PAS, avec leur raison écrite.

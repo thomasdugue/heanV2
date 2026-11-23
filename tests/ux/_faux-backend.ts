@@ -8,9 +8,9 @@
 // dériver est un décor.
 //
 // Ce qu'il NE prouve pas : rien de ce qui se passe dans SQLite ou dans le fichier audio. Ces
-// deux-là sont prouvés en Rust, sur de vrais fichiers, par `src-tauri/tests/bibliotheque.rs`
-// — INV-07 (l'écriture va dans le fichier), INV-01 (une seule clé d'album) et la permanence
-// de l'exclusion (INV-06). Ici on prouve la moitié frontend : que rien ne reste coincé dans
+// deux-là sont prouvés en Rust, sur de vrais fichiers, par `src-tauri/tests/bibliotheque/`
+// — INV-07 (l'écriture va dans le fichier, `edition.rs`), INV-01 (une seule clé d'album,
+// `album.rs`) et la permanence de l'exclusion (INV-06, `scan.rs`). Ici on prouve la moitié frontend : que rien ne reste coincé dans
 // l'état local, et que toutes les vues sont prévenues.
 
 import type { Backend } from '../../src/lib/library/repository';
@@ -71,7 +71,7 @@ export function creerFauxBackend(initiales: readonly Track[] = []): FauxBackend 
       // `AlbumKey::new` côté Rust, et il n'y a qu'une implémentation au monde (INV-01). Un
       // faux backend qui normaliserait ici en serait une deuxième — c'est-à-dire la faute
       // exacte de V1, réintroduite par la porte du harnais. Ce que la clé devient après
-      // une édition d'album est prouvé en Rust (`src-tauri/tests/bibliotheque.rs`).
+      // une édition d'album est prouvé en Rust (`src-tauri/tests/bibliotheque/edition.rs`).
       ...(e.album != null ? { album: e.album } : {}),
       ...(e.annee != null ? { annee: e.annee } : {}),
       ...(e.piste != null ? { piste: e.piste } : {}),
