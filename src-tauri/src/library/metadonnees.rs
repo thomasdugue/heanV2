@@ -17,6 +17,7 @@
 use std::path::Path;
 
 use lofty::config::WriteOptions;
+use lofty::file::FileType;
 use lofty::prelude::{Accessor, AudioFile, ItemKey, TaggedFileExt};
 use lofty::tag::Tag;
 
@@ -47,6 +48,51 @@ pub enum Erreur {
     },
 }
 
+/// Ce qui s'affiche quand lofty rend un type de fichier hors des sept formats supportés.
+///
+/// Un nom qui se lit comme un défaut, pas comme un format : « Unknown » se signale, là où
+/// `Mpeg` ou `Mp4` passent pour des noms plausibles et ne se signalent jamais.
+pub const FORMAT_INCONNU: &str = "Unknown";
+
+/// Le nom affichable d'un format audio, ou `None` si lofty rend un type hors des sept
+/// formats que l'app déclare supporter (features de symphonia dans `Cargo.toml`, et
+/// `scan::EXTENSIONS`).
+///
+/// **Jamais `format!("{:?}", fichier.file_type())`.** C'est ce que ce module faisait
+/// jusqu'au 2026-11-23 : la représentation de **débogage** d'un type de lofty, envoyée
+/// telle quelle vers l'affichage. Elle annonçait `Mpeg` là où le fichier, ffprobe et la V1
+/// écrivent tous `MP3`. La passe de vérité du 2026-11-23 a comparé 306 fichiers réels champ
+/// par champ : sur 182 écarts avec la V1, **c'est le seul où la V1 avait raison** — et la
+/// parité avec elle est la cible du projet (ADR 0004).
+///
+/// Les noms sont ceux que la V1 affichait, relevés dans son code et confirmés par le cache
+/// de la V1 installée (`FLAC`, `MP3`, `WAV`). `Vorbis` est le seul choix neuf : la V1
+/// repliait le `.ogg` sur « Other », ce qui n'est pas un nom de format. On nomme le codec,
+/// comme pour ALAC et AAC, puisque OGG n'est que le conteneur.
+///
+/// Et surtout : une table explicite est liée par un contrat, un `Debug` ne l'est pas. Une
+/// mise à jour de lofty peut renommer un variant sans que rien ne bronche — ici, elle ne
+/// compile plus ou fait rougir `src-tauri/tests/bibliotheque/format.rs`.
+pub fn nom_de_format(type_fichier: FileType, bits: Option<u8>) -> Option<&'static str> {
+    Some(match type_fichier {
+        FileType::Flac => "FLAC",
+        FileType::Mpeg => "MP3",
+        FileType::Wav => "WAV",
+        FileType::Aiff => "AIFF",
+        FileType::Vorbis => "Vorbis",
+        // Un `.m4a` est un conteneur MP4 : il peut porter de l'ALAC (sans perte) ou de
+        // l'AAC (avec perte). C'est la distinction qui compte pour un auditeur, et c'est
+        // elle que le `Debug` écrasait — les deux s'affichaient `Mp4`. lofty ne renseigne
+        // la profondeur de bits que pour le premier : c'est le test qu'utilisait la V1.
+        FileType::Mp4 if bits.is_some() => "ALAC",
+        FileType::Mp4 => "AAC",
+        // AAC brut (ADTS), sans conteneur MP4. L'extension `.aac` n'est pas scannée, mais
+        // lofty reconnaît le contenu, pas le nom du fichier.
+        FileType::Aac => "AAC",
+        _ => return None,
+    })
+}
+
 /// Lit les tags et les propriétés audio d'un fichier.
 ///
 /// Le repli quand un tag manque : le **nom de fichier** pour le titre, et la chaîne vide
@@ -60,6 +106,22 @@ pub fn lire(chemin: &Path) -> Result<Lues, Erreur> {
 
     let proprietes = fichier.properties();
     let tag = fichier.primary_tag().or_else(|| fichier.first_tag());
+    let bits = proprietes.bit_depth();
+
+    // Un type hors liste ne retombe PAS sur le `Debug` de lofty : c'est le défaut qu'on
+    // corrige, et il ne se voyait pas — `Mpeg` ressemble à un nom de format. Le repli se
+    // voit donc deux fois : « Unknown » dans l'interface, et une ligne dans le journal
+    // (INV-21 — ce qui n'est pas journalisé est invisible chez les testeurs). Le scan
+    // n'accepte que sept extensions : ce cas veut dire que le contenu d'un fichier ne
+    // correspond pas à son nom, ce qui se signale au lieu de se maquiller.
+    let format = nom_de_format(fichier.file_type(), bits).unwrap_or_else(|| {
+        tracing::warn!(
+            chemin = %chemin.display(),
+            type_lofty = ?fichier.file_type(),
+            "format audio hors des sept formats supportés"
+        );
+        FORMAT_INCONNU
+    });
 
     let texte = |lu: Option<std::borrow::Cow<'_, str>>| lu.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
     let titre = tag.and_then(|t| texte(t.title())).unwrap_or_else(|| {
@@ -90,9 +152,9 @@ pub fn lire(chemin: &Path) -> Result<Lues, Erreur> {
             // `as` tronquerait une durée absurde en une durée plausible ; `try_into` la
             // rend simplement nulle, ce qui se voit.
             duree_ms: u32::try_from(proprietes.duration().as_millis()).unwrap_or(0),
-            format: format!("{:?}", fichier.file_type()),
+            format: format.to_string(),
             echantillonnage: proprietes.sample_rate(),
-            bits: proprietes.bit_depth().map(u32::from),
+            bits: bits.map(u32::from),
             debit: proprietes.audio_bitrate(),
         },
         cle,
@@ -149,4 +211,43 @@ pub fn ecrire(chemin: &Path, edition: &Edition) -> Result<Lues, Erreur> {
     // LA relecture. Ce qui part vers la base vient du fichier, pas de ce qu'on croyait y
     // avoir écrit.
     lire(chemin)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{nom_de_format, FORMAT_INCONNU};
+    use lofty::file::FileType;
+
+    /// La prémisse, épinglée : le `Debug` de lofty n'est pas un nom de format.
+    ///
+    /// Si une version de lofty se mettait à écrire `MP3` dans son `Debug`, ce test
+    /// échouerait — et cet échec serait la bonne nouvelle. Il dit à la relecture suivante
+    /// pourquoi la table existe, sans avoir à relire un journal de session.
+    #[test]
+    fn le_debug_de_lofty_nest_pas_un_nom_de_format() {
+        assert_eq!(format!("{:?}", FileType::Mpeg), "Mpeg");
+        assert_eq!(nom_de_format(FileType::Mpeg, None), Some("MP3"));
+        assert_eq!(format!("{:?}", FileType::Mp4), "Mp4");
+    }
+
+    /// Le même conteneur MP4 rend deux noms, selon qu'il porte de l'ALAC ou de l'AAC.
+    #[test]
+    fn un_m4a_se_distingue_par_sa_profondeur_de_bits() {
+        assert_eq!(nom_de_format(FileType::Mp4, Some(16)), Some("ALAC"));
+        assert_eq!(nom_de_format(FileType::Mp4, None), Some("AAC"));
+    }
+
+    /// Le détecteur éprouvé contre la faute qu'il est censé voir : un type hors liste.
+    ///
+    /// `Opus` est un vrai variant de lofty que l'app ne supporte pas (il n'est ni dans les
+    /// features de symphonia ni dans `scan::EXTENSIONS`). La fonction doit rendre `None`,
+    /// et c'est `lire` qui journalise et affiche `FORMAT_INCONNU` — jamais un `Debug`.
+    #[test]
+    fn un_type_hors_liste_ne_rend_aucun_nom() {
+        for hors_liste in [FileType::Opus, FileType::Ape, FileType::Speex, FileType::WavPack] {
+            assert_eq!(nom_de_format(hors_liste, None), None, "{hors_liste:?}");
+            assert_eq!(nom_de_format(hors_liste, Some(24)), None, "{hors_liste:?}");
+        }
+        assert_ne!(FORMAT_INCONNU, format!("{:?}", FileType::Opus));
+    }
 }

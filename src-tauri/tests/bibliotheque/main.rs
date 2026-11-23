@@ -13,5 +13,6 @@ mod commun;
 
 mod album;
 mod edition;
+mod format;
 mod reprise;
 mod scan;
