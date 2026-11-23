@@ -418,7 +418,7 @@ fn la_base_se_reouvre_sans_perdre_la_bibliotheque() {
 }
 
 // =====================================================================================
-// Le champ `format` — un nom de format, jamais une représentation de débogage
+// INV-23 — un libellé destiné à l'affichage ne vient jamais d'un `{:?}`
 // =====================================================================================
 
 /// Chaque fixture rend le nom que la V1 affichait, sur les sept formats supportés.

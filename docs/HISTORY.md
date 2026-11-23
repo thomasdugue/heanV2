@@ -579,6 +579,63 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     rend le plus de toute la liste », ne surveille que **cinq** lectures `var(--x)` sans repli
     dans tout le projet : le chiffre est juste en phase 2, il mérite d'être revu quand les vues
     arriveront.
+- **2026-11-23** : **passe de vérité** — la V2 tournée sur la vraie bibliothèque de Thomas, et du
+  son en sortie. Tout ce que les phases 0 à 2 avaient construit n'avait été vérifié que par des
+  tests écrits par les sessions qui écrivaient le code, sur des fixtures fabriquées pour l'occasion.
+  Outil **jetable et hors produit** sous `tools/` : `passe-de-verite.sh` (3 sous-commandes),
+  `passe-de-verite-rapport.py` et un crate Rust **détaché** `tools/passe-de-verite/` qui dépend de
+  `hean` par chemin — donc ce qui est mesuré est le vrai code d'indexation et le vrai chemin audio,
+  pas une réécriture qui leur ressemble. `./check` ne le voit pas (`[workspace]` vide, et clippy et
+  cargo test tournent avec `--manifest-path src-tauri/Cargo.toml`). Lecture seule, sans exception.
+  - **Les comptes de la bibliothèque sont justes.** Sur 306 fichiers locaux : mêmes titres, mêmes
+    albums, mêmes artistes, mêmes doublons que la V1 — à **un** fichier près, et ce fichier pèse
+    **0 octet**. La V1 l'affichait en « Unknown Artist / Unknown Album » (ffprobe le refuse aussi) ;
+    la V2 le compte illisible et l'écarte. Les écarts d'albums et d'artistes du tableau en
+    découlent tous : à liste de pistes égale, le regroupement est identique.
+  - **La chaîne audio est bit-perfect sur un vrai fichier**, pas seulement sur une fixture : un FLAC
+    24 bits / 192 kHz de 6 min 25 décodé par `Decodeur` → chaîne transparente → `BackendAudio` sort
+    **identique octet pour octet** à ce qu'ffmpeg produit du même fichier (443 Mo comparés). La
+    sous-commande `verifier` refait la démonstration à la demande. Ce qui n'est **pas** prouvé, et
+    le dit : le dernier saut vers le périphérique, puisque le backend CoreAudio n'existe pas encore —
+    `jouer` passe par `afplay`.
+  - **Un arbitre tiers, et c'est lui qui rend le rapport concluant.** « La V1 dit *Rap*, la V2 dit
+    *Rap/Hip Hop* » n'apprend rien ; on demande donc à ffprobe ce que le fichier contient vraiment
+    et on attribue l'écart. Sur 182 écarts de métadonnée : **90 fois la V2 a raison** (la V1
+    tronquait les genres multi-valeurs, et ses durées MP3 étaient fausses d'une seconde), 36 sont
+    un **genre que la V1 complétait depuis internet** — feature non portée, lue dans son propre
+    drapeau `genre_enriched`, pas devinée —, 16 où les deux valeurs sont dans le fichier.
+  - **Le seul vrai défaut trouvé : le champ `format`.** La V2 stocke `format!("{:?}", file_type)`,
+    donc `Mpeg` là où tout le monde écrit `MP3`, sur les 40 MP3 de la bibliothèque. Un nom de
+    conteneur destiné à l'affichage ne doit pas être le `Debug` d'un type de bibliothèque tierce.
+    Pas corrigé ici — un prompt, une tâche — et c'est une correction de `library/metadonnees.rs`.
+  - **Ce que le rapport refuse de comparer, et le dit** : les pochettes. Le `cover_cache.json` de la
+    V1 ne contient que celles rapatriées d'internet (15 entrées locales sur 1828), la V2 ne les
+    indexe pas encore. Mettre les deux chiffres face à face aurait affiché un écart énorme et faux —
+    et un chiffre faux dans un rapport de vérité est pire qu'une case vide.
+  - **Le NAS n'a pas été touché** : 3 137 pistes V1 en SMB, mises de côté et comptées comme telles.
+    C'est une autre affaire (phase 5).
+  - **Ce que la relecture d'invariants a corrigé dans l'outil lui-même** (AVERTISSEMENT, aucune 🔴) :
+    un **vrai bug** — si l'analyse de la profondeur annoncée échouait, `verifier` retombait
+    silencieusement sur 24 bits, demandait à ffmpeg la mauvaise profondeur et **accusait la chaîne
+    audio** d'un écart venu de l'outil ; il s'arrête maintenant. Deux affirmations trop larges
+    resserrées (« la chaîne audio » → « la chaîne transparente, volume à 100 % » ; « c'est un défaut
+    de bit-perfect » → où regarder d'abord). Et le rapport **renormalisait la clé d'album de la V2**
+    avant de la comparer, ce qui aurait réparé en silence un défaut d'INV-01 : il la prend désormais
+    telle qu'elle est dans la base et **affirme** qu'elle est normalisée. Les 305 clés le sont —
+    c'est une mesure que les property tests ne peuvent pas faire, puisqu'ils éprouvent
+    `AlbumKey::new` et non ce qui est réellement écrit sur de vraies données.
+  - **Et un angle mort du harnais, qui n'est pas réparé ici** : `tools/passe-de-verite-rapport.py`
+    faisait 569 lignes et `check-sizes` restait vert, parce qu'il ne lit ni `.py` ni `.sh` — premier
+    fichier du dépôt à franchir la limite, dans une langue que le détecteur ne lit pas. Le fichier
+    est découpé (272 + 360, sous `tools/passe-de-verite/`), le trou du détecteur est signalé à la
+    session du harnais plutôt que rafistolé ici. `aucun-chemin-machine.test.ts` ne lit pas `.py`
+    non plus.
+  - **Née de tout ça : INV-23** — un libellé destiné à l'affichage ne vient jamais d'un `{:?}`
+    (🟡, couverture planifiée). Et le défaut `format` entre dans « Bugs connus » de `CLAUDE.md`,
+    que le protocole de fin de session demandait de tenir à jour et que personne ne réclamait :
+    le hook de fin de tâche ne se déclenche que si `src/` ou `src-tauri/src/` a bougé, et ici rien
+    n'avait bougé. Un défaut connu d'une session et invisible à la suivante, c'est la dérive de
+    documentation de V1 en miniature.
 - **2026-11-23** (suite) : **le champ `format` disait `Mpeg`, il dit `MP3`.** Le seul défaut des
   182 écarts de la passe de vérité où la V1 avait raison, corrigé avec la vérification qui
   l'aurait vu.
@@ -649,11 +706,14 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     indéfiniment. Impact nul aujourd'hui — aucune bibliothèque livrée, aucune vue n'affiche
     `format` — mais le mécanisme doit être nommé avant la phase 6, sinon le prochain correctif
     de ce genre sera vert au test et invisible chez les testeurs.
-  - **Signalé sans être corrigé — une règle candidate, que je n'ai pas classée.** La famille du
-    défaut est plus large que le champ corrigé : *une représentation de débogage ne part jamais vers
-    l'affichage*. Elle est mécanisable — un test d'architecture qui refuse `format!("{:?}", …)` sur
-    tout ce qui alimente un champ d'IPC. Mais une règle neuve demande sa **gravité**, et le skill dit
-    qu'elle est 🔴 par défaut jusqu'à ce que Thomas la classe : or 🔴 serait faux ici (ce n'est ni
-    une perte de données ni une app inutilisable), et la classer moi-même lui attribuerait une
-    décision qu'il n'a pas prise — la leçon de l'ADR 0009. **À trancher par lui**, dans sa propre
-    tâche. Et le nom affiché pour le `.ogg` avec.
+  - **La règle candidate existait déjà, et les deux sessions l'ont écrite de la même main.** En
+    fusionnant `main`, INV-23 — « un libellé destiné à l'affichage ne vient jamais d'un `{:?}` »,
+    🟡 — était là : la passe de vérité l'avait posée en même temps qu'elle trouvait le défaut,
+    avec `couverture : planifiée (phase 3)`. Je ne l'ai donc pas proposée à Thomas, je l'ai
+    **branchée** : `couverture : test bibliotheque.rs`, la section du test cite la règle, et les
+    comptes de `CLAUDE.md` suivent (6 actives, 9 planifiées). Le défaut quitte « Bugs connus »
+    par la même occasion. Une règle née d'un défaut et refermée par le correctif du même défaut :
+    c'est exactement la boucle que l'ADR 0005 demande, et elle s'est fermée sans que personne
+    n'ait à s'en souvenir — `./check` recomptait.
+  - **Reste à l'arbitrage de Thomas** : le nom affiché pour le `.ogg` (`Vorbis`, là où la V1
+    repliait sur « Other »). Zone `choix-produit`, aucun `.ogg` dans sa bibliothèque.

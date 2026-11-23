@@ -7,3 +7,4 @@
 - [Assertions de matière réelle](verifier-les-assertions-de-matiere-reelle.md) — les marges mesurées des cinq seuils, et le piège `sources(d, exts, RACINE)` qui désarme la garde de corpus vide.
 - [Dérogation examples/ à INV-21](derogation-examples-inv-21.md) — exception à une règle 🔴 écrite sans ADR, et le rouge volontaire attendu au merge de la migration.
 - [Périmètre de check-sizes](perimetre-de-check-sizes.md) — `src-tauri/tests/` est hors du scan des 400 lignes, et `bibliotheque.rs` dépasse déjà.
+- [Périmètre de la règle des 400 lignes](perimetre-de-la-regle-des-400-lignes.md) — check-sizes ne lit ni .py ni .sh : le wc -l à faire soi-même.
