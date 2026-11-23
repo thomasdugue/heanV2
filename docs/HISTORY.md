@@ -957,3 +957,35 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     (PR #8), et c'est à ce moment-là qu'il faudra l'ajouter. Écrit dans la liste « reste à
     brancher » en tête de [`check`](../check), avec l'angle mort d'INV-06 qui le double.
 
+
+- **2026-11-24** (coquille visible) : une fenêtre à ouvrir, avant la phase 3. Le plan plaçait
+  l'interface en phase 4 — Thomas n'avait donc encore jamais rien vu de la V2, et ne jugeait que
+  sur des rapports. Cette session insère une coquille **délibérément laide** : la vraie
+  bibliothèque lue par le code de la phase 2, un dossier à désigner, un scan dont le rapport
+  s'affiche. **Zéro ligne de Rust, zéro commande IPC ajoutée** : les quatre dont la coquille a
+  besoin (`list_tracks`, `library_roots`, `add_library_root`, `scan_library`) existaient depuis la
+  phase 2.
+  - **Le son n'y est pas, et c'est une décision de Thomas.** Le moteur de la phase 1 décode et
+    sait écrire un WAV, mais le backend CoreAudio n'existe pas : le seul `BackendAudio` implémenté
+    écrit un fichier. Trois options lui ont été posées — `afplay` provisoire, bouton éteint, ou
+    écrire CoreAudio d'abord. Il a choisi **bouton éteint** : pas de son provisoire à jeter. La
+    fenêtre le dit en clair, pour que l'absence ne soit pas prise pour une panne.
+  - **Un garde-fou a résisté à la consigne « aucun design », et il avait raison.** La consigne
+    disait de ne pas toucher aux tokens ; écrire `Canvas`/`CanvasText` à la place a **vidé le
+    corpus d'INV-20** (`css-variables-definies`) — ces deux lectures étaient les seules
+    `var()` de tout le projet, et le détecteur de « la règle la plus rentable de la liste »
+    passait au vert sans plus rien surveiller. La coquille garde donc deux variables, fond et
+    texte, et rien d'autre : on ne désarme pas un garde-fou pour du code jetable.
+  - ⚠️ **Le même détecteur lit les commentaires.** Un commentaire CSS qui *parle* de `var(--x)`
+    le fait rougir : `regles-css.ts` n'appelle pas `sansCommentaires`, qui existe pourtant dans
+    `_lecture.ts`. Faux positif rencontré en écrivant ce commentaire-là. Non corrigé — hors
+    périmètre de cette session.
+  - ⚠️ **`~/Library/Application Support/hean/` existe maintenant chez Thomas**, créé par le
+    premier lancement de la V2 (base vide, 32 Ko). Il n'existait pas avant — `tools/passe-de-verite`
+    s'interdisait même de le créer pour cette raison. La migration `noir/` → `hean/` de la PR #8
+    copie puis vérifie puis supprime : **elle doit vérifier ce qu'elle fait d'un dossier déjà
+    présent.** À dire à la session de la PR #8 avant son merge.
+  - **Pas vérifié de visu** : l'accès à l'écran a été refusé, donc personne n'a encore regardé
+    la fenêtre. Et **la mesure mémoire manque** : la base de la V2 étant vide, il n'y avait rien
+    à afficher à mesurer, et l'allocation de la session s'est arrêtée pendant la compilation en
+    release. Première chose à faire au prochain passage.
