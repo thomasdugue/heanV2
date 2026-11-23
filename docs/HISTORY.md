@@ -471,3 +471,88 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   - **Prochaine étape, choisie par Thomas : la migration `noir/` → `hean/` avant les vues.**
     Sécuriser la bibliothèque des ~50 testeurs d'abord. Zone jamais déléguée, fixtures à tirer
     d'une copie réelle d'un dossier `noir/`, sa propre session.
+
+- **2026-11-23** (revue des détecteurs) : **les détecteurs du harnais répondent maintenant à deux
+  questions, pas une.** Née du défaut le plus instructif du 2026-11-22 : le détecteur d'INV-06
+  cherchait `\bTrack\b` là où specta émet `Track_Serialize[]`, donc il attrapait **zéro commande
+  sur huit** — une règle 🔴 BLOQUANT désarmée dès l'arrivée de la première matière réelle. Et son
+  **auto-test était vert pendant tout ce temps** : un auto-test prouve que le détecteur voit la
+  faute qu'on lui a *inventée*, jamais qu'il voit le code *réel*. Les deux assertions ne se
+  remplacent pas. Généralisé aux 11 fichiers de `tests/architecture/`, et la doctrine est dans
+  `hean-invariants` (section « Éprouver un détecteur plutôt que le supposer »).
+  - **Question 1 — « est-ce que je regarde quelque chose ? », tenue par mécanisme et non par
+    discipline.** Le lecteur partagé `_lecture.ts` **lève une erreur sur un corpus vide**. Il
+    rendait `[]` en silence, avec une bonne intention (« normal tant que la phase n'est pas
+    arrivée ») qui couvrait deux cas d'un coup : la zone pas encore née **et** la zone qu'on a
+    perdue de vue. Un 4ᵉ argument `videPrevu` les sépare — le premier s'écrit, le second échoue.
+    La garde vit dans le lecteur, donc un détecteur écrit demain en hérite sans que personne y
+    pense (ADR 0005). Éprouvé : une zone CSS renommée fait rougir un test qui passait au vert en
+    ne regardant rien.
+  - **Question 2 — « est-ce que je reconnais la matière réelle ? », cinq assertions ajoutées** là
+    où la matière est légitime et abondante : le vrai import `@tauri-apps` (qui ne vit que dans
+    `bindings.ts`, généré — `client.ts` n'en importe aucun), les couleurs du `tokens.css` généré,
+    les deux moitiés d'INV-20, les arêtes résolues du graphe d'imports, les citations de chemins
+    de tests. **La mesure vaut mieux que l'argument** : en cassant `imports()`, les trois
+    interdictions d'`ipc.test.ts` restent **VERTES** et seules les deux nouvelles assertions
+    rougissent. C'est le mode de panne d'INV-06, reproduit à la demande.
+  - **Et une assertion s'est révélée plus faible que son commentaire.** Casser le détecteur
+    d'hexadécimaux laissait mon assertion verte : `tokens.css` porte 22 hex *et* 11 `rgba()`, donc
+    le compte restait au-dessus du seuil. Éprouvée alors par le **vrai** scénario — le générateur
+    passe à `color(display-p3 …)` — elle rougit, et l'auto-test reste vert. L'injection doit viser
+    le risque qu'on a écrit, pas le détecteur en général.
+  - **L'angle mort de `src-tauri/examples/` est écrit, et la liste des exceptions est assertée.**
+    `examples/migrer.rs` porte des `println!` et échappait à INV-21 — non par décision mais par
+    **omission** : `RUST()` nomme deux dossiers, tout le reste passait. Même forme que `build.rs`,
+    qui était hors scan *et* expliqué. Désormais tout `.rs` posé hors des dossiers scannés fait
+    rougir `./check` tant que sa dérogation n'est pas écrite ici, avec sa justification. La
+    dérogation d'`examples/` est écrite **d'avance** (le dossier arrive avec la migration
+    `noir/` → `hean/`) et porte une note `muet` qui **se périme d'elle-même** : le jour où le
+    dossier apparaît, le test rougit et demande de la retirer. Une dérogation se confirme quand
+    elle entre en vigueur, elle ne s'hérite pas en silence.
+  - **Trois détecteurs sont muets, et c'est écrit.** INV-04 (`unwrap_or_default` sur un
+    identifiant) n'a rien à trouver avant la phase 5 ; Svelte 4 rien avant la phase 3, qui apporte
+    les vues ; les chemins de machine sont une interdiction dont zéro trouvaille est l'état sain.
+    Chacun porte en commentaire pourquoi il est muet et quelle phase le rendra bavard. Un silence
+    expliqué n'est pas un angle mort ; un silence non écrit en est un.
+  - Chaque modification éprouvée par injection avant d'être commitée — 10 injections, toutes
+    rouges puis remises par **copie**, jamais par `git checkout <fichier>` (payé le 2026-11-22 :
+    deux modifications perdues). `./check` vert, 19 vérifications, 53 tests d'architecture (44
+    avant).
+  - **`invariant-guardian` a trouvé deux défauts dans mon propre travail, et les deux étaient de
+    la famille que cette session ferme.** (1) La garde de corpus vide **se désarmait sur une
+    faute de frappe** : `fichiers(d, exts, racine, videPrevu)` d'un côté, `sources(d, exts,
+    videPrevu)` de l'autre, donc écrire `sources(d, exts, RACINE)` par mimétisme posait
+    `videPrevu = RACINE` — garde levée, en silence, sans que TypeScript voie rien, les deux
+    étant des `string`. Les options sont devenues un objet, et une raison trop courte est
+    refusée : le lecteur partagé était **moins exigeant que le test qui l'utilise**
+    (`HORS_SCAN` vérifiait déjà la longueur de sa justification). (2) Le seuil des couleurs
+    (`> 10` sur 33) était vert dès qu'**une seule** famille de notation restait reconnue : 22
+    hexadécimaux ou 11 `rgba()` suffisaient. Il mesurait « au moins une notation est vue » là
+    où son commentaire promettait « le détecteur est entier » — remplacé par une assertion par
+    famille, ce qui supprime le seuil arbitraire. Et une faute pré-existante de la même
+    famille, relevée au passage : l'auto-test « les **quatre** macros » en assertait **trois**
+    pour un détecteur qui en connaît **cinq** — `print!` et `eprint!` n'étaient éprouvés par
+    rien.
+  - **Une question reste chez Thomas, et elle n'est pas close.** Le texte d'INV-21 dit « toute
+    exception passera par un ADR » ; la dérogation d'`examples/` n'en a pas. Je ne l'ai pas
+    tranchée : écrire l'ADR reviendrait à attribuer à Thomas une décision qu'il n'a pas prise
+    (la leçon de l'ADR 0009, le 2026-11-22), et amender le texte d'une règle qu'il a classée
+    🔴 serait l'affaiblir. La question est donc écrite dans `backend.test.ts`, à l'endroit où
+    on la lira. Rien n'est exempté aujourd'hui : le dossier n'existe pas sur cette branche.
+  - **Signalé sans être corrigé, deuxième lot** — deux corpus incomplets, de la même famille que
+    l'asymétrie d'INV-06 fermée en phase 2 : `aucun-chemin-machine.test.ts` et
+    `references-de-tests.test.ts` ne scannent **pas `tests/`**. Un chemin de machine ou une
+    référence morte dans un fichier de test échapperait aux deux. ⚠️ Et le correctif a un
+    piège mesuré : y ajouter `tests/` fait rougir les **auto-tests eux-mêmes**, dont les
+    échantillons citent exprès `tests/architecture/ipc-renomme.test.ts` et
+    `tests/export_bindings.rs`, qui n'existent pas. Il faudra donc la forme qu'emploie déjà
+    `une-seule-cle-dalbum.test.ts` : une exception sur un chemin **exact**, celui de
+    l'auto-test. Sa propre tâche. Enfin, transmis par la session de phase 2 :
+    `src-tauri/src/store.rs` n'a plus aucun appelant depuis la phase 2 — arbitrage chez Thomas.
+  - **Signalé sans être corrigé** (chaque point irait dans sa propre tâche) : `ipc.test.ts`
+    nomme `src/ipc/client.ts` comme le point d'entrée unique vers Tauri, alors que le seul
+    fichier qui importe `@tauri-apps` est `bindings.ts`, généré — le commentaire et le code
+    disent deux choses différentes, et c'est le commentaire qui a tort. Et INV-20, « la règle qui
+    rend le plus de toute la liste », ne surveille que **cinq** lectures `var(--x)` sans repli
+    dans tout le projet : le chiffre est juste en phase 2, il mérite d'être revu quand les vues
+    arriveront.

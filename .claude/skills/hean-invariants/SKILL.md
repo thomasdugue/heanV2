@@ -243,7 +243,13 @@ dette **visible**, que `./check` recompte à chaque passage.
   se passe chez les testeurs. Un défaut visuel se voit et se répare ; être aveugle ne se voit
   pas. Et le coût de la règle est nul — écrire dans le journal demande exactement le même
   effort qu'écrire dans le vide. Toute exception passera par un ADR.
-  `build.rs` est hors scope : ses `println!("cargo::…")` sont le protocole de Cargo.
+  **Deux dossiers sont hors du scan, et la liste est désormais assertée** (2026-11-23) :
+  `build.rs`, dont les `println!("cargo::…")` sont le protocole de Cargo, et
+  `src-tauri/examples/`, dont les exemples se lancent à la main — sans sortie ils n'ont aucun
+  intérêt, et ils ne sont pas dans le binaire livré, donc ils ne peuvent pas rendre l'app
+  aveugle chez un testeur, ce que la règle protège. `backend.test.ts` refuse maintenant tout
+  `.rs` posé hors des dossiers scannés sans dérogation écrite : en ajouter une demande de
+  toucher au test, au lieu de se produire par omission.
 
 ### INV-22 — L'intégrité d'un fichier audio ne se vérifie jamais avec le décodeur
 - pile : test
@@ -361,6 +367,26 @@ censé voir.
 - **Et un test porté doit contenir une assertion.** Le corollaire, sans quoi la règle
   précédente se contourne sans le vouloir : `it('V005 — …', () => {})` serait compté porté
   **et** vert. Tenu par `contrat-complet.test.ts`.
+- **Un auto-test ne remplace pas la matière réelle.** Un auto-test prouve que le détecteur voit
+  la faute **qu'on lui a inventée**. Il ne prouve pas qu'il voit le code **réel** : les deux
+  assertions ne se remplacent pas. Payé sur INV-06, dont le détecteur cherchait `\bTrack\b` là où
+  specta émet `Track_Serialize[]` — zéro commande attrapée sur huit, règle 🔴 désarmée dès
+  l'arrivée de la première matière réelle, **auto-test vert pendant tout ce temps**. Un détecteur
+  qui dérive sa matière d'un **artefact généré** (`src/ipc/bindings.ts`, `tokens.css`,
+  `docs/generated/`) est le plus exposé : le format change sans que personne décide de le changer.
+  D'où, depuis le 2026-11-23, l'assertion « il trouve au moins N choses réelles » là où la matière
+  est légitime — et sa qualité principale est de **se périmer d'elle-même** le jour où cette
+  matière disparaît. Mesuré : casser un détecteur partagé laisse ses interdictions **vertes** et ne
+  fait rougir que cette assertion-là.
+- **Un corpus vide est une erreur, par mécanisme.** Deuxième question, celle d'avant : *est-ce que
+  je regarde quelque chose ?* Un détecteur pointé sur un dossier renommé ne trouve rien et passe au
+  vert. La garde vit dans le lecteur partagé (`tests/architecture/_lecture.ts`), pas dans chaque
+  test, donc un détecteur écrit demain en hérite sans que personne y pense. Un vide légitime —
+  la zone n'existe pas encore — s'écrit `{ videPrevu: '<raison, et quelle phase le remplira>' }`,
+  et une raison trop courte est refusée.
+  **Un silence expliqué n'est pas un angle mort ; un silence non écrit en est un.** Même doctrine
+  pour un détecteur muet faute de matière (INV-04 avant la phase 5, Svelte 4 avant la phase 3) :
+  le commentaire dit pourquoi il est muet et quelle phase le rendra bavard.
 - ⚠️ **Nettoyer l'injection : arbre propre avant, ou copie.** `git checkout <fichier>` pour
   retirer une faute injectée **efface aussi le travail non commité du même fichier**. Payé le
   2026-11-22 : deux modifications perdues, repérées seulement parce qu'un renvoi s'était remis
