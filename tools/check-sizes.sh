@@ -37,6 +37,16 @@ limit=400
 #
 # ⚠️ `src-tauri/examples/` MANQUE ENCORE, et c'est écrit dans la liste « reste à brancher » en
 # tête de `check` : ce dossier n'existe pas sur main, il arrive avec la migration (PR #8).
+#
+# ⚠️ ET LA MARGE VA FONDRE À 8 LIGNES, écrit d'avance pour que ce rouge ne soit pas pris pour un
+# faux positif. Le « plus gros fichier du dossier à 274 lignes » ci-dessus est vrai sur main
+# aujourd'hui ; la migration (PR #8) apporte `src-tauri/tests/demarrage.rs` à **392 lignes**,
+# mesuré sur sa branche. Sous la limite, donc l'ajout de la zone reste gratuit — mais c'est le
+# fichier où atterrira chaque test futur de la séquence de démarrage, donc **le premier test
+# ajouté là-dedans fera rougir `./check`, et ce sera un VRAI signal**, pas un défaut de ce
+# détecteur : il faudra découper, pas désactiver. Relevé par la session de relecture de la PR #8,
+# qui a eu raison de ne pas découper par avance — découper pour huit lignes de marge quand rien
+# ne dépasse serait du zèle, et ce dépôt découpe quand ça arrive.
 ZONES=(src src-tauri/src tests src-tauri/tests tools check)
 
 # Ce qui n'est pas du code à lire d'un bout à l'autre. Chaque exception a sa raison :
