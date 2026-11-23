@@ -986,6 +986,24 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     copie puis vérifie puis supprime : **elle doit vérifier ce qu'elle fait d'un dossier déjà
     présent.** À dire à la session de la PR #8 avant son merge.
   - **Pas vérifié de visu** : l'accès à l'écran a été refusé, donc personne n'a encore regardé
-    la fenêtre. Et **la mesure mémoire manque** : la base de la V2 étant vide, il n'y avait rien
-    à afficher à mesurer, et l'allocation de la session s'est arrêtée pendant la compilation en
-    release. Première chose à faire au prochain passage.
+    la fenêtre. La preuve est donc indirecte, et elle vaut ce qu'elle vaut : voir la mesure.
+  - **Premier chiffre mémoire de la V2 : 78 Mo** (`phys_footprint` cumulé, natif + les trois
+    processus WebKit), avec **305 pistes affichées**. Mesuré sur le binaire de **développement**,
+    donc pessimiste : JS non minifié et sourcemaps dans la WebView. Détail : `hean` 104 Mo de RSS,
+    WebKit GPU 32, Networking 30, WebContent 71. Le RSS cumulé (237 Mo) surcompte les pages
+    partagées — c'est le `footprint` qui est la mémoire réellement attribuée, et c'est lui qu'il
+    faut comparer au budget de 100 Mo.
+    - **La mesure n'a pas pu être prise sur la vraie base de Thomas**, qui est vide : les 305
+      pistes ont été indexées par `tools/passe-de-verite scanner` (le vrai code de la phase 2)
+      sur ses vrais fichiers, dans une base jetable copiée dans un `HOME` isolé. Sa
+      bibliothèque n'a pas été touchée.
+    - ⚠️ **Et c'est aussi la seule preuve que la fenêtre affiche bien quelque chose.** Première
+      mesure, Vite n'était pas lancé : fenêtre blanche, WebContent à **29 Mo**. Deuxième, avec
+      le serveur debout et la base chargée : **71 Mo**. Les 42 Mo d'écart sont les 305 lignes.
+      Un chiffre qui monte n'est pas une preuve élégante, mais c'en est une — alors qu'un
+      « l'app démarre » n'en aurait pas été une du tout.
+    - **Le profil release n'a pas pu être mesuré** : `npm run tauri build` s'arrête sur le
+      `compile_error!` des secrets compile-time (`HEAN_SENTRY_DSN`, `NOIR_WORKER_*`), par
+      conception. Il faut `HEAN_ALLOW_MISSING_SECRETS=1` pour un build de test — non fait,
+      l'allocation de la session s'est arrêtée là. C'est ce chiffre-là qui compte pour le
+      budget, et il reste à prendre.
