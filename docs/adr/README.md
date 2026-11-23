@@ -19,11 +19,13 @@ qui doit désigner exactement un fichier — ce qu'aucun vérificateur de liens 
 
 ⚠️ **Mais `check-adr.mjs` ne voit que la branche courante** : il lit les fichiers suivis par git,
 donc il ne peut pas détecter une collision avec une branche vivante tant qu'elle n'a pas fusionné.
-**Le numéro se prend donc en regardant ce tableau ET les PR ouvertes.** Le trou à 0010 en est la
-trace : ce numéro a été pris le 2026-11-23 par la PR de migration des données de V1, encore
-ouverte, et la décision suivante a donc pris 0011 plutôt que de rejouer la collision du 2026-11-22.
-Un trou dans la numérotation ne coûte rien ; deux décisions sous le même numéro ont coûté une
-heure et huit renvois à corriger.
+**Le numéro se prend donc en regardant ce tableau ET les PR ouvertes.** C'est arrivé une seconde
+fois le 2026-11-23, et cette fois sans dégât : 0010 était déjà pris par la PR de migration des
+données de V1, encore ouverte et donc invisible pour `check-adr.mjs`. Les deux branches auraient
+passé `./check` chacune de son côté, et la collision n'aurait éclaté qu'au merge. La décision
+suivante a donc pris **0011**, et les deux numéros sont arrivés intacts — c'est l'état qu'on lit
+aujourd'hui dans le tableau. Un trou temporaire dans la numérotation ne coûte rien ; deux
+décisions sous le même numéro ont coûté une heure et huit renvois à corriger.
 
 | # | Décision | État |
 |---|---|---|

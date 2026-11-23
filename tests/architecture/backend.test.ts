@@ -55,12 +55,12 @@ const HORS_SCAN: readonly { motif: string; pourquoi: string; muet?: string }[] =
       "un exemple se lance à la main en ligne de commande : sans sortie sur stdout il n'a aucun " +
       "intérêt, et il n'est pas dans le binaire livré, donc il ne peut pas rendre l'app aveugle " +
       'chez un testeur — ce que la règle protège. Même forme que build.rs',
-    // **En vigueur depuis le 2026-11-23**, avec l'arrivée d'`examples/migrer.rs` (migration
-    // noir → hean). La dérogation avait été écrite d'avance et marquée muette ; ce jour-là
-    // le second test ci-dessous a rougi pour réclamer cette confirmation, et c'est
-    // exactement ce qu'on lui demandait de faire. Le seul fichier couvert à ce jour est
-    // `examples/migrer.rs`, qui lance la migration sur deux chemins donnés et imprime son
-    // rapport : la vérification sur données réelles le lit depuis un script shell.
+    // **EN VIGUEUR depuis le 2026-11-23**, avec l'arrivée de `examples/migrer.rs` et de la
+    // migration noir → hean. La dérogation avait été écrite d'avance, portant une note
+    // « muet » qui s'est périmée d'elle-même : à la fusion, le second test ci-dessous a
+    // rougi et demandé de la retirer — ce que fait ce commit. Le mécanisme a donc servi
+    // pour de vrai, et c'est ce qu'on lui demandait : une dérogation se confirme au moment
+    // où elle entre en vigueur, elle ne s'hérite pas en silence.
   },
 ];
 

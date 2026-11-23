@@ -615,7 +615,7 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   - **Le numéro 0011 et non 0010, et c'est le défaut du 2026-11-22 évité de justesse.**
     `tools/check-adr.mjs` ne lit que les fichiers suivis par git **sur la branche courante** :
     il ne peut donc pas voir une collision avec une branche vivante. Le 0010 est pris par la PR
-    de migration, encore ouverte — deux branches auraient passé `./check` chacune de leur côté
+    de migration, alors ouverte — deux branches auraient passé `./check` chacune de leur côté
     et la collision n'aurait éclaté qu'au merge. La règle de numérotation de
     [`docs/adr/README.md`](adr/README.md) dit maintenant « ce tableau **et** les PR ouvertes »,
     et le trou à 0010 y est expliqué pour que personne ne le reprenne. Un trou ne coûte rien ;
