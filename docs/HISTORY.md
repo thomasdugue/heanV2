@@ -826,6 +826,18 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     - **`src-tauri/examples/` n'existe pas** : aucun garde-fou ne peut l'oublier tant qu'il n'est pas
       créé, et `backend.test.ts` refuse déjà tout `.rs` hors des dossiers scannés (ADR 0011). Le
       jour où il est créé, ces deux listes de zones sont à relire.
+      > ⚠️ **Nuance mesurée le 2026-11-23, ajoutée sans retirer la phrase ci-dessus.** Ce filet est
+      > plus mince qu'il n'y paraît, et la deuxième moitié de la phrase — « ces deux listes de
+      > zones sont à relire » — est en fait tout ce sur quoi on peut compter. Simulé : à l'arrivée
+      > d'un `src-tauri/examples/` contenant du `excluded_paths`, `backend.test.ts` rougit **une
+      > fois**, par la note « muet » de sa dérogation, qui signale que **le dossier vient
+      > d'apparaître** et non la faute qu'il contient — et il se taira dès que la note sera
+      > retirée, puisque c'est le but de la dérogation accordée par l'ADR 0011. Pendant ce temps
+      > `une-seule-source-de-pistes.test.ts` reste à **zéro test rouge** : la violation d'**INV-06
+      > (🔴)** passe en silence, complètement. Donc le filet ne couvre qu'INV-21, et pour un seul
+      > passage. Ajouté par la session du harnais parce que la session qui a écrit la phrase est
+      > archivée et ne peut plus la nuancer elle-même ; ses mots sont laissés intacts, une
+      > affirmation fausse effacée sans trace étant pire qu'une affirmation fausse encadrée.
     - **Un garde-fou hors `tools/` et `architecture/`, signalé par `invariant-guardian` et non
       corrigé** : `.claude/hooks/contrat-de-fin-de-tache.sh`, ligne 56, ne reconnaît un test de
       régression que dans `^(tests/|src-tauri/src/.*test)`. Un correctif dont le test arrive dans
