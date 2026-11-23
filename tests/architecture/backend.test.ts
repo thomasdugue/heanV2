@@ -25,15 +25,13 @@ const RUST = () => DOSSIERS_SCANNES.flatMap((d) => sources(d, ['.rs']));
  * scannés fait rougir `./check` tant que sa dérogation n'est pas écrite ici. C'est la
  * différence entre une dérogation et un oubli.
  *
- * ⚠️ **QUESTION OUVERTE CHEZ THOMAS, posée le 2026-11-23.** Le texte d'INV-21 dit « toute
- * exception passera par un ADR », et celle d'`examples/` n'en a pas. Elle est écrite et
- * justifiée, ce qui vaut mieux que l'omission qu'elle remplace — mais écrite n'est pas
- * *décidée*, et une exception à une règle 🔴 se classe comme la règle : par Thomas. Rien
- * n'est exempté aujourd'hui (le dossier n'existe pas encore sur cette branche), donc la
- * question peut attendre sa réponse. Elle ne doit pas se perdre : soit un ADR porte la
- * dérogation, soit Thomas décide qu'une dérogation qui ne touche pas le binaire livré se
- * passe d'ADR — et c'est alors le texte de la règle qui s'ajuste, pas le harnais.
- * Relevé par `invariant-guardian`.
+ * **Le texte d'INV-21 exige un ADR pour toute exception, et il y en a un** :
+ * `docs/adr/0011-derogation-inv-21-pour-les-exemples.md`, tranché par Thomas le 2026-11-23.
+ * Relevé par `invariant-guardian` : une exception écrite est *visible*, ce qui vaut mieux
+ * qu'une omission — mais visible n'est pas *décidée*, et une exception à une règle 🔴 se
+ * classe comme la règle. Lire cet ADR avant d'ajouter une entrée ci-dessous : il dit sur
+ * quoi la dérogation tient (un exemple n'est pas dans le binaire livré, propriété de Cargo
+ * et non bonne conduite de qui l'écrit), donc ce qu'une nouvelle entrée devrait prouver.
  */
 /**
  * Un motif qui finit par `/` désigne un DOSSIER et couvre ce qu'il contient ; sinon il

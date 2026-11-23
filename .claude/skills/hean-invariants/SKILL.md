@@ -243,7 +243,8 @@ dette **visible**, que `./check` recompte à chaque passage.
   se passe chez les testeurs. Un défaut visuel se voit et se répare ; être aveugle ne se voit
   pas. Et le coût de la règle est nul — écrire dans le journal demande exactement le même
   effort qu'écrire dans le vide. Toute exception passera par un ADR.
-  **Deux dossiers sont hors du scan, et la liste est désormais assertée** (2026-11-23) :
+  **Deux dossiers sont hors du scan, la liste est assertée, et la dérogation est tracée par
+  l'[ADR 0011](../../../docs/adr/0011-derogation-inv-21-pour-les-exemples.md)** (2026-11-23) :
   `build.rs`, dont les `println!("cargo::…")` sont le protocole de Cargo, et
   `src-tauri/examples/`, dont les exemples se lancent à la main — sans sortie ils n'ont aucun
   intérêt, et ils ne sont pas dans le binaire livré, donc ils ne peuvent pas rendre l'app
@@ -410,10 +411,13 @@ premières sont des pièges de Svelte 5, la troisième est le seul risque réel.
 ## Décisions techniques actées
 
 Elles ne sont pas des invariants : ce sont des choix, et leur place est dans
-[`docs/adr/`](../../../docs/adr/). Les sept ADR en vigueur : réécrire de zéro (0001), la
-stack (0002), le dossier de données (0003), la cible de parité visuelle (0004), l'entretien
-du harnais et l'orchestration (0005), le socle de phase 0 (0006), le format interne audio et
-la preuve du bit-perfect (0007). **Un ADR ne se modifie pas : on en écrit un nouveau.**
+[`docs/adr/`](../../../docs/adr/) — dont l'[index](../../../docs/adr/README.md) est la liste à
+jour, vérifiée par `tools/check-adr.mjs` (aucune décision acceptée mais invisible). **Cette
+phrase portait la liste à la main, et elle annonçait « les sept ADR en vigueur » en en citant
+sept alors qu'il y en avait neuf** — 0008 et 0009 manquaient. Un nombre écrit à la main que
+personne ne recompte est un mensonge en attente (ADR 0005) : la liste est donc remplacée par
+le renvoi vers l'index, qui est tenu par une vérification. **Un ADR ne se modifie pas : on en
+écrit un nouveau.**
 
 Rappel des interdits qui en découlent et qui ne se rouvrent pas : **jamais CPAL** ·
 **bit-perfect = pas de resampling** · **macOS 11+ seulement, hors Mac App Store** ·
