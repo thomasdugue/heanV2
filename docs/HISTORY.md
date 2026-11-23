@@ -533,12 +533,35 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     famille, relevée au passage : l'auto-test « les **quatre** macros » en assertait **trois**
     pour un détecteur qui en connaît **cinq** — `print!` et `eprint!` n'étaient éprouvés par
     rien.
-  - **Une question reste chez Thomas, et elle n'est pas close.** Le texte d'INV-21 dit « toute
-    exception passera par un ADR » ; la dérogation d'`examples/` n'en a pas. Je ne l'ai pas
-    tranchée : écrire l'ADR reviendrait à attribuer à Thomas une décision qu'il n'a pas prise
-    (la leçon de l'ADR 0009, le 2026-11-22), et amender le texte d'une règle qu'il a classée
-    🔴 serait l'affaiblir. La question est donc écrite dans `backend.test.ts`, à l'endroit où
-    on la lira. Rien n'est exempté aujourd'hui : le dossier n'existe pas sur cette branche.
+  - **La question posée à Thomas, et sa réponse : l'ADR 0011.** Le texte d'INV-21 dit « toute
+    exception passera par un ADR » ; la dérogation d'`examples/` n'en avait pas. Je ne l'ai pas
+    tranchée moi-même — écrire l'ADR aurait attribué à Thomas une décision qu'il n'avait pas
+    prise (la leçon de l'ADR 0009, la veille), et amender le texte d'une règle qu'il a classée
+    🔴 l'aurait affaiblie. **Il a tranché pour l'ADR**, et c'est le bon côté : une exception
+    écrite est *visible*, ce qui vaut déjà mieux qu'une omission, mais visible n'est pas
+    *décidée*, et une exception à une règle 🔴 se classe comme la règle.
+    [`0011`](adr/0011-derogation-inv-21-pour-les-exemples.md) dit sur quoi la dérogation tient,
+    et c'est ce qui la rend tenable : **un exemple n'est pas dans le binaire livré** — Cargo ne
+    compile `examples/*.rs` que sur demande explicite — donc un `println!` qui y vit ne peut
+    pas rendre l'app aveugle chez un testeur, qui est exactement ce que la règle protège. La
+    dérogation repose sur une propriété de Cargo, pas sur la bonne conduite de qui écrira là.
+    Alternative sérieuse écartée, avec son pourquoi : y imposer `tracing`, qui écrit dans le
+    fichier de journal et non dans le terminal — on paierait le coût de la règle sans acheter
+    ce qu'elle protège, pour un outil que Thomas regarde défiler pendant qu'il vérifie une
+    copie réelle de sa bibliothèque.
+  - **Le numéro 0011 et non 0010, et c'est le défaut du 2026-11-22 évité de justesse.**
+    `tools/check-adr.mjs` ne lit que les fichiers suivis par git **sur la branche courante** :
+    il ne peut donc pas voir une collision avec une branche vivante. Le 0010 est pris par la PR
+    de migration, encore ouverte — deux branches auraient passé `./check` chacune de leur côté
+    et la collision n'aurait éclaté qu'au merge. La règle de numérotation de
+    [`docs/adr/README.md`](adr/README.md) dit maintenant « ce tableau **et** les PR ouvertes »,
+    et le trou à 0010 y est expliqué pour que personne ne le reprenne. Un trou ne coûte rien ;
+    deux décisions sous le même numéro ont coûté une heure et huit renvois.
+  - **Et une liste écrite à la main, périmée, supprimée plutôt que corrigée.** Le skill
+    annonçait « les sept ADR en vigueur » en citant sept alors qu'il y en avait neuf — 0008 et
+    0009 manquaient. Remplacée par un renvoi vers l'index, que `check-adr` vérifie déjà
+    (« une décision acceptée mais invisible » est une de ses erreurs). Corriger le nombre
+    l'aurait rendu faux au prochain ADR ; le supprimer le rend faux jamais.
   - **Signalé sans être corrigé, deuxième lot** — deux corpus incomplets, de la même famille que
     l'asymétrie d'INV-06 fermée en phase 2 : `aucun-chemin-machine.test.ts` et
     `references-de-tests.test.ts` ne scannent **pas `tests/`**. Un chemin de machine ou une
