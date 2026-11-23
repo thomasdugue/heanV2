@@ -29,7 +29,7 @@ export function piste(p: Partial<Track> & { path: string }): Track {
     disque: null,
     genre: null,
     duree_ms: 1000,
-    format: 'Flac',
+    format: 'FLAC',
     echantillonnage: 44100,
     bits: 16,
     debit: null,

@@ -414,3 +414,50 @@ fn la_base_se_reouvre_sans_perdre_la_bibliotheque() {
     assert_eq!(depot.lister_pistes().expect("liste").len(), 2);
     assert_eq!(depot.racines().expect("racines").len(), 1, "la racine aussi est persistée");
 }
+
+// =====================================================================================
+// Le champ `format` — un nom de format, jamais une représentation de débogage
+// =====================================================================================
+
+/// Chaque fixture rend le nom que la V1 affichait, sur les sept formats supportés.
+///
+/// Le défaut que ce test rejoue : `lire` remplissait `format` avec
+/// `format!("{:?}", fichier.file_type())`, c'est-à-dire le `Debug` d'un type de lofty
+/// envoyé vers l'affichage. Les 40 MP3 de la bibliothèque de Thomas annonçaient `Mpeg`, et
+/// les deux `.m4a` annonçaient tous les deux `Mp4` — ALAC et AAC confondus. C'était le seul
+/// des 182 écarts de la passe de vérité du 2026-11-23 où la V1 avait raison.
+///
+/// Remettre le `{:?}` fait rougir six des sept lignes ci-dessous. Et si une mise à jour de
+/// lofty renomme un variant, c'est ici que ça se voit, pas chez un testeur.
+#[test]
+fn chaque_format_supporte_rend_son_nom_daffichage() {
+    let attendu = [
+        ("flac-16-44.flac", "FLAC"),
+        ("mp3-320.mp3", "MP3"),
+        ("wav.wav", "WAV"),
+        ("aiff.aiff", "AIFF"),
+        // Même conteneur MP4, deux codecs : c'est la distinction que le `Debug` écrasait.
+        ("alac.m4a", "ALAC"),
+        ("aac.m4a", "AAC"),
+        ("vorbis.ogg", "Vorbis"),
+    ];
+
+    for (nom, format) in attendu {
+        // Lecture seule : aucune raison de recopier la fixture, rien n'écrit ici.
+        let lues = hean_lib::library::metadonnees::lire(&fixture(nom)).unwrap_or_else(|e| panic!("{nom} : {e}"));
+        assert_eq!(lues.track.format, format, "{nom}");
+    }
+}
+
+/// Les sept noms sont distincts deux à deux, sauf ALAC/AAC qui partagent leur conteneur.
+///
+/// Un nom en double passerait inaperçu dans le test ci-dessus — il suffirait que deux
+/// formats se replient sur la même chaîne. Ici, ça rougit.
+#[test]
+fn les_noms_de_format_ne_se_recouvrent_pas() {
+    let noms = ["FLAC", "MP3", "WAV", "AIFF", "ALAC", "AAC", "Vorbis"];
+    let mut vus: Vec<&str> = noms.to_vec();
+    vus.sort_unstable();
+    vus.dedup();
+    assert_eq!(vus.len(), noms.len(), "deux formats affichent le même nom");
+}

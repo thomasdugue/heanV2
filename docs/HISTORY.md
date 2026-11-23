@@ -579,3 +579,57 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     rend le plus de toute la liste », ne surveille que **cinq** lectures `var(--x)` sans repli
     dans tout le projet : le chiffre est juste en phase 2, il mérite d'être revu quand les vues
     arriveront.
+- **2026-11-23** (suite) : **le champ `format` disait `Mpeg`, il dit `MP3`.** Le seul défaut des
+  182 écarts de la passe de vérité où la V1 avait raison, corrigé avec la vérification qui
+  l'aurait vu.
+  - **La faute, et sa famille.** `metadonnees::lire` remplissait `format` avec
+    `format!("{:?}", fichier.file_type())` — la représentation de **débogage** d'un type de lofty
+    envoyée telle quelle vers l'affichage. Les 40 MP3 de la bibliothèque de Thomas annonçaient
+    `Mpeg` ; ffprobe dit `mp3`, la V1 écrivait `MP3`, et la parité avec elle est la cible
+    (ADR 0004). Les FLAC cachaient le reste : `Flac` ressemble à `FLAC`. Et un `Debug` **n'est lié
+    par aucun contrat** — une mise à jour de lofty peut renommer un variant sans que rien ne
+    bronche.
+  - **Le défaut invisible que le `Debug` cachait vraiment : ALAC et AAC confondus.** Les deux
+    s'affichaient `Mp4`, le nom du conteneur. C'est pourtant la distinction qui compte pour un
+    auditeur — sans perte contre avec perte. La table les sépare par la profondeur de bits, que
+    lofty ne renseigne que pour l'ALAC : le test sur `alac.m4a` et `aac.m4a` le prouve sur de
+    vrais fichiers, et c'est **le même test qu'employait la V1**.
+  - **Les sept noms, et un seul choix neuf.** `FLAC`, `MP3`, `WAV`, `AIFF`, `ALAC`, `AAC` sont
+    relevés dans le code de la V1, et les trois qui existent dans la bibliothèque de Thomas sont
+    confirmés par son cache (`FLAC` ×3 319, `MP3` ×79, `WAV` ×1). Le `.ogg` est le seul cas sans
+    précédent utilisable : la V1 le repliait sur « Other », qui n'est pas un nom de format. Choisi
+    **`Vorbis`**, le codec — comme ALAC et AAC — puisque OGG n'est que le conteneur. Aucun `.ogg`
+    dans la bibliothèque de Thomas : rien ne change pour lui, et le nom reste à son arbitrage.
+  - **Le repli se voit deux fois, et c'est la décision du correctif.** Un `FileType` hors des sept
+    ne retombe pas sur le `Debug` : il affiche `Unknown` **et** écrit une ligne dans le journal
+    (`tracing::warn!`, INV-21). Pourquoi deux : `Mpeg` ou `Mp4` passent pour des noms de format et
+    ne se signalent jamais, là où `Unknown` se lit comme un défaut ; et le scan n'accepte que sept
+    extensions, donc ce cas veut dire que le **contenu** d'un fichier ne correspond pas à son nom —
+    ce que Thomas doit pouvoir voir chez lui, pas seulement en dev. Pas une erreur : une piste dont
+    on ne sait pas nommer le format reste écoutable et reste dans la bibliothèque.
+  - **Trois tests, et le détecteur éprouvé par injection.** `chaque_format_supporte_rend_son_nom_daffichage`
+    lit les **sept fixtures réelles** et attend les sept noms ; remettre le `{:?}` fait rougir six
+    des sept lignes (seul `Vorbis` coïncide avec son `Debug`). Vérifié : faute injectée → rouge sur
+    `flac-16-44.flac` (`Flac` au lieu de `FLAC`), puis remise par **copie**, jamais par
+    `git checkout <fichier>` (payé le 2026-11-22). S'y ajoutent la prémisse épinglée — le `Debug` de
+    lofty vaut bien `Mpeg`, donc si une version future écrivait `MP3` le test rougirait, et cet
+    échec serait la bonne nouvelle — et le type hors liste éprouvé sur quatre variants que l'app ne
+    supporte pas (`Opus`, `Ape`, `Speex`, `WavPack`).
+  - **Rien ne s'appuyait sur l'ancienne valeur** : aucune vue n'affiche encore `format` (phase 3),
+    et `src/ipc/bindings.ts` le voit comme un `string`. Les deux fausses données de test qui
+    portaient `'Flac'` (`tests/ux/_faux-backend.ts`, `tests/unit/groupement.test.ts`) passent à
+    `'FLAC'` : un faux backend qui rend une valeur que le vrai ne peut plus produire est le début
+    d'une dérive.
+  - **`./check` était rouge au démarrage, et pour rien** : `fast-check` est déclaré dans
+    `package.json` depuis la phase 2 mais absent du `node_modules` de ce worktree, créé avant.
+    `npm install` suffit. Au passage, `npm` normalise une ligne de `package-lock.json`
+    (`^4.11.0` → `4.11.0`, le lockfile gardait le caret là où `package.json` épingle) : **rétablie,
+    hors scope**, mais la dérive est réelle et reviendra au prochain `npm install`.
+  - **Signalé sans être corrigé — une règle candidate, que je n'ai pas classée.** La famille du
+    défaut est plus large que le champ corrigé : *une représentation de débogage ne part jamais vers
+    l'affichage*. Elle est mécanisable — un test d'architecture qui refuse `format!("{:?}", …)` sur
+    tout ce qui alimente un champ d'IPC. Mais une règle neuve demande sa **gravité**, et le skill dit
+    qu'elle est 🔴 par défaut jusqu'à ce que Thomas la classe : or 🔴 serait faux ici (ce n'est ni
+    une perte de données ni une app inutilisable), et la classer moi-même lui attribuerait une
+    décision qu'il n'a pas prise — la leçon de l'ADR 0009. **À trancher par lui**, dans sa propre
+    tâche. Et le nom affiché pour le `.ogg` avec.
