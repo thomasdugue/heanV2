@@ -607,7 +607,7 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     extensions, donc ce cas veut dire que le **contenu** d'un fichier ne correspond pas à son nom —
     ce que Thomas doit pouvoir voir chez lui, pas seulement en dev. Pas une erreur : une piste dont
     on ne sait pas nommer le format reste écoutable et reste dans la bibliothèque.
-  - **Trois tests, et le détecteur éprouvé par injection.** `chaque_format_supporte_rend_son_nom_daffichage`
+  - **Quatre tests, et chacun éprouvé par injection.** `chaque_format_supporte_rend_son_nom_daffichage`
     lit les **sept fixtures réelles** et attend les sept noms ; remettre le `{:?}` fait rougir six
     des sept lignes (seul `Vorbis` coïncide avec son `Debug`). Vérifié : faute injectée → rouge sur
     `flac-16-44.flac` (`Flac` au lieu de `FLAC`), puis remise par **copie**, jamais par
@@ -615,6 +615,15 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     lofty vaut bien `Mpeg`, donc si une version future écrivait `MP3` le test rougirait, et cet
     échec serait la bonne nouvelle — et le type hors liste éprouvé sur quatre variants que l'app ne
     supporte pas (`Opus`, `Ape`, `Speex`, `WavPack`).
+  - **`invariant-guardian` a trouvé un faux test dans mon propre travail.** Un quatrième test,
+    « les noms ne se recouvrent pas », dédupliquait un **tableau littéral** et comparait sa
+    longueur à elle-même : vert quoi que fasse le code de production, avec une docstring qui
+    promettait le contraire. La famille exacte du détecteur d'INV-06 refermé la veille — celui
+    qui cherchait `\bTrack\b` là où specta émet `Track_Serialize[]` : zéro trouvaille sur huit
+    commandes, auto-test vert pendant tout ce temps. Réécrit pour **interroger la fonction** au
+    lieu de recopier sa table (sept appels, le conteneur MP4 comptant pour deux), puis éprouvé :
+    faire rendre « AAC » à l'ALAC rougit. Un test qui ne peut pas échouer coûte plus qu'un test
+    absent — il fait lire une garantie au lieu de l'écrire.
   - **Rien ne s'appuyait sur l'ancienne valeur** : aucune vue n'affiche encore `format` (phase 3),
     et `src/ipc/bindings.ts` le voit comme un `string`. Les deux fausses données de test qui
     portaient `'Flac'` (`tests/ux/_faux-backend.ts`, `tests/unit/groupement.test.ts`) passent à
@@ -625,6 +634,21 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     `npm install` suffit. Au passage, `npm` normalise une ligne de `package-lock.json`
     (`^4.11.0` → `4.11.0`, le lockfile gardait le caret là où `package.json` épingle) : **rétablie,
     hors scope**, mais la dérive est réelle et reviendra au prochain `npm install`.
+  - **Signalé sans être corrigé — `check-sizes.sh` ne voit pas `src-tauri/tests/`.** Sa boucle
+    nomme `src`, `src-tauri/src`, `tests` et `tools`. Or `src-tauri/tests/bibliotheque.rs` est
+    à **487 lignes**, au-delà de la limite de 400 que la règle dit « refusée par `./check` » —
+    dépassement antérieur à ce diff, mais qui grossit avec lui, et c'est le fichier où
+    atterriront les tests d'intégration des phases suivantes. Même angle mort, au même endroit,
+    que celui d'INV-21 refermé le 2026-11-22 (`src-tauri/tests/` était hors du scan de
+    `backend.test.ts`). **Ordre obligatoire** pour le correctif : découper `bibliotheque.rs`
+    d'abord — ses sections sont déjà marquées —, **puis** ajouter le dossier à la boucle ;
+    l'inverse rend `./check` rouge sur le champ. Sa propre tâche.
+  - **Signalé sans être corrigé — une correction de dérivation n'atteint pas une base déjà
+    peuplée.** `appliquer_scan` est différentiel (B03) : un fichier dont la taille **et** la
+    mtime n'ont pas bougé n'est pas relu, donc une base existante garderait `Mpeg`
+    indéfiniment. Impact nul aujourd'hui — aucune bibliothèque livrée, aucune vue n'affiche
+    `format` — mais le mécanisme doit être nommé avant la phase 6, sinon le prochain correctif
+    de ce genre sera vert au test et invisible chez les testeurs.
   - **Signalé sans être corrigé — une règle candidate, que je n'ai pas classée.** La famille du
     défaut est plus large que le champ corrigé : *une représentation de débogage ne part jamais vers
     l'affichage*. Elle est mécanisable — un test d'architecture qui refuse `format!("{:?}", …)` sur

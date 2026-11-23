@@ -9,7 +9,9 @@
 
 use std::path::{Path, PathBuf};
 
+use hean_lib::library::metadonnees::{lire, nom_de_format};
 use hean_lib::library::{Depot, Edition};
+use lofty::file::FileType;
 
 fn fixture(nom: &str) -> PathBuf {
     PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/audio")).join(nom)
@@ -444,20 +446,42 @@ fn chaque_format_supporte_rend_son_nom_daffichage() {
 
     for (nom, format) in attendu {
         // Lecture seule : aucune raison de recopier la fixture, rien n'écrit ici.
-        let lues = hean_lib::library::metadonnees::lire(&fixture(nom)).unwrap_or_else(|e| panic!("{nom} : {e}"));
+        let lues = lire(&fixture(nom)).unwrap_or_else(|e| panic!("{nom} : {e}"));
         assert_eq!(lues.track.format, format, "{nom}");
     }
 }
 
-/// Les sept noms sont distincts deux à deux, sauf ALAC/AAC qui partagent leur conteneur.
+/// Les sept formats supportés rendent sept noms distincts — et le test interroge la
+/// fonction, il ne recopie pas sa table.
 ///
-/// Un nom en double passerait inaperçu dans le test ci-dessus — il suffirait que deux
-/// formats se replient sur la même chaîne. Ici, ça rougit.
+/// Première écriture de ce test : il dédupliquait un **tableau littéral** et comparait sa
+/// longueur à elle-même. Vert quoi que fasse le code de production — « de la confiance sans
+/// en mériter », la famille exacte du détecteur d'INV-06 qui cherchait `\bTrack\b` là où
+/// specta émet `Track_Serialize[]` : zéro trouvaille sur huit commandes, auto-test vert
+/// pendant tout ce temps. Relevé par `invariant-guardian` sur ce diff même.
+///
+/// Les sept formats, c'est bien sept **appels** : le conteneur MP4 compte pour deux, selon
+/// qu'il porte de l'ALAC ou de l'AAC. Un nom en double y rougit maintenant, et un huitième
+/// format qui se replierait sur un nom existant aussi.
 #[test]
-fn les_noms_de_format_ne_se_recouvrent_pas() {
-    let noms = ["FLAC", "MP3", "WAV", "AIFF", "ALAC", "AAC", "Vorbis"];
-    let mut vus: Vec<&str> = noms.to_vec();
-    vus.sort_unstable();
-    vus.dedup();
-    assert_eq!(vus.len(), noms.len(), "deux formats affichent le même nom");
+fn les_sept_formats_rendent_sept_noms_distincts() {
+    let sept: [(FileType, Option<u8>); 7] = [
+        (FileType::Flac, None),
+        (FileType::Mpeg, None),
+        (FileType::Wav, None),
+        (FileType::Aiff, None),
+        (FileType::Vorbis, None),
+        (FileType::Mp4, Some(16)),
+        (FileType::Mp4, None),
+    ];
+
+    let noms: Vec<&str> = sept
+        .iter()
+        .map(|(t, bits)| nom_de_format(*t, *bits).unwrap_or_else(|| panic!("{t:?} n'a pas de nom")))
+        .collect();
+
+    let mut distincts = noms.clone();
+    distincts.sort_unstable();
+    distincts.dedup();
+    assert_eq!(distincts.len(), 7, "deux formats affichent le même nom : {noms:?}");
 }
