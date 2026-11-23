@@ -642,3 +642,58 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     rend le plus de toute la liste », ne surveille que **cinq** lectures `var(--x)` sans repli
     dans tout le projet : le chiffre est juste en phase 2, il mérite d'être revu quand les vues
     arriveront.
+- **2026-11-23** (relecture de la migration, puis correction) : **la relecture d'invariants que
+  la PR #8 laissait à faire a trouvé quatre défauts 🔴, et Thomas a demandé qu'ils soient
+  corrigés avant la fusion.** Aucun ne mettait les octets en danger — l'ordre copier →
+  vérifier → échanger → supprimer tient dans tous les chemins d'échec, vérifié un par un.
+  Tous les quatre faisaient perdre **la liste des pistes supprimées**, c'est-à-dire exactement
+  ce que `reprise_v1.rs` existe pour sauver. ADR 0012, INV-23. `./check` vert (19
+  vérifications), 23 invariants dont 6 actifs.
+  - **Le défaut principal, et il n'avait pas été vu par la PR : un échec de migration devenait
+    définitif.** `run()` ouvrait la bibliothèque **quoi qu'il arrive**, y compris juste après
+    un échec — et ouvrir la bibliothèque crée le dossier de données. Donc un seul fichier de
+    pochette illisible, et le lancement suivant trouvait un dossier « déjà peuplé » par la
+    base vide que V2 venait de créer lui-même : il renonçait **pour toujours**. Les 572 Mo du
+    dossier de V1 restaient invisibles, et les pistes supprimées revenaient au premier scan.
+  - **Pourquoi une PR entière ne l'a pas vu**, et c'est la leçon qui dépasse la migration : le
+    test censé prouver la propriété appelait `migrer_si_necessaire` **deux fois de suite**,
+    sans l'ouverture de base que `run()` fait entre les deux. Il concluait « le lancement
+    suivant peut retenter » au sujet d'un programme qui n'existe pas. La propriété vivait dans
+    `run()`, qui lance Tauri et n'est pas testable — donc c'était une phrase dans un document,
+    et une phrase dans un document ne peut pas échouer. D'où `demarrage.rs` : la séquence est
+    une **fonction**, et `tests/demarrage.rs` la rejoue en entier.
+  - **Les trois autres, tous mesurés avant d'être corrigés** : la table `reprises` avait été
+    ajoutée dans la migration **version 1 déjà livrée**, que le mécanisme ne rejoue jamais —
+    donc « no such table » à chaque démarrage sur toute machine ayant déjà lancé V2 (elle est
+    maintenant la version 2) · un `config.json` **illisible** posait le marqueur de reprise
+    quand même, ce qui perdait les exclusions **définitivement**, même après réparation du
+    fichier — V1 écrivait ses JSON sans écriture atomique, donc un fichier tronqué est le cas
+    réel · la reprise posait les **racines avant les exclusions**, chacune dans sa propre
+    transaction, si bien qu'un échec au milieu laissait « des dossiers de musique et aucune
+    exclusion » : le pire état possible est maintenant « des exclusions et aucune racine »,
+    rien à scanner donc rien à ressusciter.
+  - **Un test porté verrouille autant un bug qu'une règle.** Le test
+    `un_config_v1_illisible_ne_bloque_rien` affirmait le défaut n° 3 **avec sa justification**
+    (« on ne retentera pas éternellement de lire un fichier abîmé ») : l'échange troquait un
+    journal bruyant contre une violation silencieuse d'INV-06, et le prochain lecteur l'aurait
+    respecté. Le corriger demandait de défaire une assertion qui se présentait comme un choix
+    raisonné.
+  - **Deux mesures sur un volume APFS de 8 Mo, dont une bonne nouvelle.** Le disque plein se
+    comporte comme annoncé — `ENOSPC` nommé avec le fichier, aucun dossier d'arrivée, aucun
+    provisoire, source intacte au contenu. Et **la copie est un clone** : 5 Mo migrés avec
+    2 Mo libres, espace occupé inchangé. Donc le « pic transitoire de ~283 Mo » que l'ADR 0010
+    accepte comme conséquence **n'existe pas** — mais la vérification au contenu ne prouve pas
+    ce que son commentaire dit, puisque sur un clone les deux fichiers **sont** les mêmes
+    secteurs. Elle garde sa valeur contre une copie tronquée, qui est le cas réel visé.
+  - **Le harnais a réclamé le reste tout seul**, et c'est la démonstration de l'ADR 0005 :
+    `check-invariants` a exigé qu'un test cite INV-23, `check-comptes` a exigé les quatre
+    nombres de `CLAUDE.md` et du `README`, et la dérogation d'INV-21 pour `examples/` — écrite
+    d'avance par la session du harnais avec une note « muette » — a rougi à l'arrivée du
+    dossier pour réclamer sa confirmation. Rien de tout cela n'a demandé de s'en souvenir.
+  - **Prochaine étape** : la fusion est la décision de Thomas. Restent 🟡, non corrigés ici et
+    documentés dans la PR : aucun `fsync` avant la suppression de l'original (une coupure de
+    courant dans les secondes qui suivent) · `CLE_V1_EXCLUSIONS` est une constante publique
+    dont la valeur est le mot que cherche le détecteur d'INV-06, donc un `DELETE FROM
+    {CLE_V1_EXCLUSIONS}` lui échappe — démontré · `inserer` passé en `pub(super)` élargit la
+    surface d'écriture de `tracks` à tout le module · `src-tauri/tests/bibliotheque.rs`
+    dépasse 400 lignes et `check-sizes.sh` ne scanne pas ce dossier.

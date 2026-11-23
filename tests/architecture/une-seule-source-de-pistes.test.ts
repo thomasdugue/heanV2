@@ -11,6 +11,20 @@ import { lire, sources } from './_lecture';
 
 const DEPOT_TS = 'src/lib/library/repository.ts';
 const DEPOT_RS = 'src-tauri/src/library/repository.rs';
+const REPRISE_RS = 'src-tauri/src/library/reprise_v1.rs';
+
+/**
+ * Dans quel ordre la reprise de la configuration de V1 écrit ses deux listes.
+ *
+ * Cherche les appels, pas les commentaires : `exclure(` et `ajouter_racine(` suivis d'une
+ * parenthèse ouvrante, ce qu'une phrase en prose n'a pas. Rend la suite des deux noms dans
+ * leur ordre d'apparition, dédoublonnée.
+ */
+export function ordreDeLaReprise(source: string): string[] {
+  return [...source.matchAll(/\b(exclure|ajouter_racine)\s*\(/g)]
+    .map((m) => (m[1] === 'exclure' ? 'exclusions' : 'racines'))
+    .filter((nom, i, tous) => tous.indexOf(nom) === i);
+}
 
 /**
  * Les commandes dont le type de retour parle de pistes, lues dans les bindings générés.
@@ -70,5 +84,30 @@ describe('INV-06 — une seule construction de liste de pistes', () => {
       .filter(([f, c]) => f !== DEPOT_RS && c.includes('excluded_paths'))
       .map(([f]) => f);
     expect(fautes, `le filtre vit dans ${DEPOT_RS}, et nulle part ailleurs`).toEqual([]);
+  });
+
+  it('la reprise de V1 pose les exclusions AVANT les racines', () => {
+    // Un test de forme, parce que la propriété n'est pas observable à l'exécution : elle ne
+    // se manifeste que si une insertion échoue au milieu, ce qu'on ne sait pas provoquer
+    // sans ouvrir une porte dans le code pour le faire.
+    //
+    // Ce qu'elle protège : chaque insertion est sa propre transaction, et un échec de reprise
+    // n'empêche pas l'application de démarrer. Avec les racines en premier, l'état atteint
+    // était « des dossiers de musique et aucune exclusion » — donc le premier scan ramenait
+    // les pistes supprimées. Dans l'autre ordre, le pire état possible est « des exclusions
+    // et aucune racine » : rien à scanner, donc rien à ressusciter.
+    expect(ordreDeLaReprise(lire(REPRISE_RS))).toEqual(['exclusions', 'racines']);
+  });
+
+  it('le détecteur voit l’ordre inverse', () => {
+    // L'auto-test, sur la forme exacte qu'avait le défaut avant le 2026-11-23.
+    const fautif = `
+      for path in &config.racines {
+          depot.ajouter_racine(Path::new(path))?;
+      }
+      for path in &config.exclusions {
+          depot.exclure(path)?;
+      }`;
+    expect(ordreDeLaReprise(fautif)).toEqual(['racines', 'exclusions']);
   });
 });

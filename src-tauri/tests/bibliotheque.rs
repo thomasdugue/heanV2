@@ -461,8 +461,8 @@ fn une_piste_exclue_dans_v1_reste_exclue_apres_la_reprise() {
     assert!(!pistes.iter().any(|p| p.path == exclue), "la piste exclue est revenue");
 }
 
-/// La reprise ne se rejoue pas — sinon elle ressusciterait les réglages que l'utilisateur a
-/// changés depuis dans V2.
+/// Une reprise déjà faite ne se rejoue pas : elle ressusciterait les réglages que
+/// l'utilisateur a changés depuis dans V2.
 #[test]
 fn la_reprise_ne_se_rejoue_pas() {
     let bac = Bac::avec("reprise-idempotence", &["tags-nfd.flac"]);
@@ -473,23 +473,40 @@ fn la_reprise_ne_se_rejoue_pas() {
     assert!(!reprise_v1::reprendre(&mut depot, &config).expect("1re").deja_faite);
     assert_eq!(depot.chemins_exclus().expect("exclus").len(), 1);
 
-    // L'utilisateur change d'avis dans V2 : il veut revoir cette piste. (Il n'y a pas encore
-    // d'interface pour ça, mais la base, elle, peut déjà le dire.)
     let seconde = reprise_v1::reprendre(&mut depot, &config).expect("2e");
     assert!(seconde.deja_faite, "{seconde:?}");
     assert_eq!(seconde.exclusions, 0, "rien n'est réinséré : {seconde:?}");
 }
 
-/// Un `config.json` absent, vide ou illisible ne fait pas échouer le démarrage.
+/// **Un `config.json` illisible est une erreur, et le marqueur n'est PAS posé.**
+///
+/// Ce test disait l'inverse jusqu'au 2026-11-23 — il affirmait, avec sa justification, que
+/// « le marqueur est posé quand même : on ne retentera pas éternellement de lire un fichier
+/// abîmé ». L'échange était mauvais : il troquait un journal bruyant contre une violation
+/// silencieuse et **définitive** d'INV-06. V1 écrivait ses six fichiers JSON sans écriture
+/// atomique, donc un `config.json` tronqué est le cas réel ; en conclure « cet utilisateur
+/// n'avait aucune exclusion » fait revenir ses pistes supprimées, pour toujours.
+///
+/// Un test porté verrouille autant un bug qu'une règle : celui-ci aurait fait respecter le
+/// défaut par le prochain lecteur. Le parcours complet est dans `tests/demarrage.rs`.
 #[test]
-fn un_config_v1_illisible_ne_bloque_rien() {
+fn un_config_v1_illisible_est_une_erreur_et_ne_marque_rien() {
     let bac = Bac::avec("reprise-illisible", &["tags-nfd.flac"]);
     let mut depot = bac.depot();
-    let reprise = reprise_v1::reprendre(&mut depot, "{ ceci n'est pas du json").expect("reprise");
-    assert_eq!(reprise.racines, 0);
-    assert_eq!(reprise.exclusions, 0);
-    assert!(!reprise.deja_faite);
-    // Et le marqueur est posé quand même : on ne retentera pas éternellement de lire un
-    // fichier abîmé, ce qui écrirait une erreur dans le journal à chaque démarrage.
-    assert!(reprise_v1::reprendre(&mut depot, "{}").expect("2e").deja_faite);
+
+    let e = reprise_v1::reprendre(&mut depot, "{ ceci n'est pas du json")
+        .expect_err("un JSON illisible doit remonter une erreur");
+    assert!(matches!(e, reprise_v1::Erreur::ConfigIllisible { .. }), "{e}");
+
+    // Rien n'a été repris, et surtout : la reprise reste à faire. Un fichier réparé plus
+    // tard — restauré d'une sauvegarde — sera donc bien pris en compte.
+    assert_eq!(depot.chemins_exclus().expect("exclus").len(), 0);
+    let chemin = bac.chemin("tags-nfd.flac");
+    let reprise = reprise_v1::reprendre(
+        &mut depot,
+        &config_v1(&[&bac.dossier.display().to_string()], &[&chemin]),
+    )
+    .expect("après réparation");
+    assert!(!reprise.deja_faite, "la reprise ne doit pas avoir été marquée : {reprise:?}");
+    assert_eq!(reprise.exclusions, 1);
 }

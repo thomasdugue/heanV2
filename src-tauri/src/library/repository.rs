@@ -33,6 +33,13 @@ use super::types::{Edition, RapportDeScan, Track};
 /// `STRICT` : SQLite accepte par défaut un texte dans une colonne entière. Déclarer les
 /// tables strictes transforme une erreur de type en échec immédiat, au lieu d'une donnée
 /// absurde découverte trois écrans plus loin.
+///
+/// **Une version livrée ne se modifie plus : on en ajoute une.** Le mécanisme ne rejoue
+/// jamais une version déjà appliquée — c'est sa raison d'être — donc une table ajoutée dans
+/// la version 1 après coup n'apparaît **jamais** dans une base existante, et le code qui
+/// l'interroge échoue à chaque démarrage. Payé le 2026-11-23, sur la table `reprises` : elle
+/// avait été écrite dans la version 1 déjà sur `main`, ce qui faisait échouer la reprise de
+/// la configuration de V1 — donc INV-06 violé — sur toute machine ayant déjà lancé V2.
 pub const MIGRATIONS: &[Migration] = &[Migration {
     version: 1,
     nom: "bibliothèque initiale",
@@ -68,7 +75,11 @@ pub const MIGRATIONS: &[Migration] = &[Migration {
           path       TEXT    PRIMARY KEY NOT NULL,
           ajoutee_le INTEGER NOT NULL
         ) STRICT;
-
+    ",
+}, Migration {
+    version: 2,
+    nom: "marqueurs de reprise du dossier de V1",
+    sql: "
         -- Ce qui a déjà été repris du dossier de V1. Une reprise qui se rejouerait
         -- ressusciterait des réglages que l'utilisateur a changés depuis dans V2 — par
         -- exemple une piste qu'il a cessé d'exclure.

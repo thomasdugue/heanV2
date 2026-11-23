@@ -137,6 +137,15 @@ pub fn migrer_si_necessaire(source: &Path, cible: &Path) -> Result<Rapport, Erre
             // non migrée — et qui refuserait de démarrer en la trouvant « déjà peuplée ».
             ecrire_le_temoin(&provisoire, source, relatifs.len(), octets, ignores)?;
 
+            // L'échange est un `rename`, et un `rename` exige une cible vide. Un dossier
+            // d'arrivée qui ne contient qu'un `.DS_Store` est vide au sens où nous
+            // l'entendons (voir `contient_des_donnees`) mais pas au sens du système : sans
+            // cette ligne, la migration partirait puis échouerait à la dernière étape, à
+            // chaque démarrage. Les fichiers cachés sont **déplacés** dans le provisoire,
+            // jamais supprimés : ils retrouvent ainsi leur place après l'échange, et nous
+            // n'avons rien détruit chez quelqu'un pour la commodité de notre `rename`.
+            deplacer_les_fichiers_caches(cible, &provisoire);
+
             std::fs::rename(&provisoire, cible).map_err(|source| Erreur::Echange {
                 cible: cible.display().to_string(),
                 source,
@@ -171,11 +180,38 @@ pub fn migrer_si_necessaire(source: &Path, cible: &Path) -> Result<Rapport, Erre
     }
 }
 
-/// Vrai si le dossier existe et contient autre chose que le témoin.
+/// Vrai si le dossier existe et contient des données.
+///
+/// Le témoin n'en est pas : c'est nous qui l'écrivons. **Les fichiers cachés non plus**, et
+/// c'est la correction d'un défaut : un seul `.DS_Store`, déposé par un passage dans le
+/// Finder, suffisait à faire prendre un dossier vide pour une bibliothèque en place — donc à
+/// éteindre la migration définitivement. L'inventaire ignore déjà les fichiers cachés
+/// (`inventaire::a_migrer`) ; ce test-ci doit s'accorder avec lui, sans quoi le même fichier
+/// est « sans intérêt » d'un côté et « une bibliothèque » de l'autre.
 fn contient_des_donnees(dossier: &Path) -> bool {
     std::fs::read_dir(dossier).is_ok_and(|mut e| {
-        e.any(|x| x.is_ok_and(|x| x.file_name() != inventaire::TEMOIN))
+        e.any(|x| {
+            x.is_ok_and(|x| {
+                let nom = x.file_name();
+                nom != inventaire::TEMOIN && !nom.to_string_lossy().starts_with('.')
+            })
+        })
     })
+}
+
+/// Déplace les fichiers cachés du dossier d'arrivée vers le provisoire, pour que l'échange
+/// trouve une cible vide. Silencieux par choix : l'échange qui suit dira lui-même s'il reste
+/// quoi que ce soit, et avec un message qui nomme la cible.
+fn deplacer_les_fichiers_caches(cible: &Path, provisoire: &Path) {
+    let Ok(entrees) = std::fs::read_dir(cible) else {
+        return;
+    };
+    for entree in entrees.flatten() {
+        let nom = entree.file_name();
+        if nom.to_string_lossy().starts_with('.') {
+            let _ = std::fs::rename(entree.path(), provisoire.join(&nom));
+        }
+    }
 }
 
 /// Les chemins relatifs à migrer, et le nombre de fichiers délibérément ignorés.
