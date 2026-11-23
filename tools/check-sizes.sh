@@ -30,8 +30,24 @@ ZONES=(src src-tauri/src tests tools check)
 # Ce qui n'est pas du code à lire d'un bout à l'autre. Chaque exception a sa raison :
 #   - les binaires : `wc -l` n'y veut rien dire, et le compte serait du bruit ;
 #   - `zones-interdites.txt` : une table de données lue par un script, pas un fichier qu'on
-#     lit d'un bout à l'autre — la limite n'y protège rien.
-EXCEPTIONS='\.(woff2?|ttf|otf|png|jpe?g|gif|webp|icns|ico|flac|wav|mp3|m4a|aiff?|pdf)$|^tools/zones-interdites\.txt$'
+#     lit d'un bout à l'autre — la limite n'y protège rien ;
+#   - les FICHIERS DE VERROUILLAGE de dépendances (`Cargo.lock`, `package-lock.json`) :
+#     **tranché par Thomas le 2026-11-23** (option A), sur une propriété vérifiable et non
+#     par confort — un lock est écrit par un outil et régénéré, jamais relu, alors que la
+#     leçon de V1 porte sur ce qu'on RELIT (`lib.rs` à 4 870 lignes, `views.js` à 3 512).
+#     Le motif vise le nom de fichier **où qu'il soit**, donc les trois locks du dépôt sont
+#     couverts de la même façon : `src-tauri/Cargo.lock` (5 265 lignes),
+#     `tools/passe-de-verite/Cargo.lock` (5 109) et `package-lock.json` (2 180). Pas
+#     seulement celui qui rougissait.
+#
+# ⚠️ ET UN TROU QUI RESTE, écrit ici pour qu'il ne se redécouvre pas : deux de ces trois
+# locks échappent AUSSI à la mesure pour une raison **différente** — ils sont hors des zones
+# ci-dessus (`package-lock.json` est à la racine, `src-tauri/Cargo.lock` à la racine de
+# `src-tauri/`). L'exception les couvre par le nom, donc le jour où les zones s'élargissent
+# rien ne change pour eux ; mais **les ZONES sont elles aussi une liste**, avec la même
+# faiblesse que celle des extensions qu'on vient de supprimer. Voir la liste « reste à
+# brancher » en tête de `check` : c'est sa propre tâche, et elle n'est pas gratuite.
+EXCEPTIONS='\.(woff2?|ttf|otf|png|jpe?g|gif|webp|icns|ico|flac|wav|mp3|m4a|aiff?|pdf)$|^tools/zones-interdites\.txt$|(^|/)(Cargo\.lock|package-lock\.json)$'
 
 mesures=$(git ls-files -- "${ZONES[@]}" | grep -vE "$EXCEPTIONS")
 n=$(printf '%s' "$mesures" | grep -c . || true)

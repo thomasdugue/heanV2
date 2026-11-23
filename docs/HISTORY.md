@@ -739,3 +739,41 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     extension est précisément ce qui avait créé les trois trous. Ils avaient raison contre ma
     moitié de correctif, et l'inversion a été étendue là aussi — ce qui a couvert, du même coup,
     `tools/git-hooks/pre-commit`, qu'aucune liste d'extensions ne pouvait atteindre.
+  - **Tranché par Thomas le 2026-11-23 : option A.** Une exception nommée pour les fichiers de
+    verrouillage, écrite une fois dans `tools/check-sizes.sh`, sur la propriété qui la rend
+    tenable — un lock est écrit par un outil et régénéré, **jamais relu**, alors que la leçon de
+    V1 porte sur ce qu'on relit (`lib.rs` à 4 870 lignes, `views.js` à 3 512). Le motif vise le
+    nom de fichier **où qu'il soit**, donc les trois locks du dépôt sont couverts de la même
+    façon : `src-tauri/Cargo.lock` (5 265 lignes), `tools/passe-de-verite/Cargo.lock` (5 109) et
+    `package-lock.json` (2 180) — pas seulement celui qui rougissait. Éprouvé dans les deux sens :
+    un fichier de 5 109 lignes qui **n'est pas** un lock reste rouge, et `Cargo.lock.ts` — dont le
+    nom contient celui d'un lock — reste mesuré. L'exception n'a donc pas affaibli la règle.
+    `check-sizes` est vert, **88 fichiers mesurés**.
+  - **Un quatrième trou, trouvé en vérifiant que l'exception couvrait bien les trois locks, et
+    écrit sans être corrigé.** Deux des trois échappaient à la mesure pour une raison
+    **différente** de l'exception : ils sont **hors des zones scannées**. Autrement dit **les
+    zones sont elles aussi une liste**, avec la faiblesse exacte de celle des extensions qu'on
+    venait de supprimer. Et ce n'est pas théorique : `src-tauri/tests/` n'est pas dans les zones,
+    et **`src-tauri/tests/bibliotheque.rs` fait déjà 416 lignes** — élargir les zones rend
+    `./check` **rouge** tant que ce fichier n'est pas découpé. Donc pas un correctif d'une ligne,
+    et le fichier appartient au Rust de la bibliothèque, pas au harnais. Écrit dans la liste
+    « reste à brancher » en tête de [`check`](../check), avec le chiffre, pour que celui qui s'y
+    attellera sache ce qu'il paie.
+  - **L'option D est écrite comme échéance, pas comme dette urgente**, dans
+    [`docs/adr/README.md`](adr/README.md) avec son déclencheur chiffré et ses deux faiblesses —
+    pour que celui qui tranchera plus tard ne les redécouvre pas. La raison de ne pas l'avoir
+    prise ce soir, et elle est bonne : mon propre avis révisé disait « D est la bonne forme, **A
+    est la bonne étape** » — **quand une option nouvelle ne change pas la recommandation, elle ne
+    change pas la décision, elle change ce qu'on écrit pour plus tard.** D demande en plus un
+    marqueur canonique émis par `npm run gen`, donc un chantier, et elle ouvre une porte qu'A
+    n'ouvre pas : cela se discute à froid dans un ADR, pas dans un fil de résolution de conflit.
+  - **Ce que cette séquence a appris sur le travail à plusieurs sessions.** Trois corrections de
+    mon travail sont venues des autres sessions, et les trois portaient sur le fond : un chiffre
+    mesuré sur `main` alors qu'une branche vivante le démentait (126 contre 360) ; une liste
+    d'extensions que j'avais **gardée** dans l'un des deux détecteurs, alors que l'énumération est
+    précisément ce qui avait créé les trous ; et l'option D elle-même, meilleure que mes trois.
+    À l'inverse, j'ai refusé deux fois de trancher à la place de Thomas — l'offre de retirer le
+    lock, et l'exception elle-même — et c'était juste les deux fois. **Mesurer sur `main` quand
+    des branches vivent à côté, c'est mesurer le passé** : la même myopie que celle de
+    `check-adr.mjs` sur les numéros d'ADR, trouvée la veille.
+
