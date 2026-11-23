@@ -25,7 +25,7 @@ D'où les trois piles :
 | Pile | Ce que ça veut dire | Combien |
 |---|---|---|
 | **rayé** | L'architecture de V2 rend la faute inexprimable. Plus de règle à retenir. | 6 |
-| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 14 |
+| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 15 |
 | **irréductible** | Comportement de CoreAudio, de WebKit ou de Gatekeeper. Aucun test ne le prouve. | 2 + 7 pièges |
 
 **La mesure du succès : la pile « irréductible » ne grossit pas, et la pile « test » se
@@ -243,7 +243,14 @@ dette **visible**, que `./check` recompte à chaque passage.
   se passe chez les testeurs. Un défaut visuel se voit et se répare ; être aveugle ne se voit
   pas. Et le coût de la règle est nul — écrire dans le journal demande exactement le même
   effort qu'écrire dans le vide. Toute exception passera par un ADR.
-  `build.rs` est hors scope : ses `println!("cargo::…")` sont le protocole de Cargo.
+  **Deux dossiers sont hors du scan, la liste est assertée, et la dérogation est tracée par
+  l'[ADR 0011](../../../docs/adr/0011-derogation-inv-21-pour-les-exemples.md)** (2026-11-23) :
+  `build.rs`, dont les `println!("cargo::…")` sont le protocole de Cargo, et
+  `src-tauri/examples/`, dont les exemples se lancent à la main — sans sortie ils n'ont aucun
+  intérêt, et ils ne sont pas dans le binaire livré, donc ils ne peuvent pas rendre l'app
+  aveugle chez un testeur, ce que la règle protège. `backend.test.ts` refuse maintenant tout
+  `.rs` posé hors des dossiers scannés sans dérogation écrite : en ajouter une demande de
+  toucher au test, au lieu de se produire par omission.
 
 ### INV-22 — L'intégrité d'un fichier audio ne se vérifie jamais avec le décodeur
 - pile : test
@@ -269,6 +276,27 @@ dette **visible**, que `./check` recompte à chaque passage.
   et le parcours des citations couvre désormais `src-tauri/tests/`. Si une mise à jour de
   symphonia se mettait à signaler ces cas, ces tests échoueraient : cet échec serait la bonne
   nouvelle.
+
+### INV-23 — Un libellé destiné à l'affichage ne vient jamais d'un `{:?}`
+- pile : test
+- gravité : 🟡 AVERTISSEMENT
+- couverture : planifiée (phase 3) — table `FileType` → libellé, une assertion par fixture audio
+- pourquoi : **règle née le 2026-11-23 de la passe de vérité**, c'est-à-dire du premier
+  passage du code sur la vraie bibliothèque de Thomas. `library/metadonnees.rs` remplissait
+  le champ `format` avec `format!("{:?}", fichier.file_type())` : le **`Debug`** d'un type de
+  lofty, envoyé tel quel vers l'interface. Résultat sur ses 40 MP3 : `Mpeg`, là où la V1
+  écrivait `MP3` et où le fichier dit `mp3`. Seul écart sur 182 où la V1 avait raison.
+  Deux raisons de la retenir, et la seconde est la vraie. D'abord c'est une rupture de
+  parité visible par l'utilisateur, et la parité est la cible (ADR 0004). Ensuite **la valeur
+  change avec la version de la dépendance** : renommer un variant d'énumération chez lofty
+  est un changement anodin de leur côté, et personne ici ne le verrait — aucun test ne porte
+  sur une chaîne que rien n'épingle. C'est le mode de défaut d'INV-21 déplacé d'un cran :
+  non pas un défaut invisible, mais un défaut dont la cause est hors du dépôt.
+  Ce qu'une table explicite donne en plus de la correction : elle **épingle** la
+  correspondance, donc une montée de version qui renomme un variant fait échouer la
+  compilation ou le test au lieu de changer ce que Thomas lit à l'écran.
+  Et la règle vaut au-delà du champ `format` : `{:?}` est fait pour un journal, pas pour un
+  œil. Tout libellé que l'interface montre se décide ici, explicitement.
 
 ---
 
@@ -361,6 +389,26 @@ censé voir.
 - **Et un test porté doit contenir une assertion.** Le corollaire, sans quoi la règle
   précédente se contourne sans le vouloir : `it('V005 — …', () => {})` serait compté porté
   **et** vert. Tenu par `contrat-complet.test.ts`.
+- **Un auto-test ne remplace pas la matière réelle.** Un auto-test prouve que le détecteur voit
+  la faute **qu'on lui a inventée**. Il ne prouve pas qu'il voit le code **réel** : les deux
+  assertions ne se remplacent pas. Payé sur INV-06, dont le détecteur cherchait `\bTrack\b` là où
+  specta émet `Track_Serialize[]` — zéro commande attrapée sur huit, règle 🔴 désarmée dès
+  l'arrivée de la première matière réelle, **auto-test vert pendant tout ce temps**. Un détecteur
+  qui dérive sa matière d'un **artefact généré** (`src/ipc/bindings.ts`, `tokens.css`,
+  `docs/generated/`) est le plus exposé : le format change sans que personne décide de le changer.
+  D'où, depuis le 2026-11-23, l'assertion « il trouve au moins N choses réelles » là où la matière
+  est légitime — et sa qualité principale est de **se périmer d'elle-même** le jour où cette
+  matière disparaît. Mesuré : casser un détecteur partagé laisse ses interdictions **vertes** et ne
+  fait rougir que cette assertion-là.
+- **Un corpus vide est une erreur, par mécanisme.** Deuxième question, celle d'avant : *est-ce que
+  je regarde quelque chose ?* Un détecteur pointé sur un dossier renommé ne trouve rien et passe au
+  vert. La garde vit dans le lecteur partagé (`tests/architecture/_lecture.ts`), pas dans chaque
+  test, donc un détecteur écrit demain en hérite sans que personne y pense. Un vide légitime —
+  la zone n'existe pas encore — s'écrit `{ videPrevu: '<raison, et quelle phase le remplira>' }`,
+  et une raison trop courte est refusée.
+  **Un silence expliqué n'est pas un angle mort ; un silence non écrit en est un.** Même doctrine
+  pour un détecteur muet faute de matière (INV-04 avant la phase 5, Svelte 4 avant la phase 3) :
+  le commentaire dit pourquoi il est muet et quelle phase le rendra bavard.
 - ⚠️ **Nettoyer l'injection : arbre propre avant, ou copie.** `git checkout <fichier>` pour
   retirer une faute injectée **efface aussi le travail non commité du même fichier**. Payé le
   2026-11-22 : deux modifications perdues, repérées seulement parce qu'un renvoi s'était remis
@@ -384,10 +432,13 @@ premières sont des pièges de Svelte 5, la troisième est le seul risque réel.
 ## Décisions techniques actées
 
 Elles ne sont pas des invariants : ce sont des choix, et leur place est dans
-[`docs/adr/`](../../../docs/adr/). Les sept ADR en vigueur : réécrire de zéro (0001), la
-stack (0002), le dossier de données (0003), la cible de parité visuelle (0004), l'entretien
-du harnais et l'orchestration (0005), le socle de phase 0 (0006), le format interne audio et
-la preuve du bit-perfect (0007). **Un ADR ne se modifie pas : on en écrit un nouveau.**
+[`docs/adr/`](../../../docs/adr/) — dont l'[index](../../../docs/adr/README.md) est la liste à
+jour, vérifiée par `tools/check-adr.mjs` (aucune décision acceptée mais invisible). **Cette
+phrase portait la liste à la main, et elle annonçait « les sept ADR en vigueur » en en citant
+sept alors qu'il y en avait neuf** — 0008 et 0009 manquaient. Un nombre écrit à la main que
+personne ne recompte est un mensonge en attente (ADR 0005) : la liste est donc remplacée par
+le renvoi vers l'index, qui est tenu par une vérification. **Un ADR ne se modifie pas : on en
+écrit un nouveau.**
 
 Rappel des interdits qui en découlent et qui ne se rouvrent pas : **jamais CPAL** ·
 **bit-perfect = pas de resampling** · **macOS 11+ seulement, hors Mac App Store** ·
