@@ -1,0 +1,33 @@
+# OUTIL TEMPORAIRE — passe de vérité (voir src/main.rs).
+#
+# Ce crate est DÉTACHÉ : le `[workspace]` vide ci-dessous l'empêche d'être aspiré dans un
+# workspace parent, et rien dans `src-tauri/` ne le mentionne. Donc il ne compile pas avec
+# l'application, il n'entre pas dans ce qu'elle livre, et `./check` ne le voit pas —
+# `cargo clippy`/`cargo test` y tournent avec `--manifest-path src-tauri/Cargo.toml`.
+#
+# Il dépend de `hean_lib` PAR CHEMIN, et c'est tout l'intérêt : ce qu'il mesure est le vrai
+# code d'indexation et le vrai chemin audio de la V2, pas une réécriture qui leur ressemble.
+[package]
+name = "passe-de-verite"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+# Le paquet s’appelle `hean`, sa bibliothèque `hean_lib` : c’est sous ce dernier nom qu’on
+# l’importe (`use hean_lib::…`), et sous le premier qu’on la déclare ici.
+hean = { path = "../../src-tauri" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# lofty sert UNIQUEMENT à mesurer la présence d'une pochette intégrée, que la V2 n'indexe
+# pas encore (phase 2 n'a pas fait les pochettes). C'est donc une mesure DE L'OUTIL, et le
+# rapport la présente comme telle — pas comme un chiffre de la V2.
+lofty = "0.22"
+
+# Les avertissements du scan (« tags illisibles, piste ignorée ») sont émis par `tracing`
+# dans le vrai code. Sans abonné ils seraient perdus, et l'outil compterait des fichiers
+# illisibles sans pouvoir dire pourquoi. Ici ils partent sur stderr, sous les yeux.
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
