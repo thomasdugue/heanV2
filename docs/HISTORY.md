@@ -949,6 +949,16 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     nombres de `CLAUDE.md` et du `README`, et la dérogation d'INV-21 pour `examples/` — écrite
     d'avance par la session du harnais avec une note « muette » — a rougi à l'arrivée du
     dossier pour réclamer sa confirmation. Rien de tout cela n'a demandé de s'en souvenir.
+  - **Mesuré, et ça nuance une phrase écrite plus haut dans ce journal** : l'entrée de la PR #13
+    dit qu'« aucun garde-fou ne peut oublier `src-tauri/examples/` tant qu'il n'est pas créé, et
+    `backend.test.ts` refuse déjà tout `.rs` hors des dossiers scannés ». Le filet existe mais il
+    ne couvre qu'INV-21, et **pour un seul passage** : c'est la note « muet » de la dérogation qui
+    rougit à l'apparition du dossier, pas la faute qu'il contient — et une fois la note retirée,
+    plus rien. `une-seule-source-de-pistes.test.ts` ne scanne que `src-tauri/src` et
+    `src-tauri/tests`, donc du SQL sur la liste d'exclusion écrit dans un `examples/` passerait
+    **en silence**, et c'est une règle 🔴. Vérifié : `examples/migrer.rs` n'en contient pas. La
+    phrase de la PR #13 n'est pas corrigée ici — elle n'est pas de cette session — mais son
+    « ces deux listes de zones sont à relire » est le bon réflexe, et c'est maintenant mesuré.
   - **Prochaine étape** : la fusion est la décision de Thomas. Restent 🟡, non corrigés ici et
     documentés dans la PR : aucun `fsync` avant la suppression de l'original (une coupure de
     courant dans les secondes qui suivent) · `CLE_V1_EXCLUSIONS` est une constante publique
