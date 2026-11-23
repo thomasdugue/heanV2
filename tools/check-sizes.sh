@@ -25,7 +25,19 @@ limit=400
 
 # Les zones, PLUS le point d'entrée lui-même : `./check` applique la règle aux autres et y
 # échappait, n'étant dans aucun dossier scanné. Trouvé en mesurant, le 2026-11-23.
-ZONES=(src src-tauri/src tests tools check)
+#
+# `src-tauri/tests` est entré le 2026-11-23, sur décision de Thomas, et ce n'était pas un
+# choix nouveau : la PR #13 avait déjà tranché que ce dossier entre dans les garde-fous — elle
+# l'avait ajouté aux zones de `aucun-chemin-machine` et de `references-de-tests`, mais pas ici.
+# L'écart était un oubli. Et il coûtait cher en silence : `src-tauri/tests/bibliotheque.rs`
+# dépassait la limite depuis la phase 2 (416 lignes) sans faire rougir quoi que ce soit, parce
+# que la règle ne regardait pas là. Son découpage par la PR #13 a ramené le plus gros fichier
+# du dossier à 274 lignes, ce qui a rendu l'ajout gratuit — mais c'est l'ordre inverse qui
+# aurait dû se produire : la règle aurait dû crier, et c'est le découpage qui aurait dû suivre.
+#
+# ⚠️ `src-tauri/examples/` MANQUE ENCORE, et c'est écrit dans la liste « reste à brancher » en
+# tête de `check` : ce dossier n'existe pas sur main, il arrive avec la migration (PR #8).
+ZONES=(src src-tauri/src tests src-tauri/tests tools check)
 
 # Ce qui n'est pas du code à lire d'un bout à l'autre. Chaque exception a sa raison :
 #   - les binaires : `wc -l` n'y veut rien dire, et le compte serait du bruit ;

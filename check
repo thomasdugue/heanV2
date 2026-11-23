@@ -23,17 +23,16 @@
 #
 # Les trois dernières, nées le 2026-11-23 en fermant les trous d'extensions de check-sizes :
 #
-#   - Les ZONES de `check-sizes.sh` (`src src-tauri/src tests tools check`) sont, elles aussi,
-#     une LISTE. Il y manque `src-tauri/tests/` et `src-tauri/examples/`. **La PR #13 a déjà
-#     tranché que `src-tauri/tests` entre dans les garde-fous** — elle l'a ajouté aux ZONES de
-#     `aucun-chemin-machine` et de `references-de-tests`, mais PAS ici. L'écart est donc un
-#     oubli, pas un choix. ⚠️ Et son TITRE annonce « `src-tauri/tests` entre dans les
-#     garde-fous » sans la nuance : qui lit l'historique sans ouvrir ce fichier en conclura que
-#     la règle de taille les couvre. Son corps, lui, est exact et ne l'affirme pas. Un titre
-#     plus large que son périmètre est la même famille de défaut qu'une règle écrite en prose. Et **le préalable est tombé** : son découpage de `bibliotheque.rs`
-#     (416 lignes, qui dépassait la limite sans faire rougir quoi que ce soit depuis la phase 2)
-#     ramène le plus gros fichier du dossier à `decodage.rs`, **274 lignes**. L'ajouter ne
-#     rougit donc plus rien. `src-tauri/examples/` arrivera avec la migration (PR #8).
+#   - Les ZONES de `check-sizes.sh` sont, elles aussi, une LISTE. `src-tauri/tests` y est entré
+#     le 2026-11-23 sur décision de Thomas — voir le commentaire des ZONES dans
+#     `tools/check-sizes.sh`, qui dit ce que l'oubli avait coûté. **Il manque encore
+#     `src-tauri/examples/`**, qui n'existe pas sur main : il arrive avec la migration (PR #8),
+#     et c'est à ce moment-là qu'il faut l'ajouter.
+#     ⚠️ Le TITRE de la PR #13 annonçait « `src-tauri/tests` entre dans les garde-fous » sans la
+#     nuance : qui lit l'historique sans ouvrir les fichiers en conclut que la règle de taille
+#     les couvrait, ce qui est resté faux deux heures de plus. Son corps, lui, est exact et ne
+#     l'affirme pas. Un titre plus large que son périmètre est la même famille de défaut qu'une
+#     règle écrite en prose : il ne peut pas échouer.
 #     ⚠️ MAIS LE RACCOURCI NE MARCHE PAS : dériver le périmètre de `git ls-files '*.rs'`, comme
 #     proposé en relecture, ramène les **36 fichiers Rust de `bootstrap/`** — l'archive figée de
 #     V1 (ADR 0004), dont **13 dépassent 400 lignes**, le plus gros à **2 664**. Les « corriger »
