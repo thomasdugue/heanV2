@@ -49,4 +49,17 @@ describe('références de tests', () => {
       'src-tauri/tests/export_bindings.rs',
     ]);
   });
+
+  it('le détecteur trouve de vraies citations dans le dépôt', () => {
+    // Cette règle est une interdiction : elle est verte quand elle ne trouve AUCUNE
+    // référence morte. Elle est donc aussi verte quand elle ne trouve aucune référence du
+    // tout — et son auto-test, qui travaille sur une phrase écrite ici, ne ferait pas la
+    // différence. Or le dépôt en porte une quinzaine, et c'est précisément ce que la règle
+    // existe pour surveiller : si l'expression cessait de les reconnaître (un chemin
+    // désormais écrit entre backticks, un dossier `tests/` déplacé), le garde-fou
+    // disparaîtrait sans un seul test rouge.
+    const cites = ZONES.flatMap((z) => sources(z, EXTS).flatMap(([, c]) => cheminsDeTestsCites(c)));
+    expect(cites.length, 'plus aucune citation reconnue : la règle ne surveille plus rien')
+      .toBeGreaterThan(5);
+  });
 });

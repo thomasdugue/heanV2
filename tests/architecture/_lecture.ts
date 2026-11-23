@@ -22,8 +22,46 @@ function estUnDepotSepare(chemin: string): boolean {
   return existsSync(join(chemin, '.git'));
 }
 
-/** Tous les fichiers de `dossier` dont l'extension est dans `exts`, chemins relatifs à `racine`. */
-export function fichiers(dossier: string, exts: readonly string[], racine: string = RACINE): string[] {
+/**
+ * Tous les fichiers de `dossier` dont l'extension est dans `exts`, chemins relatifs à `racine`.
+ *
+ * **Un corpus vide lève une erreur.** C'est la première des deux questions qu'un détecteur
+ * doit savoir répondre par une assertion : *est-ce que je regarde quelque chose ?* Un
+ * détecteur pointé sur un dossier renommé, déplacé ou disparu ne trouve aucune faute et
+ * passe au vert — il produit de la confiance sans en mériter, et aucun test ne rougit pour
+ * le dire. La garde vit ici, dans le lecteur partagé, et non dans chaque test : ainsi un
+ * détecteur écrit demain en hérite sans que personne ait à y penser (ADR 0005 — par
+ * mécanisme, jamais par discipline).
+ *
+ * Ce code tolérait l'inverse jusqu'au 2026-11-23 : un dossier absent rendait `[]` en
+ * silence, « normal tant que la phase n'est pas arrivée ». L'intention était juste, mais
+ * elle couvrait les deux cas d'un coup — la zone pas encore née ET la zone qu'on a perdue
+ * de vue. `videPrevu` les sépare : le premier cas s'écrit, le second échoue.
+ *
+ * Les options sont un OBJET et non des arguments positionnels, et c'est une correction de
+ * relecture : avec `fichiers(d, exts, racine, videPrevu)` d'un côté et `sources(d, exts,
+ * videPrevu)` de l'autre, écrire `sources(d, exts, RACINE)` par mimétisme — la faute la plus
+ * naturelle du monde — posait `videPrevu = RACINE`, donc **désarmait la garde en silence**,
+ * sans que TypeScript voie quoi que ce soit (les deux sont des `string`). Une garde qui tient
+ * tous les détecteurs d'un coup ne doit pas pouvoir tomber sur une faute de frappe.
+ *
+ * @param options.videPrevu si le corpus a de bonnes raisons d'être vide aujourd'hui, la
+ *   raison et la phase qui le remplira. Une raison trop courte est refusée : une dérogation
+ *   sans justification écrite est le « silence non écrit » que cette garde existe pour
+ *   fermer. Un silence expliqué n'est pas un angle mort ; un silence non écrit en est un.
+ */
+export function fichiers(
+  dossier: string,
+  exts: readonly string[],
+  options: { racine?: string; videPrevu?: string } = {},
+): string[] {
+  const { racine = RACINE, videPrevu } = options;
+  if (videPrevu !== undefined && videPrevu.trim().length < 15) {
+    throw new Error(
+      `corpus vide annoncé sans raison écrite : ${dossier} [${exts.join(' ')}] — dire pourquoi ` +
+        `ce corpus est vide et quelle phase le remplira.`,
+    );
+  }
   const depart = join(racine, dossier);
   const out: string[] = [];
   const descendre = (d: string): void => {
@@ -31,7 +69,7 @@ export function fichiers(dossier: string, exts: readonly string[], racine: strin
     try {
       entrees = readdirSync(d);
     } catch {
-      return; // dossier pas encore créé : normal tant que la phase n'est pas arrivée
+      return; // dossier absent : le vide se juge en sortie de parcours, pas ici
     }
     for (const e of entrees) {
       if (IGNORES.has(e)) continue;
@@ -42,6 +80,13 @@ export function fichiers(dossier: string, exts: readonly string[], racine: strin
     }
   };
   descendre(depart);
+  if (out.length === 0 && videPrevu === undefined) {
+    throw new Error(
+      `corpus vide : ${dossier} [${exts.join(' ')}] — un détecteur qui ne regarde rien passe ` +
+        `au vert sans rien garantir. Si ce vide est normal, passer { videPrevu: '<pourquoi, ` +
+        `et quelle phase le remplira>' }.`,
+    );
+  }
   return out.sort();
 }
 
@@ -50,9 +95,13 @@ export function lire(chemin: string): string {
   return readFileSync(join(RACINE, chemin), 'utf8');
 }
 
-/** Les fichiers de `dossier` avec leur contenu. */
-export function sources(dossier: string, exts: readonly string[]): [string, string][] {
-  return fichiers(dossier, exts).map((f) => [f, lire(f)]);
+/** Les fichiers de `dossier` avec leur contenu. Corpus vide : voir `fichiers`. */
+export function sources(
+  dossier: string,
+  exts: readonly string[],
+  options: { videPrevu?: string } = {},
+): [string, string][] {
+  return fichiers(dossier, exts, options).map((f) => [f, lire(f)]);
 }
 
 /** Le contenu des blocs `<style>` d'un composant Svelte. */

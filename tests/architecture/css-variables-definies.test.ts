@@ -42,4 +42,26 @@ describe('INV-20 — variables CSS définies', () => {
   it('une valeur de repli est tolérée', () => {
     expect([...variablesLuesSansRepli('.a { width: var(--inconnue, 100px); }')]).toEqual([]);
   });
+
+  it('les deux moitiés du détecteur voient la matière réelle du projet', () => {
+    // Le test ci-dessus compare deux ensembles. Il est vert si les deux sont pleins et
+    // cohérents — mais AUSSI si l'un des deux est vide, et là il ne garantit plus rien.
+    // Les deux moitiés tombent pour des raisons différentes, d'où deux assertions :
+    //
+    //  - les DÉCLARATIONS viennent presque toutes de `tokens.css`, qui est GÉNÉRÉ. Si son
+    //    format changeait, cet ensemble se viderait — et le test rougirait bruyamment,
+    //    puisque toute lecture deviendrait « non définie ». Ce côté-là échoue bien.
+    //  - les LECTURES, elles, sont le côté dangereux : si `variablesLuesSansRepli` cessait
+    //    de reconnaître `var(--x)`, l'ensemble des lectures serait vide, aucune ne pourrait
+    //    manquer, et INV-20 — « la règle qui rend le plus de toute la liste » — passerait au
+    //    vert sans surveiller quoi que ce soit. En silence.
+    const css = toutLeCss();
+    const declarees = new Set(css.flatMap(([, c]) => [...variablesDeclarees(c)]));
+    const lues = new Set(css.flatMap(([, c]) => [...variablesLuesSansRepli(c)]));
+
+    expect(declarees.size, 'le format de tokens.css a pu changer sous nos pieds').toBeGreaterThan(20);
+    // Volontairement bas : il n'y a que cinq lectures sans repli dans tout le projet en
+    // phase 2, et le seuil doit mesurer « le détecteur voit » et non « le projet est gros ».
+    expect(lues.size, 'plus aucune var(--x) reconnue : INV-20 ne surveille plus rien').toBeGreaterThan(0);
+  });
 });

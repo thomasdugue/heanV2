@@ -31,6 +31,19 @@ export function cheminsMachine(texte: string): string[] {
 const ZONES = ['src', 'src-tauri/src', 'docs', '.claude', 'tools'] as const;
 const EXTS = ['.ts', '.svelte', '.css', '.rs', '.md', '.sh', '.mjs'] as const;
 
+// ⚠️ MUET PAR CONSTRUCTION, et là aussi c'est voulu : la seule matière réelle que ce
+// détecteur pourrait trouver dans les zones vivantes serait une faute. Zéro trouvaille est
+// donc son état sain, et aucune assertion « il trouve au moins N choses réelles » n'a de
+// sens ici — contrairement à `references-de-tests.test.ts`, dont la matière (les citations)
+// est légitime et abondante.
+//
+// Ce qui le protège à la place :
+//   - le lecteur partagé refuse un corpus vide, donc aucune des cinq zones ne peut
+//     disparaître en silence — et c'est le vrai risque de ce test, qui en scanne cinq ;
+//   - ses trois auto-tests éprouvent le détecteur ET ses deux exceptions, dans les deux
+//     sens (il voit le cas de V1, il ne se déclenche pas sur le dossier de données ni sur un
+//     bloc de lancement). La matière des exceptions, elle, est bien réelle : `bootstrap/`
+//     en porte, et c'est pour ça qu'il est hors zones.
 describe('aucune référence hors du dépôt', () => {
   it('aucun chemin absolu de machine dans le code, la doc ou les skills', () => {
     const fautes = ZONES.flatMap((z) =>

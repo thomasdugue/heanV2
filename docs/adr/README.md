@@ -17,6 +17,16 @@ ayant pris « le suivant après 0006 » sans se voir. `tools/check-adr.mjs` le r
 numéro unique, présence dans ce tableau, état dans un ensemble fermé, et tout renvoi en texte nu
 qui doit désigner exactement un fichier — ce qu'aucun vérificateur de liens ne voit.
 
+⚠️ **Mais `check-adr.mjs` ne voit que la branche courante** : il lit les fichiers suivis par git,
+donc il ne peut pas détecter une collision avec une branche vivante tant qu'elle n'a pas fusionné.
+**Le numéro se prend donc en regardant ce tableau ET les PR ouvertes.** C'est arrivé une seconde
+fois le 2026-11-23, et cette fois sans dégât : 0010 était déjà pris par la PR de migration des
+données de V1, encore ouverte et donc invisible pour `check-adr.mjs`. Les deux branches auraient
+passé `./check` chacune de son côté, et la collision n'aurait éclaté qu'au merge. La décision
+suivante a donc pris **0011**, et les deux numéros sont arrivés intacts — c'est l'état qu'on lit
+aujourd'hui dans le tableau. Un trou temporaire dans la numérotation ne coûte rien ; deux
+décisions sous le même numéro ont coûté une heure et huit renvois à corriger.
+
 | # | Décision | État |
 |---|---|---|
 | [0001](0001-reecrire-hean-de-zero.md) | Réécrire Hean de zéro plutôt que refactorer V1 | Acceptée |
@@ -29,6 +39,7 @@ qui doit désigner exactement un fichier — ce qu'aucun vérificateur de liens 
 | [0008](0008-epingler-la-chaine-doutils.md) | La chaîne d'outils Rust est épinglée — `./check` est vraiment identique partout | Acceptée |
 | [0009](0009-bibliotheque-cle-dalbum-et-source-de-verite.md) | La bibliothèque : schéma SQLite strict et versionné, clé d'album typée, le fichier audio comme source de vérité | Acceptée |
 | [0010](0010-methode-de-migration-des-donnees-v1.md) | La méthode de migration des données de V1 : copier à côté, vérifier, échanger, puis supprimer | Acceptée |
+| [0011](0011-derogation-inv-21-pour-les-exemples.md) | Les exemples en ligne de commande écrivent sur stdout : dérogation à INV-21 | Acceptée |
 
 **Décisions encore ouvertes**, à transformer en ADR dès qu'elles sont prises :
 

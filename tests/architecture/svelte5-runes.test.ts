@@ -16,6 +16,19 @@ export function tracesDeSvelte4(code: string): string[] {
   return out;
 }
 
+// ⚠️ CE DÉTECTEUR EST MUET AUJOURD'HUI, ET C'EST NORMAL. Il n'a aucune matière réelle à
+// reconnaître : la phase 2 ne compte qu'UN composant Svelte (`App.svelte`), et pas une seule
+// trace de Svelte 4 — ce qui est le but. On ne peut donc pas lui demander de « trouver au
+// moins N choses réelles » sans inventer la faute qu'il cherche.
+//
+// La phase 3 le rendra bavard : c'est elle qui apporte les vues, donc les dizaines de
+// composants où un `$:` copié d'un exemple en ligne peut se glisser. D'ici là :
+//   - son corpus est garanti non vide par le lecteur partagé (`_lecture.ts`), donc il ne
+//     peut pas devenir vert en ne regardant plus rien ;
+//   - sa moitié « stores » repose sur `imports()`, que `ipc.test.ts` éprouve sur du vrai
+//     code ;
+//   - sa moitié « $: » n'est éprouvée que par l'auto-test ci-dessous, et c'est la limite
+//     assumée, écrite ici.
 describe('Svelte 5 — runes uniquement', () => {
   it('aucun store Svelte 4, aucune déclaration $:', () => {
     const fautes = sources('src', ['.ts', '.svelte']).flatMap(([f, c]) =>
