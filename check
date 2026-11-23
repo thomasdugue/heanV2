@@ -24,11 +24,25 @@
 #
 #   - Les ZONES de `check-sizes.sh` (`src src-tauri/src tests tools check`) sont, elles aussi,
 #     une LISTE — avec la faiblesse exacte de celle des extensions qu'on vient de supprimer.
-#     `src-tauri/tests/` n'y est pas, et **`src-tauri/tests/bibliotheque.rs` fait déjà
-#     416 lignes**, donc au-dessus de la limite : élargir les zones rend `./check` ROUGE tant
-#     que ce fichier n'est pas découpé. Ce n'est donc pas un correctif d'une ligne, et le
-#     fichier appartient au Rust de la bibliothèque, pas au harnais. 234 fichiers suivis vivent
-#     hors zones à la racine : élargir demande de dire lesquels comptent.
+#     Il manque `src-tauri/tests/` ET `src-tauri/examples/`. Ce n'est pas théorique :
+#     `src-tauri/tests/bibliotheque.rs` dépasse 400 lignes depuis la phase 2 sans faire rougir
+#     quoi que ce soit (416 sur main, 417 sur la branche de migration). Élargir rend donc
+#     `./check` ROUGE tant qu'il n'est pas découpé — et ce fichier appartient au Rust de la
+#     bibliothèque, pas au harnais. La PR #13 le découpe (plus gros morceau : 178 lignes), donc
+#     le préalable tombe à sa fusion ; le plus gros du dossier reste `decodage.rs` à 274.
+#     ⚠️ ET LE RACCOURCI NE MARCHE PAS : dériver le périmètre de `git ls-files '*.rs'`, comme
+#     proposé en relecture, ramène les **36 fichiers Rust de `bootstrap/`** — l'archive figée de
+#     V1 (ADR 0004), dont **13 dépassent 400 lignes**, le plus gros à **2 664**. Les « corriger »
+#     falsifierait le relevé historique. Il faudrait donc nommer `bootstrap/` en exception :
+#     on troque une liste contre une autre. La vraie forme est d'AJOUTER les deux zones
+#     manquantes, en gardant la liste — ici elle est le bon outil, parce que ce qu'elle décrit
+#     (où vit le code vivant) est une décision, pas un oubli.
+#   - **Le même angle mort sur une règle 🔴** : le détecteur d'INV-06
+#     (`tests/architecture/une-seule-source-de-pistes.test.ts`, volet Rust) ne scanne lui aussi
+#     que `src-tauri/src` et `src-tauri/tests`. Du SQL sur la liste d'exclusion écrit dans
+#     `src-tauri/examples/` échapperait donc à INV-06. Vérifié le 2026-11-23 : rien de tel
+#     aujourd'hui (`examples/migrer.rs`, 51 lignes, zéro `excluded_paths`). Relevé par
+#     invariant-guardian en relecture de la PR #8. Même correctif que ci-dessus, même décision.
 #   - Rien ne vérifie qu'un fichier de `docs/generated/` **s'annonce réellement généré**, alors
 #     que `CLAUDE.md` l'affirme. Une phrase dans un document ne peut pas échouer : c'est
 #     précisément ce que ce harnais existe pour remplacer. Trouvé en éprouvant l'option D.
