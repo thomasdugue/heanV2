@@ -27,6 +27,20 @@ for (const fichier of ['README.md', 'CLAUDE.md']) {
   }
 }
 
+// 1b. Le compte des comportements n'est plus écrit NULLE PART à la main : `./check` délègue
+// à `check-comportements.mjs`, qui le déduit du contrat. Ce qui reste à vérifier est donc
+// que la délégation existe — un `./check` qui recommencerait à compter lui-même rouvrirait
+// la porte. (Il a d'abord retranché « 3 » aux tests verts, puis annoncé « sur 24 » : deux
+// nombres écrits à la main, les deux devenus faux.)
+const comportements = (lire('tests/ux/_contrat.ts').match(/^\s*c\('[VW]\d{3}'/gm) ?? []).length;
+const verif = lire('check');
+if (!verif.includes('tools/check-comportements.mjs')) {
+  erreurs.push('check ne lance pas tools/check-comportements.mjs : les comportements portés sortiraient du verdict');
+}
+if (/portés \(sur \d+\)/.test(verif)) {
+  erreurs.push('check compte les comportements lui-même : ce nombre se déduit du contrat, il ne s’écrit pas');
+}
+
 // 2. Les comptes de piles d'invariants de CLAUDE.md ↔ le skill, source de vérité.
 // (check-invariants.mjs vérifie déjà le tableau DU SKILL contre les invariants eux-mêmes ;
 //  ici on ferme le maillon suivant, la copie lue à chaque session.)
@@ -41,8 +55,26 @@ const total = Object.values(piles).reduce((a, b) => a + b, 0);
 const planifiees = (skill.match(/^- couverture\s*:\s*planifiée/gm) ?? []).length;
 
 const claude = lire('CLAUDE.md');
+// Les invariants DÉJÀ actifs : couverture « test X » ou « architecture X ». C'est le
+// pendant des « planifiées », et il bouge au même rythme — chaque règle branchée sur un
+// test fait monter l'un et baisser l'autre. Écrit à la main dans CLAUDE.md, ce nombre
+// serait faux au premier branchement ; il l'était d'ailleurs déjà à la phase 2.
+const actives = (skill.match(/^- couverture\s*:\s*(test|architecture) /gm) ?? []).length;
+
+// 2b. Le nombre de règles annoncé par le README. Il annonçait « les 21 règles » pour 22 —
+// faux depuis la naissance d'INV-22, et invisible parce que seul CLAUDE.md était vérifié.
+// Un garde-fou qui ne couvre qu'un des deux fichiers où le nombre est écrit ne couvre pas
+// la règle, seulement l'endroit où quelqu'un y a pensé.
+const regles = /`hean-invariants` \(les (\d+) règles\)/.exec(lire('README.md'))?.[1];
+if (regles === undefined) {
+  erreurs.push("README.md : impossible d'y lire le nombre de règles — le format a changé");
+} else if (Number(regles) !== total) {
+  erreurs.push(`README.md annonce « les ${regles} règles », il y en a ${total}`);
+}
+
 const attendus = [
   [/\*\*(\d+) règles\*\*/, total, 'le total des invariants'],
+  [/dont \*\*(\d+) déjà actives\*\*/, actives, 'les invariants déjà couverts par un test'],
   [/\*\*Rayées \((\d+)\)\*\*/, piles['rayé'], 'les invariants rayés'],
   [/\*\*Devenues des tests \((\d+)\)\*\*/, piles['test'], 'les invariants devenus des tests'],
   [/\*\*Irréductibles \((\d+)\s*\+/, piles['irréductible'], 'les invariants irréductibles'],
@@ -60,5 +92,7 @@ if (erreurs.length) {
   process.exit(1);
 }
 console.log(
-  `check-comptes : OK (${verifications} vérifications, ${total} invariants dont ${planifiees} planifiés)`,
+  `check-comptes : OK (${verifications} vérifications, ${total} invariants dont ${actives} actifs et ` +
+    `${planifiees} planifiés, ` +
+    `${comportements} comportements)`,
 );

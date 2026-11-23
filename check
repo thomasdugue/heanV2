@@ -9,7 +9,7 @@
 #
 # Reste à brancher, au fur et à mesure (voir bootstrap/06-setup-v2/HARNAIS.md) :
 #   [x] fixtures audio + backend « fake »   phase 1  (HARNAIS.md §1) — fait
-#   [ ] property tests de normalisation     phase 2  (HARNAIS.md §4)
+#   [x] property tests de normalisation     phase 2  (HARNAIS.md §4) — fait
 #   [ ] mode parité V1 ↔ V2                 phase 2  (HARNAIS.md §5)
 #   [ ] régression visuelle                 phase 4  (HARNAIS.md §7)
 #   [ ] conteneur Samba + injection panne    phase 5  (HARNAIS.md §12)
@@ -63,16 +63,16 @@ fi
 # Après le build, pour que dist/ soit frais (en --fast, mesure le dernier build connu).
 run "poids & deps"        bash tools/check-weight.sh
 
-# Tableau de bord — PAS un verdict. Les 24 comportements de UX-ANTI-REGRESSION.md sont
-# rouges tant que la feature correspondante n'est pas portée : c'est l'avancement du projet,
-# pas une régression. Voir docs/generated/ux.md.
+# Les comportements de UX-ANTI-REGRESSION.md — tableau de bord ET verdict, selon leur état.
+#
+# Un comportement encore à porter est rouge : c'est l'avancement du projet, pas une
+# régression, et ça ne compte pas dans le verdict. Un comportement PORTÉ, lui, doit passer :
+# sinon c'est une régression, et elle doit faire rougir ./check. Jusqu'en phase 2 toute la
+# suite était hors verdict — sans conséquence tant qu'aucun comportement n'était porté, et
+# un angle mort à la minute où six l'ont été (relevé par invariant-guardian). Le détail du
+# raisonnement est en tête de tools/check-comportements.mjs. Voir aussi docs/generated/ux.md.
 if [ -f package.json ]; then
-  echo "→ comportements UX (tableau de bord, hors verdict)"
-  sortie=$(npm run --silent test:ux 2>&1)
-  verts=$(printf '%s' "$sortie" | grep -oE '[0-9]+ passed' | tail -1 | grep -oE '[0-9]+' || echo 0)
-  rouges=$(printf '%s' "$sortie" | grep -oE '[0-9]+ failed' | tail -1 | grep -oE '[0-9]+' || echo 0)
-  echo "  ${rouges:-0} comportements restent à porter, $(( ${verts:-0} > 3 ? ${verts:-0} - 3 : 0 )) portés (sur 24)"
-  echo
+  run "comportements portés" node tools/check-comportements.mjs
 fi
 
 echo "=== $([ $fail -eq 0 ] && echo 'VERT' || echo 'ROUGE') ==="

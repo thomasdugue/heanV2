@@ -376,3 +376,98 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   - Au passage, une leçon de méthode payée sur le vif : nettoyer une faute injectée avec
     `git checkout <fichier>` **efface le travail non commité** du même fichier. Deux modifications
     perdues et refaites. Injecter une faute se fait sur un arbre propre, ou avec une copie.
+- **2026-11-22** (phase 2 — la bibliothèque) : une bibliothèque existe. Scan du disque,
+  métadonnées lues et écrites par lofty, rangement dans SQLite sous transaction, schéma versionné
+  dès la première migration. **Six comportements passent du rouge au vert** — V004, V012, V013,
+  V014, V015 et W006 — et le tableau de bord affiche **6 portés sur 24**. `./check` reste vert
+  (18 vérifications), 53 tests frontend et 83 tests Rust. ADR 0009.
+  - **Deux invariants quittent la dette**, et pas en devenant des règles mieux écrites.
+    **INV-01** devient un type : `AlbumKey` n'a qu'un constructeur, sans `From<String>` ni champ
+    public, donc aucune clé non normalisée ne peut entrer dans la base — et la clé n'est construite
+    que dans un seul langage, le frontend la reçoit et ne la recalcule jamais. **INV-07** devient un
+    ordre d'écriture : le fichier audio d'abord, puis la base, et la base n'est alimentée qu'avec ce
+    que la **relecture du fichier** a rendu. La dette visible passe de 11 à 9 règles planifiées.
+  - Les deux fixtures faites pour ça en phase 0 ont servi pour de vrai : `tags-nfd.flac` (album en
+    NFD) et `artist-feat.flac` (même album, artiste « feat. ») produisent **un** album. C'est
+    l'invariant 1 de V1 et la régression W003 d'un coup, sur des fichiers réels et pas sur une
+    chaîne de caractères choisie à la main.
+  - **Un trou dans le harnais, trouvé en le mettant à l'épreuve pour de vrai.** Le détecteur
+    d'INV-06 (« une seule construction de liste de pistes ») cherchait `\bTrack\b` dans le type de
+    retour des commandes générées. Or specta émet `Track_Serialize` dès qu'un type porte un champ
+    optionnel : le détecteur n'aurait **rien vu** sur la première commande réelle du projet, et
+    INV-06 — 🔴 BLOQUANT — aurait été désarmé **sans un seul test rouge**. Écrit en phase 0 contre
+    un exemple à la main, il passait au vert sur un dossier vide. Corrigé, et son auto-test porte
+    désormais les deux formes, plus un cas qui échouerait si le détecteur ne trouvait **rien** :
+    c'est cette dernière assertion qui aurait parlé la première.
+  - Deuxième trou, même famille : `contrat-complet.test.ts` — le test qui empêche le tableau de
+    bord de mentir — ne tournait que dans la suite UX, donc **hors du verdict** de `./check`. Le
+    garde-fou du tableau de bord était lui-même hors garde-fou. Il est désormais aussi dans
+    `npm run test`. Et l'appariement reconnaît maintenant un comportement **porté** (le titre du
+    test) et non seulement un `aPorter(...)` : sans ça, il criait « comportement perdu » à chaque
+    progrès.
+  - Troisième : le tableau de bord calculait les portés en retranchant **3** aux tests verts — le
+    nombre de tests de l'appariement. Ajouter un test à ce fichier rendait le compte faux en
+    silence, ce qui est arrivé dans cette session même. Les portés se déduisent désormais des
+    rouges (24 moins ce qui reste), et `check-comptes.mjs` vérifie le « sur 24 » contre le contrat.
+    Au passage, il vérifie aussi le nombre d'invariants **déjà actifs** annoncé dans `CLAUDE.md` :
+    il était faux (3 annoncés, 5 réels) une minute après le branchement d'INV-01.
+  - **Mesure contre l'attente, à ranger à côté de celle de la phase 1 sur symphonia** : lofty
+    accepte les **trois** fixtures de fichiers abîmés, en-tête STREAMINFO incohérent compris — là
+    où le décodeur refuse ce dernier. Pour `corrupt-entete.flac`, qui dure une seconde, le
+    conteneur annonce **4 275 789 ms, soit plus de 71 minutes**, et lofty le rapporte sans broncher.
+    Deux bibliothèques ne lisent pas les mêmes octets et ne s'accordent donc pas sur ce qu'est un
+    fichier valide. « Ça s'est lu » ne prouve pas plus « le fichier est entier » que « ça s'est
+    décodé » — c'est INV-22, vu depuis l'autre bout. Le contrôle est daté de la phase 5 ; d'ici là
+    un test fixe la mesure, et le jour où il échouera parce que lofty refuse ces fichiers, **cet
+    échec sera la bonne nouvelle**.
+  - Et un quatrième, trouvé en relisant : le `README` annonçait « les 21 règles » alors qu'il y en
+    a 22 — faux depuis la naissance d'INV-22, et invisible parce que `check-comptes` ne vérifiait ce
+    nombre que dans `CLAUDE.md`. Un garde-fou qui ne couvre qu'un des deux endroits où un nombre est
+    écrit ne couvre pas la règle, seulement l'endroit où quelqu'un y a pensé. Corrigé, et vérifié.
+  - Conséquence de délégation, tirée dans le même mouvement : `library/migrations.rs` rejoint la
+    zone `migration-donnees` de `tools/zones-interdites.txt`. Une migration de **schéma** qui perd
+    une colonne perd les mêmes données qu'une copie ratée.
+  - Écart de brief signalé, non corrigé : `PLAN-DE-RECONSTRUCTION.md` annonce comme critère de
+    phase 2 « les tests de comportement B* et C* du FEATURE-SET ». **Ces identifiants n'existent
+    pas** — le FEATURE-SET numérote bien `B01`…`B18` et `C01`…`C08`, mais ce sont des *features*,
+    pas des comportements testables, et aucun test ne peut les citer tels quels. Le document est
+    l'archive figée du bootstrap : on ne le corrige pas. Le vrai critère est celui du contrat
+    anti-régression, et il est exécutable.
+  - Hors périmètre, délibérément : **le pipeline de pochettes** (INV-12, phase 4 selon le skill
+    plutôt que phase 2 selon le plan), **la migration des données de V1** (zone jamais déléguée,
+    fixtures tirées de vraies données) et **toute interface**. Le frontend s'arrête au dépôt et au
+    regroupement.
+  - **Le trou que cette phase avait elle-même ouvert**, relevé par `invariant-guardian` : les six
+    comportements portés vivaient **hors du verdict** de `./check`. La suite UX tournait à part et
+    son compte n'avait jamais touché le verdict — sans conséquence tant qu'aucun comportement
+    n'était porté, angle mort à la minute où six l'ont été. V012 ou V004 pouvaient régresser en
+    phase 3 en laissant `./check` **VERT**, le tableau de bord relabellisant la régression en dette
+    (« il en reste 19 à porter »). Refermé par `tools/check-comportements.mjs`, **19ᵉ vérification**
+    et la première à entrer dans le verdict depuis la phase 1 : un comportement porté doit passer,
+    un comportement à porter doit échouer. Éprouvée en réinjectant la faute de V1 dans le dépôt
+    frontend — `./check` devient rouge en nommant V004. La règle est écrite dans `hean-invariants`
+    avec son mécanisme, pas seulement son intention.
+  - Corollaire fermé dans le même mouvement : un test porté doit contenir une **assertion**.
+    `it('V005 — …', () => {})` aurait été compté porté *et* vert. Et le détecteur qui le vérifie
+    avait lui-même un défaut à sa première écriture — il découpait les corps de tests avec une
+    borne `\Z` qui n'existe pas en JavaScript, donc le **dernier test de chaque fichier** échappait
+    à l'examen, c'est-à-dire exactement l'endroit où on ajoute un test. Trouvé par son auto-test.
+  - Deux défauts de mon code, trouvés en relecture et corrigés avec leur test : `HOME` absent
+    rendait un chemin **relatif**, donc la base se créait dans le répertoire courant et la
+    bibliothèque paraissait simplement vide — le cas « défaut invisible » qu'INV-21 décrit ; et une
+    édition vide remontait « piste inconnue », un message **faux**, qui envoie chercher au mauvais
+    endroit. Fermée aussi l'asymétrie du détecteur d'INV-06, qui ne scannait que `src-tauri/src` là
+    où celui d'INV-01 scanne aussi `tests/`.
+  - **L'ADR 0009 portait « Décideur : Thomas », et Thomas n'avait tranché aucun de ses quatre
+    points.** Relevé par une autre session, vérifié, corrigé : l'attribution dit maintenant « session
+    de phase 2, choix pris à l'intérieur d'un périmètre déjà tranché, non soumis à Thomas ». Le champ
+    est prérempli à « Thomas » dans les huit ADR précédents et je l'ai rempli comme eux — la
+    faiblesse est dans le gabarit, qui produit une affirmation que rien ne vérifie. Et elle porte sur
+    ce qui compte le plus ici : « Thomas a décidé ceci, à cette date » est ce qui fait qu'une règle ne
+    se rediscute pas (INV-21, INV-22). Une attribution fausse rendrait indistinguable ce qu'il a
+    décidé de ce qu'une session a décidé pour lui. **La convention générale est devant lui** — quoi
+    écrire quand une session décide à l'intérieur d'un brief qu'il a approuvé — et le mécanisme qui
+    la tiendra appartient au harnais, donc à la session de phase 0, pas à celle-ci.
+  - **Prochaine étape, choisie par Thomas : la migration `noir/` → `hean/` avant les vues.**
+    Sécuriser la bibliothèque des ~50 testeurs d'abord. Zone jamais déléguée, fixtures à tirer
+    d'une copie réelle d'un dossier `noir/`, sa propre session.

@@ -44,8 +44,24 @@ symphonia = { version = "0.5", default-features = false, features = [
 # dépendance système, ~1 Mo. Présent dès le socle pour que le choix soit VÉRIFIÉ, pas supposé.
 rusqlite = { version = "0.43", features = ["bundled"] }
 
+# Métadonnées audio (ADR 0009). lofty LIT et ÉCRIT les tags : c'est la bibliothèque de V1,
+# et c'est elle qui rend INV-07 tenable — la source de vérité d'une métadonnée est le
+# fichier audio, pas la base. Épinglée en 0.22 : les versions suivantes exigent rustc 1.89,
+# au-delà de la `rust-version` du crate (ADR 0008 — la chaîne d'outils est épinglée).
+lofty = "0.22"
+
+# Normalisation Unicode (ADR 0009). Le SEUL usage légitime est `AlbumKey::new` : trois bugs
+# de V1 venaient d'une normalisation (trim + NFC) réécrite à plusieurs endroits.
+unicode-normalization = "0.1"
+
 [profile.release]
 codegen-units = 1
 lto = true
 panic = "abort"
 strip = true
+
+[dev-dependencies]
+# Property-based testing (HARNAIS.md §4). On ne teste plus des exemples mais des
+# propriétés : `AlbumKey::new` est idempotente, et deux écritures Unicode équivalentes
+# donnent la même clé pour TOUTE chaîne générée.
+proptest = "1"

@@ -27,6 +27,7 @@ qui doit désigner exactement un fichier — ce qu'aucun vérificateur de liens 
 | [0006](0006-socle-et-harnais-de-phase-0.md) | Le socle de phase 0 et la forme du harnais | Acceptée |
 | [0007](0007-format-interne-audio-et-preuve-du-bit-perfect.md) | Format interne audio `i32` à l'échelle 32 bits ; le bit-perfect devient une assertion | Acceptée |
 | [0008](0008-epingler-la-chaine-doutils.md) | La chaîne d'outils Rust est épinglée — `./check` est vraiment identique partout | Acceptée |
+| [0009](0009-bibliotheque-cle-dalbum-et-source-de-verite.md) | La bibliothèque : schéma SQLite strict et versionné, clé d'album typée, le fichier audio comme source de vérité | Acceptée |
 
 **Décisions encore ouvertes**, à transformer en ADR dès qu'elles sont prises :
 
@@ -38,4 +39,4 @@ qui doit désigner exactement un fichier — ce qu'aucun vérificateur de liens 
 | WiFi Sync dans le périmètre de V2, et à quelle phase | rien | [`../../bootstrap/05-postmortem/chantier-wifi-sync/README.md`](../../bootstrap/05-postmortem/chantier-wifi-sync/README.md) |
 | V2 = mise à jour de V1 (même bundle identifier) ou app distincte | phase 7 | [`0003`](0003-dossier-de-donnees.md) |
 | Nom de service Keychain pour les mots de passe SMB | phase 3 | [`0003`](0003-dossier-de-donnees.md) |
-| `noir://` → `hean://` et `NOIR_WORKER_*` → `HEAN_WORKER_*` | phase 2 / 7 | [`0003`](0003-dossier-de-donnees.md) |
+| `noir://` → `hean://` et `NOIR_WORKER_*` → `HEAN_WORKER_*` | phase 2 / 7 | [`0003`](0003-dossier-de-donnees.md) — **pas tranché en phase 2** : la bibliothèque n'a besoin d'aucun protocole custom, le sujet revient avec les pochettes (phase 4) et les secrets (phase 7) |
