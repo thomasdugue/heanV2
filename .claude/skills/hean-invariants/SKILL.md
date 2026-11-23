@@ -167,7 +167,7 @@ dette **visible**, que `./check` recompte à chaque passage.
 ### INV-07 — Une métadonnée éditée est écrite dans le fichier audio
 - pile : test
 - gravité : 🔴 BLOQUANT
-- couverture : test `bibliotheque.rs` — écriture lofty, puis relecture du fichier
+- couverture : test `edition.rs` — écriture lofty, puis relecture du fichier
 - pourquoi : le cache est un accélérateur, **la source de vérité est le fichier audio**.
   SQLite règle la cohérence entre caches (INV-08/09/10) mais ne dit rien de ça : si on
   n'écrit que dans la base, la métadonnée disparaît dès que l'utilisateur ouvre le fichier
@@ -440,6 +440,25 @@ censé voir.
   **Un silence expliqué n'est pas un angle mort ; un silence non écrit en est un.** Même doctrine
   pour un détecteur muet faute de matière (INV-04 avant la phase 5, Svelte 4 avant la phase 3) :
   le commentaire dit pourquoi il est muet et quelle phase le rendra bavard.
+- **La liste de ce qu'on surveille oublie ; la liste de ce qu'on exclut couvre d'avance.** Troisième
+  variante, et c'est le **sens de l'échec** qui compte. `check-sizes.sh` énumérait les extensions à
+  mesurer (`.ts .rs .css …`) : il ne lisait donc **ni shell ni Python**, et un rapport Python de
+  **569 lignes est passé vert** — le premier fichier du dépôt à franchir la limite, dans une langue
+  que le détecteur ne lisait pas. Inversé le 2026-11-23 : on mesure **tout, sauf une liste
+  d'exceptions écrite** (binaires, tables de données). Un binaire nouveau fait alors rougir et
+  quelqu'un écrit l'exception ; un langage nouveau ne passe plus en silence, ce qui ne réveillait
+  personne. Même traitement pour `aucun-chemin-machine.test.ts`, à qui manquaient `.py`, `.json` et
+  `.txt` : il lit désormais **tout le suivi, moins les binaires**, qui sont écrits avec leur
+  raison. Les deux détecteurs appliquent donc le même principe — et c'est voulu : garder une
+  liste d'un côté et l'inverser de l'autre donnerait une incohérence que quelqu'un « simplifierait »
+  plus tard en la trouvant arbitraire. **La liste par énumération est ce qui a créé les trois trous**
+  (shell, Python, et `tools/git-hooks/pre-commit`, qu'aucune recherche par extension ne pouvait
+  attraper, faute d'en avoir une).
+- **Un corpus dérivé de `git ls-files` est identique en local et en CI, par construction.** C'est le
+  choix de `check-adr.mjs`, repris le 2026-11-23 par `check-sizes.sh` et par l'assertion de
+  couverture ci-dessus. Un corpus lu sur le disque embarque ce qui traîne — un `.DS_Store`, un
+  fichier de travail — donc il peut rougir chez Thomas et passer en CI : le défaut du 2026-11-22,
+  vu de l'autre bout. Éprouvé : un fichier de 999 lignes non suivi par git est bien ignoré.
 - ⚠️ **Nettoyer l'injection : arbre propre avant, ou copie.** `git checkout <fichier>` pour
   retirer une faute injectée **efface aussi le travail non commité du même fichier**. Payé le
   2026-11-22 : deux modifications perdues, repérées seulement parce qu'un renvoi s'était remis

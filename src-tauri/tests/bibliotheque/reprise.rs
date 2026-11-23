@@ -1,58 +1,24 @@
 //! La reprise de la configuration de V1 — INV-06 à travers la migration.
 //!
-//! Extrait de `bibliotheque.rs` le 2026-11-23 : ce fichier-là dépassait la limite de
-//! 400 lignes du projet, et la relecture a relevé que mes corrections l'aggravaient (495 →
-//! 512). `tools/check-sizes.sh` ne scanne pas `src-tauri/tests/`, donc rien ne le disait —
-//! l'angle mort de périmètre est un point ouvert du harnais, mais il n'est pas une raison
-//! d'empiler.
+//! Ce module existe parce que la bibliothèque a une histoire plus vieille qu'elle : les
+//! dossiers de musique et la liste des pistes supprimées vivaient dans le `config.json` de
+//! V1, et V2 ne lit aucun JSON de V1. Ce que ces tests gardent et que
+//! `src-tauri/tests/demarrage.rs` ne couvre pas : la reprise confrontée à un **vrai scan de fichiers
+//! audio**, donc la preuve de bout en bout qu'une piste exclue dans V1 ne réapparaît pas.
 //!
-//! Ce que ces tests gardent et que `demarrage.rs` ne couvre pas : la reprise confrontée à un
-//! **vrai scan de fichiers audio**, donc la preuve de bout en bout qu'une piste exclue dans
-//! V1 ne réapparaît pas dans V2.
-
-use std::path::PathBuf;
+//! Un module du thème, comme l'en-tête de `main.rs` le demande, et le bac à sable est celui
+//! de `../commun/` : mes tests avaient d'abord recopié ces huit lignes de bac, ce qui aurait
+//! fait deux dossiers temporaires à maintenir pour la même chose.
 
 use hean_lib::library::repository::{CLE_V1_EXCLUSIONS, CLE_V1_RACINES};
-use hean_lib::library::{reprise_v1, Depot};
+use hean_lib::library::reprise_v1;
 
-fn fixture(nom: &str) -> PathBuf {
-    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/audio")).join(nom)
-}
-
-/// Un dossier de musique temporaire, peuplé de copies de fixtures.
-struct Bac {
-    dossier: PathBuf,
-}
-
-impl Bac {
-    fn avec(nom: &str, fichiers: &[&str]) -> Bac {
-        let dossier = std::env::temp_dir().join(format!("hean-repr-{nom}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dossier);
-        std::fs::create_dir_all(&dossier).expect("bac");
-        for f in fichiers {
-            std::fs::copy(fixture(f), dossier.join(f)).unwrap_or_else(|e| panic!("{f} : {e}"));
-        }
-        Bac { dossier }
-    }
-
-    fn chemin(&self, nom: &str) -> String {
-        self.dossier.join(nom).display().to_string()
-    }
-
-    fn depot(&self) -> Depot {
-        Depot::en_memoire().expect("base")
-    }
-}
-
-impl Drop for Bac {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.dossier);
-    }
-}
+use crate::commun::Bac;
 
 /// Un `config.json` de V1, composé sans écrire les noms de clés en clair (INV-06).
 fn config_v1(racines: &[&str], exclusions: &[&str]) -> String {
-    let tableau = |v: &[&str]| format!("[{}]", v.iter().map(|x| format!("\"{x}\"")).collect::<Vec<_>>().join(","));
+    let tableau =
+        |v: &[&str]| format!("[{}]", v.iter().map(|x| format!("\"{x}\"")).collect::<Vec<_>>().join(","));
     format!(
         "{{\"{CLE_V1_RACINES}\":{},\"{CLE_V1_EXCLUSIONS}\":{},\"sentry_enabled\":null}}",
         tableau(racines),
@@ -118,7 +84,7 @@ fn la_reprise_ne_se_rejoue_pas() {
 /// n'avait aucune exclusion » fait revenir ses pistes supprimées, pour toujours.
 ///
 /// Un test porté verrouille autant un bug qu'une règle : celui-ci aurait fait respecter le
-/// défaut par le prochain lecteur. Le parcours complet est dans `tests/demarrage.rs`.
+/// défaut par le prochain lecteur. Le parcours complet est dans `src-tauri/tests/demarrage.rs`.
 #[test]
 fn un_config_v1_illisible_est_une_erreur_et_ne_marque_rien() {
     let bac = Bac::avec("reprise-illisible", &["tags-nfd.flac"]);

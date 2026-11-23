@@ -700,6 +700,207 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     n'avait bougé. Un défaut connu d'une session et invisible à la suivante, c'est la dérive de
     documentation de V1 en miniature.
 
+- **2026-11-23** (extensions non lues) : **la règle des 400 lignes ne lisait ni shell ni Python, et
+  un fichier de 569 lignes est passé vert.** Signalé par la session de la « passe de vérité », qui
+  le tenait d'`invariant-guardian` relisant son diff : son rapport Python était **le premier fichier
+  du dépôt à franchir la limite**, et il l'a franchie dans une langue que le détecteur ne lit pas.
+  Troisième variante du défaut du 2026-11-22 (`\bTrack\b` contre `Track_Serialize[]`) et du vieux
+  trou d'INV-21 sur `src-tauri/tests/` : **une règle n'est tenue que là où le garde-fou regarde.**
+  - **Mesuré avant de décider, et c'est ce qui a emporté la décision** : aucun fichier concerné
+    ne dépasse la limite, donc fermer le trou ne coûtait rien — ce qui enlevait la seule bonne
+    raison d'attendre. Dans six mois, il aurait fallu découper un fichier d'abord. **Et aucun
+    chemin de machine ne dormait dans les fichiers nouvellement couverts** : vérifié aussi avant,
+    pour ne pas introduire un rouge en même temps que le correctif.
+  - **Le chiffre que j'ai d'abord annoncé à Thomas était trompeur, et c'est la session de la
+    « passe de vérité » qui l'a corrigé.** J'avais dit « le plus gros fait 126 lignes sur 400 »,
+    mesuré sur `main` — or sa branche, encore en PR, porte `tools/passe-de-verite/rapport.py` à
+    **360 lignes** (vérifié : 360, 272, 191). Dès que sa PR fusionne, la marge n'est donc pas de
+    274 lignes mais de **40**. La conclusion ne change pas — le correctif reste gratuit — mais la
+    règle devient **immédiatement mordante**, et le prochain ajout à ce fichier la fera rougir.
+    C'est ce qu'on veut ; encore faut-il le dire à l'avance plutôt que de le découvrir. Leçon de
+    méthode : **mesurer sur `main` alors que des branches vivent à côté, c'est mesurer le passé** —
+    la même myopie que celle de `check-adr.mjs` sur les numéros d'ADR, trouvée la veille.
+  - **Le correctif n'est pas « ajouter deux extensions », c'est inverser la liste.** Une règle
+    tenue par la liste de ce qu'elle surveille oublie la langue qu'on ajoutera demain. Désormais
+    `check-sizes.sh` mesure **tout, sauf une liste d'exceptions écrite** — les binaires (`wc -l`
+    n'y veut rien dire) et `zones-interdites.txt` (une table lue par un script). Le **sens de
+    l'échec** change, et c'est là tout l'intérêt : un binaire nouveau fait rougir, et quelqu'un
+    écrit l'exception ; un langage nouveau ne passe plus en silence. **65 → 81 fichiers mesurés.**
+  - **Un troisième trou, trouvé en mesurant : `./check` lui-même.** 79 lignes, et mesuré par rien
+    — il n'est dans aucun dossier scanné. Le point d'entrée unique de tout le harnais échappait à
+    la règle qu'il applique aux autres. Il est dans les zones maintenant, avec
+    `tools/git-hooks/pre-commit`, qui n'a pas d'extension et qu'aucune recherche par extension ne
+    pouvait attraper.
+  - **Et le corpus se dérive de `git ls-files`**, comme `check-adr.mjs`. Ce n'était pas le sujet,
+    mais inverser la liste l'imposait : en lisant *tout* sur le disque, un `.DS_Store` aurait fait
+    rougir chez Thomas et passer en CI — le défaut du 2026-11-22 à l'envers, réintroduit par le
+    correctif d'un autre. Éprouvé : un fichier de 999 lignes non suivi par git est bien ignoré.
+  - **`aucun-chemin-machine.test.ts` : `.py`, `.json` et `.txt` manquaient**, et `.json` n'est pas
+    un détail — `.claude/settings.json` porte une commande de hook, donc c'est exactement un
+    fichier où un chemin en dur ne se résoudrait que chez une personne. **Inversé lui aussi** :
+    il lit tout le suivi moins les binaires, écrits avec leur raison. **90 → 96 fichiers lus.**
+    J'avais d'abord gardé sa liste en lui ajoutant une assertion de couverture ; la session de la
+    « passe de vérité » a fait remarquer que scanner par extension est précisément ce qui avait
+    créé les trois trous, et elle avait raison contre ma propre moitié de correctif. Garder une
+    liste d'un côté et l'inverser de l'autre aurait laissé une incohérence que quelqu'un
+    « simplifierait » plus tard en la trouvant arbitraire. Avant, les quatre tests du fichier
+    prouvaient que le détecteur *sait lire* un chemin de machine ; aucun qu'il *était passé
+    partout*.
+  - **Deux assertions de corpus plutôt qu'une**, parce que retourner une liste crée un risque
+    neuf : une exception trop large viderait le corpus en silence. Donc « il lit plus de 50
+    fichiers » **et** « les exceptions écrites correspondent à de la matière réelle » — cette
+    dernière se périme d'elle-même le jour où ces zones ne portent plus un seul binaire. Seuil
+    volontairement « au moins un » et non un compte exact : ajouter une police ou une icône est
+    banal et ne doit pas faire rougir une règle sur les chemins de machine.
+  - **Onze injections**, toutes rouges puis remises par copie, dont le cas réel (un Python de 569
+    lignes), `./check` à 420 lignes, une langue nouvelle (`.rb`) avec et sans chemin de machine,
+    le fichier sans extension, une exception volontairement trop large qui vide le corpus, et les
+    deux cas où le vert est la bonne réponse (fichier non suivi par git, dans les deux
+    détecteurs). `./check` vert, 19 vérifications — aucune vérification nouvelle, les deux
+    détecteurs existaient déjà. **65 → 81 fichiers mesurés, 90 → 96 fichiers lus.**
+  - **⚠️ UNE DÉCISION ATTEND THOMAS, et elle est née du mécanisme lui-même.** La branche de la
+    « passe de vérité » ajoute `tools/passe-de-verite/Cargo.lock`, **5 109 lignes**. Le détecteur
+    inversé le mesure — il fait donc exactement son travail : une forme imprévue échoue au lieu de
+    passer en silence, et il se trouve que le premier cas arrive le jour même. **Mais la suite
+    n'est pas une correction, c'est un changement de portée d'invariant**, donc elle ne se prend
+    pas seule (ADR 0005). Trois options remontées : une exception nommée pour les fichiers de
+    verrouillage, qui tient sur une propriété vérifiable — un lock est écrit par un outil et
+    régénéré, jamais relu, alors que la leçon de V1 porte sur ce qu'on **relit** (`lib.rs`,
+    4 870 lignes) ; ou la portée générale « la règle ne vise que les fichiers écrits à la main » ;
+    ou le retrait du lock de leur branche, qu'ils proposent eux-mêmes.
+    **Mesure qui élargit la question** : `src/ipc/bindings.ts` est généré, déjà mesuré, et à
+    **152 lignes pour 8 commandes IPC** — au même rythme il franchit 400 vers la vingtaine, et V1
+    en avait **86**. La règle se heurtera donc à un fichier que personne n'écrit à la main, lock ou
+    pas. Le lock n'est que le premier arrivé.
+    **Et aucune urgence** : les deux PR fusionnent seules sans rien casser — l'ancien détecteur ne
+    lit pas les `.lock`, et ma branche ne porte pas leur lock. **Seule la deuxième des deux fusions
+    rougit.** C'est arrivé : la PR #10 a fusionné, donc cette branche porte la décision.
+  - **Une quatrième option, venue de la même session, et meilleure que mes trois** : l'exception
+    reconnaît **les fichiers qui s'annoncent générés**. Vérifié — les cinq fichiers générés du
+    dépôt le déclarent en tête. L'exception cesse alors d'être une liste de noms et **se maintient
+    toute seule** : un générateur nouveau obtient la dérogation en émettant son en-tête, un
+    générateur qui n'en émet pas provoque un rouge qui pose la question. C'est l'inversion du
+    corpus, appliquée à l'exception.
+    **Ses deux faiblesses, mesurées et transmises avec elle.** (1) Les formulations divergent —
+    trois phrasés en deux langues, et le marqueur n'est pas toujours en première ligne
+    (`docs/generated/*.md` le mettent en troisième). Une expression régulière couvrant tout serait
+    fragile ; la forme solide veut un **marqueur canonique** émis par `npm run gen`, `Cargo.lock`
+    restant le seul cas étranger nommé. (2) Keyer sur le **contenu** ouvre une porte : coller le
+    marqueur en tête d'un fichier écrit à la main échappe à la règle. Moins grave qu'une extension
+    oubliée — ça se voit dans un diff — mais ça existe, et les options A et B n'ont pas ce défaut.
+    **Donc D est la bonne forme et A la bonne étape** : A s'écrit en une ligne et ne ferme aucune
+    porte, D mérite son ADR.
+  - **Signalé sans être corrigé, troisième lot** : rien ne vérifie qu'un fichier de
+    `docs/generated/` **s'annonce réellement généré**. `CLAUDE.md` affirme qu'ils le sont — une
+    phrase dans un document, donc exactement ce que ce harnais existe pour remplacer. Vérification
+    nouvelle, donc sa propre tâche. Trouvée en éprouvant l'option D.
+  - **Deux corrections venues des autres sessions, sur mon propre travail.** (1) J'avais annoncé à
+    Thomas « le plus gros fichier concerné fait 126 lignes sur 400 » : c'était la mesure de `main`,
+    alors que leur branche porte un fichier à **360**. La marge réelle après leur fusion est de
+    **40 lignes**, pas 274 — la conclusion tenait, le chiffre non. (2) J'avais gardé une liste
+    d'extensions dans `aucun-chemin-machine.test.ts` ; ils ont fait remarquer que scanner par
+    extension est précisément ce qui avait créé les trois trous. Ils avaient raison contre ma
+    moitié de correctif, et l'inversion a été étendue là aussi — ce qui a couvert, du même coup,
+    `tools/git-hooks/pre-commit`, qu'aucune liste d'extensions ne pouvait atteindre.
+  - **Tranché par Thomas le 2026-11-23 : option A.** Une exception nommée pour les fichiers de
+    verrouillage, écrite une fois dans `tools/check-sizes.sh`, sur la propriété qui la rend
+    tenable — un lock est écrit par un outil et régénéré, **jamais relu**, alors que la leçon de
+    V1 porte sur ce qu'on relit (`lib.rs` à 4 870 lignes, `views.js` à 3 512). Le motif vise le
+    nom de fichier **où qu'il soit**, donc les trois locks du dépôt sont couverts de la même
+    façon : `src-tauri/Cargo.lock` (5 265 lignes), `tools/passe-de-verite/Cargo.lock` (5 109) et
+    `package-lock.json` (2 180) — pas seulement celui qui rougissait. Éprouvé dans les deux sens :
+    un fichier de 5 109 lignes qui **n'est pas** un lock reste rouge, et `Cargo.lock.ts` — dont le
+    nom contient celui d'un lock — reste mesuré. L'exception n'a donc pas affaibli la règle.
+    `check-sizes` est vert, **88 fichiers mesurés**.
+  - **Un quatrième trou, trouvé en vérifiant que l'exception couvrait bien les trois locks, et
+    écrit sans être corrigé.** Deux des trois échappaient à la mesure pour une raison
+    **différente** de l'exception : ils sont **hors des zones scannées**. Autrement dit **les
+    zones sont elles aussi une liste**, avec la faiblesse exacte de celle des extensions qu'on
+    venait de supprimer. Et ce n'est pas théorique : `src-tauri/tests/` n'est pas dans les zones,
+    et **`src-tauri/tests/bibliotheque.rs` fait déjà 416 lignes** — élargir les zones rend
+    `./check` **rouge** tant que ce fichier n'est pas découpé. Donc pas un correctif d'une ligne,
+    et le fichier appartient au Rust de la bibliothèque, pas au harnais. Écrit dans la liste
+    « reste à brancher » en tête de [`check`](../check), avec le chiffre, pour que celui qui s'y
+    attellera sache ce qu'il paie.
+  - **L'option D est écrite comme échéance, pas comme dette urgente**, dans
+    [`docs/adr/README.md`](adr/README.md) avec son déclencheur chiffré et ses deux faiblesses —
+    pour que celui qui tranchera plus tard ne les redécouvre pas. La raison de ne pas l'avoir
+    prise ce soir, et elle est bonne : mon propre avis révisé disait « D est la bonne forme, **A
+    est la bonne étape** » — **quand une option nouvelle ne change pas la recommandation, elle ne
+    change pas la décision, elle change ce qu'on écrit pour plus tard.** D demande en plus un
+    marqueur canonique émis par `npm run gen`, donc un chantier, et elle ouvre une porte qu'A
+    n'ouvre pas : cela se discute à froid dans un ADR, pas dans un fil de résolution de conflit.
+  - **Ce que cette séquence a appris sur le travail à plusieurs sessions.** Trois corrections de
+    mon travail sont venues des autres sessions, et les trois portaient sur le fond : un chiffre
+    mesuré sur `main` alors qu'une branche vivante le démentait (126 contre 360) ; une liste
+    d'extensions que j'avais **gardée** dans l'un des deux détecteurs, alors que l'énumération est
+    précisément ce qui avait créé les trous ; et l'option D elle-même, meilleure que mes trois.
+    À l'inverse, j'ai refusé deux fois de trancher à la place de Thomas — l'offre de retirer le
+    lock, et l'exception elle-même — et c'était juste les deux fois. **Mesurer sur `main` quand
+    des branches vivent à côté, c'est mesurer le passé** : la même myopie que celle de
+    `check-adr.mjs` sur les numéros d'ADR, trouvée la veille.
+
+- **2026-11-23** (la limite de 400 lignes dans `src-tauri/tests/`) : **la règle était écrite dans
+  `CLAUDE.md` et dans le skill, et `./check` ne la tenait pas là où atterrissent les tests
+  d'intégration.** `tools/check-sizes.sh` bouclait sur `src`, `src-tauri/src`, `tests`, `tools` ;
+  `src-tauri/tests/bibliotheque.rs` y faisait 416 lignes sans que rien ne bronche. Relevé par
+  `invariant-guardian` à la relecture du correctif du champ `format`, qui sortait de son périmètre.
+  C'est la troisième fois que ce dossier est l'angle mort d'un garde-fou (INV-21, INV-06, et
+  celui-ci).
+  - **L'élargissement de `check-sizes.sh` n'est PAS dans cette branche** : ce fichier est tenu par
+    la session `harnais-detecteurs` (elle y refait la règle pour mesurer tous les fichiers suivis
+    par git), et l'écrire en parallèle, c'était écraser son travail. Sa liste de zones
+    (`src src-tauri/src tests tools check`) **n'a toujours pas `src-tauri/tests`** : il faut l'y
+    ajouter, et **seulement après** que cette branche a fusionné, sinon `./check` rougit sur
+    `bibliotheque.rs`. D'où l'ordre, non négociable : découpage d'abord, élargissement ensuite.
+  - **Le découpage** : `bibliotheque.rs` devient la cible `bibliotheque/`
+    (`main.rs` + `album.rs`, `edition.rs`, `scan.rs`, de 41 à 178 lignes) ; le bac à sable `Bac`
+    vit dans `tests/commun/mod.rs`, que Cargo ne prend pas pour une cible (il ne compile que
+    `tests/*.rs` et `tests/*/main.rs`) et que la cible déclare par `#[path]`. Le découpage
+    **déplace, il ne réécrit pas** : le code des tests est celui d'avant, à l'ajout de `pub` près.
+    Mesuré avant/après : 86 tests Rust dans les deux cas, les 15 mêmes noms dans la cible.
+  - **Ce que le découpage a déplacé dans le harnais** : INV-07 annonçait « test `bibliotheque.rs` »
+    et `check-invariants` exige que ce nom de fichier cite la règle — elle annonce maintenant
+    `edition.rs`. Quatre commentaires citaient `src-tauri/tests/bibliotheque.rs`
+    (`library/metadonnees.rs`, deux fichiers de `tests/ux/`) : ils pointent vers le dossier ou le
+    module qui porte la preuve. Le recensement des comportements (6 portés sur 24) n'a pas
+    bougé : `check-comportements` lit `tests/ux/`, pas les tests Rust.
+  - **Éprouvé par injection, sur l'élargissement écrit puis retiré de cette branche** : un fichier
+    de 450 lignes posé dans `src-tauri/tests/`, puis dans `src-tauri/tests/bibliotheque/` (la forme
+    du découpage), fait rougir `check-sizes` en le nommant — `trop gros (450 lignes > 400) :
+    src-tauri/tests/…`. Retiré par suppression, pas par `git checkout`. À refaire sur la version
+    de `harnais-detecteurs` quand elle ajoutera la zone : l'épreuve porte sur la boucle, pas sur la
+    sienne.
+  - **Les autres garde-fous au périmètre écrit à la main, passés en revue** (liste des
+    `tools/check-*` et des tests d'`architecture/`) :
+    - **`aucun-chemin-machine.test.ts` et `references-de-tests.test.ts` oubliaient
+      `src-tauri/tests/`** : élargis, et c'est resté vert. Éprouvés par injection (un chemin de
+      machine, une référence morte posés dans `src-tauri/tests/` les font rougir en nommant le fichier).
+    - **Les mêmes deux oublient aussi `tests/` (le TypeScript), et ceux-là ne sont PAS élargis** :
+      ils rougiraient. Chacun contient ses propres échantillons fautifs (un chemin de machine de V1,
+      deux références de test mortes) et se signalerait
+      lui-même. Ce qu'il faut corriger d'abord : une exception par **chemin exact**, comme
+      `AUTO_TEST` dans `une-seule-cle-dalbum.test.ts` — pas par motif.
+    - **Déjà complets sur `src-tauri/tests/`** : `backend.test.ts` (INV-21, INV-04, secrets),
+      `une-seule-source-de-pistes.test.ts` (INV-06), `check-invariants.mjs` (citations),
+      `check-fixtures-audio.sh` (recherche récursive). Hors sujet par construction : `ipc`,
+      `imports`, `css-*`, `svelte5-runes` (frontend seulement), `une-seule-cle-dalbum` (le Rust est
+      exclu exprès : c'est là que vit `AlbumKey::new`).
+    - **`src-tauri/examples/` n'existe pas** : aucun garde-fou ne peut l'oublier tant qu'il n'est pas
+      créé, et `backend.test.ts` refuse déjà tout `.rs` hors des dossiers scannés (ADR 0011). Le
+      jour où il est créé, ces deux listes de zones sont à relire.
+    - **Un garde-fou hors `tools/` et `architecture/`, signalé par `invariant-guardian` et non
+      corrigé** : `.claude/hooks/contrat-de-fin-de-tache.sh`, ligne 56, ne reconnaît un test de
+      régression que dans `^(tests/|src-tauri/src/.*test)`. Un correctif dont le test arrive dans
+      `src-tauri/tests/` déclenche donc la relance « aucun test n'a bougé » : fausse alerte
+      bruyante, pas un trou silencieux. Correction : ajouter `src-tauri/tests/` au motif.
+    - **Une fragilité d'INV-07, préexistante** : `check-invariants.mjs` compare la couverture au
+      **nom de fichier seul**. `edition.rs` est générique : un futur `src-tauri/src/**/edition.rs`
+      qui citerait INV-07 garderait la règle 🔴 verte même si son test disparaissait. À corriger en
+      comparant des chemins — mais c'est un changement de contrat du skill, donc une tâche à part.
+    - **Déjà signalé ailleurs, non repris ici** : `check-sizes` ne lit ni `.py` ni `.sh`
+      (entrée de la passe de vérité ci-dessus).
+
 - **2026-11-23** (relecture de la migration, puis correction) : **la relecture d'invariants que
   la PR #8 laissait à faire a trouvé quatre défauts 🔴, et Thomas a demandé qu'ils soient
   corrigés avant la fusion.** Aucun ne mettait les octets en danger — l'ordre copier →
