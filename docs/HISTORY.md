@@ -636,3 +636,47 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     le hook de fin de tâche ne se déclenche que si `src/` ou `src-tauri/src/` a bougé, et ici rien
     n'avait bougé. Un défaut connu d'une session et invisible à la suivante, c'est la dérive de
     documentation de V1 en miniature.
+
+- **2026-11-23** (la limite de 400 lignes dans `src-tauri/tests/`) : **la règle était écrite dans
+  `CLAUDE.md` et dans le skill, et `./check` ne la tenait pas là où atterrissent les tests
+  d'intégration.** `tools/check-sizes.sh` bouclait sur `src`, `src-tauri/src`, `tests`, `tools` ;
+  `src-tauri/tests/bibliotheque.rs` y faisait 416 lignes sans que rien ne bronche. Relevé par
+  `invariant-guardian` à la relecture du correctif du champ `format`, qui sortait de son périmètre.
+  C'est la troisième fois que ce dossier est l'angle mort d'un garde-fou (INV-21, INV-01, et
+  celui-ci).
+  - **Dans cet ordre, parce que l'inverse faisait rougir `./check` pour tout le monde** : d'abord
+    le découpage, ensuite l'élargissement. `bibliotheque.rs` devient la cible `bibliotheque/`
+    (`main.rs` + `album.rs`, `edition.rs`, `scan.rs`, de 41 à 178 lignes) ; le bac à sable `Bac`
+    vit dans `tests/commun/mod.rs`, que Cargo ne prend pas pour une cible (il ne compile que
+    `tests/*.rs` et `tests/*/main.rs`) et que la cible déclare par `#[path]`. Le découpage
+    **déplace, il ne réécrit pas** : le code des tests est celui d'avant, à l'ajout de `pub` près.
+    Mesuré avant/après : 86 tests Rust dans les deux cas, les 15 mêmes noms dans la cible.
+  - **Ce que le découpage a déplacé dans le harnais** : INV-07 annonçait « test `bibliotheque.rs` »
+    et `check-invariants` exige que ce nom de fichier cite la règle — elle annonce maintenant
+    `edition.rs`. Quatre commentaires citaient `src-tauri/tests/bibliotheque.rs`
+    (`library/metadonnees.rs`, deux fichiers de `tests/ux/`) : ils pointent vers le dossier ou le
+    module qui porte la preuve. Le recensement des comportements (6 portés sur 24) n'a pas
+    bougé : `check-comportements` lit `tests/ux/`, pas les tests Rust.
+  - **Éprouvé par injection** : un fichier de 450 lignes posé dans `src-tauri/tests/`, puis dans
+    `src-tauri/tests/bibliotheque/` (la forme du découpage), fait rougir `check-sizes` en le nommant
+    — `trop gros (450 lignes > 400) : src-tauri/tests/…`. Retiré par suppression, pas par `git checkout`.
+  - **Les autres garde-fous au périmètre écrit à la main, passés en revue** (liste des
+    `tools/check-*` et des tests d'`architecture/`) :
+    - **`aucun-chemin-machine.test.ts` et `references-de-tests.test.ts` oubliaient
+      `src-tauri/tests/`** : élargis, et c'est resté vert. Éprouvés par injection (un chemin de
+      machine, une référence morte posés dans `src-tauri/tests/` les font rougir en nommant le fichier).
+    - **Les mêmes deux oublient aussi `tests/` (le TypeScript), et ceux-là ne sont PAS élargis** :
+      ils rougiraient. Chacun contient ses propres échantillons fautifs (`/Users/thomas/dev/…`,
+      `tests/architecture/ipc-renomme.test.ts`, `tests/export_bindings.rs`) et se signalerait
+      lui-même. Ce qu'il faut corriger d'abord : une exception par **chemin exact**, comme
+      `AUTO_TEST` dans `une-seule-cle-dalbum.test.ts` — pas par motif.
+    - **Déjà complets sur `src-tauri/tests/`** : `backend.test.ts` (INV-21, INV-04, secrets),
+      `une-seule-source-de-pistes.test.ts` (INV-06), `check-invariants.mjs` (citations),
+      `check-fixtures-audio.sh` (recherche récursive). Hors sujet par construction : `ipc`,
+      `imports`, `css-*`, `svelte5-runes` (frontend seulement), `une-seule-cle-dalbum` (le Rust est
+      exclu exprès : c'est là que vit `AlbumKey::new`).
+    - **`src-tauri/examples/` n'existe pas** : aucun garde-fou ne peut l'oublier tant qu'il n'est pas
+      créé, et `backend.test.ts` refuse déjà tout `.rs` hors des dossiers scannés (ADR 0011). Le
+      jour où il est créé, ces deux listes de zones sont à relire.
+    - **Déjà signalé ailleurs, non repris ici** : `check-sizes` ne lit ni `.py` ni `.sh`
+      (entrée de la passe de vérité ci-dessus).

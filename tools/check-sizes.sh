@@ -5,7 +5,11 @@ set -u
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 limit=400
 fail=0
-for dir in src src-tauri/src tests tools; do
+# `src-tauri/tests` : angle mort relevé par invariant-guardian à la relecture du correctif du
+# champ `format` — `bibliotheque.rs` y avait dépassé la limite sans que ./check bronche. Le
+# même dossier avait déjà été l'angle mort d'INV-21 : un dossier oublié par un garde-fou
+# l'est pour tous ceux écrits sur le même modèle.
+for dir in src src-tauri/src src-tauri/tests tests tools; do
   [ -d "$root/$dir" ] || continue
   while IFS= read -r f; do
     n=$(wc -l < "$f" | tr -d ' ')

@@ -13,7 +13,10 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { RACINE, sources } from './_lecture';
 
-const ZONES = ['src', 'src-tauri/src', 'tools', '.claude/skills', 'docs/adr'] as const;
+// `src-tauri/tests` y est depuis le 2026-11-23 (même angle mort que `check-sizes.sh`). `tests/`
+// n'y est pas : ce fichier cite exprès des chemins morts pour éprouver son détecteur, et se
+// signalerait lui-même — il faudrait une exception par chemin exact.
+const ZONES = ['src', 'src-tauri/src', 'src-tauri/tests', 'tools', '.claude/skills', 'docs/adr'] as const;
 const EXTS = ['.ts', '.svelte', '.css', '.rs', '.mjs', '.md'] as const;
 
 /**
