@@ -3,7 +3,7 @@
 // Ces cinq-là sont PORTÉS (phase 2). Ce qu'ils couvrent est la moitié frontend : l'état
 // partagé, le rafraîchissement des vues, et le fait que rien ne reste coincé en mémoire.
 // L'autre moitié — le fichier audio, SQLite, la clé d'album — est prouvée en Rust sur de
-// vrais fichiers par `src-tauri/tests/bibliotheque.rs`, et le faux backend d'ici est dérivé
+// vrais fichiers par `src-tauri/tests/bibliotheque/`, et le faux backend d'ici est dérivé
 // des types générés pour ne pas pouvoir mentir sur la forme de l'IPC (`_faux-backend.ts`).
 import { beforeEach, describe, expect, it } from 'vitest';
 import { creerDepot } from '../../src/lib/library/repository';

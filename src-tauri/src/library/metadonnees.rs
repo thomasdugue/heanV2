@@ -12,7 +12,7 @@
 //! échoue, la base n'a pas bougé. Si lofty normalise une valeur à sa façon, c'est sa version
 //! qui entre dans la base — donc la base ne peut pas annoncer autre chose que le fichier.
 //!
-//! Vérifié par `src-tauri/tests/bibliotheque.rs`.
+//! Vérifié par `src-tauri/tests/bibliotheque/edition.rs`.
 
 use std::path::Path;
 
