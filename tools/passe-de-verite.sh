@@ -78,9 +78,20 @@ cas="${1:-bibliotheque}"; shift || true
 case "$cas" in
   bibliotheque)
     racine="$(trouver_racine "${1:-}")"
-    if [ -z "$racine" ] || [ ! -d "$racine" ]; then
+    # Deux pannes différentes, deux messages différents : « je n'ai pas de chemin » et
+    # « ton chemin n'existe pas » n'appellent pas la même chose de la part de Thomas.
+    if [ -z "$racine" ]; then
       echo "Je ne sais pas où est ta bibliothèque."
       echo "Donne-la-moi : ./tools/passe-de-verite.sh bibliotheque \"/chemin/vers/ta/musique\""
+      exit 2
+    fi
+    if [ ! -d "$racine" ]; then
+      echo "Ce dossier n'existe pas (ou n'est pas un dossier) :"
+      echo "  $racine"
+      if [ -z "${1:-}" ] && [ -z "${HEAN_BIBLIOTHEQUE:-}" ]; then
+        echo "Il vient du config.json de la V1 — ta bibliothèque a dû bouger depuis."
+        echo "Donne-moi le bon : ./tools/passe-de-verite.sh bibliotheque \"/le/bon/chemin\""
+      fi
       exit 2
     fi
     if [ ! -d "$donnees_v1" ]; then
