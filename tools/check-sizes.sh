@@ -50,6 +50,14 @@ limit=400
 #      sait comment une piste s'écrit, et le schéma ne peut pas déménager sans rouvrir INV-06,
 #      puisque ce fichier est le seul autorisé à nommer la table des chemins exclus. Le découpage
 #      se prépare donc AVANT d'écrire, pas après avoir vu le rouge.
+#      ⚠️ Et ce point chaud est sur `main` AUJOURD'HUI : il n'est pas apporté par la migration.
+#      La PR #8 fait même l'inverse — vérifié : elle sort quatre fonctions de ce fichier vers un
+#      nouveau `lignes.rs` (109 lignes) et le ramène de 398 à **397**, alors qu'elle y ajoute une
+#      migration de schéma, deux constantes et une méthode. Elle RÉTABLIT de la marge à iso-taille.
+#      La prochaine coupe est d'ailleurs déjà visible : `repository.rs` décide ce qui entre et
+#      sort, `lignes.rs` sait comment une piste s'écrit, et ce qui reste à sortir est un troisième
+#      thème — marqueurs de reprise et racines, qui ne nomment ni la table des chemins exclus ni
+#      les pistes, donc peuvent déménager sans rouvrir INV-06. Question posée à Thomas, pas faite.
 #   2. `src-tauri/tests/demarrage.rs` — 392 lignes, 8 de marge, arrive avec la migration (PR #8).
 #      Celui-là est bien dans la zone ajoutée ci-dessus, et c'est là qu'atterrira chaque test
 #      futur de la séquence de démarrage.
