@@ -101,6 +101,11 @@ de pistes — ce qui fait disparaître « n'oublie pas de répéter ce filtre pa
 
 - **Répondre toujours en français.**
 - **Un prompt = une tâche.** Ne pas toucher à ce qui est hors scope.
+- **Une session, un périmètre** — [ADR 0010](docs/adr/0010-une-session-un-perimetre.md). Le brief nomme
+  les fichiers tenus ; le reste se remonte. **Une session n'en démarre pas une autre** : un travail
+  trouvé en chemin devient une ligne dans « Bugs connus » ou une décision ouverte, et Thomas décide.
+  **Jamais deux sessions dans le même fichier** — celle qui le découvre s'arrête, elle n'écrase pas ;
+  exception nommée : les journaux en ajout seul (`docs/HISTORY.md`, l'index des ADR).
 
 Les règles qui ne valent que pour le code — zone audio/UI, 400 lignes par fichier, échappement de
 toute donnée affichée, et les trois règles de performance — sont dans le skill
