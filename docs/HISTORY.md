@@ -980,11 +980,30 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     le fait rougir : `regles-css.ts` n'appelle pas `sansCommentaires`, qui existe pourtant dans
     `_lecture.ts`. Faux positif rencontré en écrivant ce commentaire-là. Non corrigé — hors
     périmètre de cette session.
-  - ⚠️ **`~/Library/Application Support/hean/` existe maintenant chez Thomas**, créé par le
-    premier lancement de la V2 (base vide, 32 Ko). Il n'existait pas avant — `tools/passe-de-verite`
-    s'interdisait même de le créer pour cette raison. La migration `noir/` → `hean/` de la PR #8
-    copie puis vérifie puis supprime : **elle doit vérifier ce qu'elle fait d'un dossier déjà
-    présent.** À dire à la session de la PR #8 avant son merge.
+  - **`~/Library/Application Support/hean/` existe maintenant chez Thomas**, créé par le
+    premier lancement de la V2 (base vide, 32 Ko, `user_version = 1`). Il n'existait pas avant —
+    `tools/passe-de-verite` s'interdisait même de le créer pour cette raison. Signalé à la session
+    de la PR #8 : **le cas est couvert, rien à nettoyer**, et c'est vérifié dans son code, pas
+    seulement sur sa parole.
+    - Le déclencheur de la migration n'est **ni le dossier ni `library.db`** : c'est le fichier
+      témoin absent **et** `noir/` présent (`migration/mod.rs::migrer_si_necessaire`). La base
+      créée par mon lancement ne gate donc rien.
+    - La cible n'est ni refusée ni écrasée, elle est **jugée** : `contient_des_donnees` vide →
+      reliquat de démarrage, écarté ; une ligne quelque part → la migration s'arrête et ne
+      touche à rien (`Etat::CibleDejaPeuplee`, journalisé). La vacuité est **dérivée du schéma**,
+      lue dans `sqlite_master` — donc le jour où la phase 3 ajoute `playlists`, une base avec
+      des playlists et aucune piste ne sera pas déclarée vide.
+    - Elle a mesuré la séquence complète sur les deux dossiers réels de Thomas, dans un bac :
+      2 443 fichiers sur 2 446 (les 3 écartés sont le cache SMB), quatre fichiers
+      irremplaçables comparés aux **originaux** et identiques, originaux intacts.
+    - **Ce que cette machine apporte et qu'aucune fixture ne donne** : l'état « dossier présent,
+      base vide, aucun témoin » existe désormais pour de vrai, et c'est celui des testeurs qui
+      auront ouvert une build intermédiaire. Le dossier reste donc en place — le supprimer
+      effacerait le cas, et chaque lancement le recréerait de toute façon.
+    - Le *pourquoi* du refus de `tools/passe-de-verite` était devenu faux (« la migration
+      s'éteindrait définitivement ») : corrigé par cette session-là (`6acc75b`). La précaution,
+      elle, ne dépendait pas de ce motif — un outil de mesure n'écrit pas dans les données de
+      l'application.
   - **Pas vérifié de visu** : l'accès à l'écran a été refusé, donc personne n'a encore regardé
     la fenêtre. La preuve est donc indirecte, et elle vaut ce qu'elle vaut : voir la mesure.
   - **Premier chiffre mémoire de la V2 : 78 Mo** (`phys_footprint` cumulé, natif + les trois
