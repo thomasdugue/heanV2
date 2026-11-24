@@ -957,3 +957,65 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     (PR #8), et c'est à ce moment-là qu'il faudra l'ajouter. Écrit dans la liste « reste à
     brancher » en tête de [`check`](../check), avec l'angle mort d'INV-06 qui le double.
 
+
+- **2026-11-24** (coquille visible) : une fenêtre à ouvrir, avant la phase 3. Le plan plaçait
+  l'interface en phase 4 — Thomas n'avait donc encore jamais rien vu de la V2, et ne jugeait que
+  sur des rapports. Cette session insère une coquille **délibérément laide** : la vraie
+  bibliothèque lue par le code de la phase 2, un dossier à désigner, un scan dont le rapport
+  s'affiche. **Zéro ligne de Rust, zéro commande IPC ajoutée** : les quatre dont la coquille a
+  besoin (`list_tracks`, `library_roots`, `add_library_root`, `scan_library`) existaient depuis la
+  phase 2.
+  - **Le son n'y est pas, et c'est une décision de Thomas.** Le moteur de la phase 1 décode et
+    sait écrire un WAV, mais le backend CoreAudio n'existe pas : le seul `BackendAudio` implémenté
+    écrit un fichier. Trois options lui ont été posées — `afplay` provisoire, bouton éteint, ou
+    écrire CoreAudio d'abord. Il a choisi **bouton éteint** : pas de son provisoire à jeter. La
+    fenêtre le dit en clair, pour que l'absence ne soit pas prise pour une panne.
+  - **Un garde-fou a résisté à la consigne « aucun design », et il avait raison.** La consigne
+    disait de ne pas toucher aux tokens ; écrire `Canvas`/`CanvasText` à la place a **vidé le
+    corpus d'INV-20** (`css-variables-definies`) — ces deux lectures étaient les seules
+    `var()` de tout le projet, et le détecteur de « la règle la plus rentable de la liste »
+    passait au vert sans plus rien surveiller. La coquille garde donc deux variables, fond et
+    texte, et rien d'autre : on ne désarme pas un garde-fou pour du code jetable.
+  - ⚠️ **Le même détecteur lit les commentaires.** Un commentaire CSS qui *parle* de `var(--x)`
+    le fait rougir : `regles-css.ts` n'appelle pas `sansCommentaires`, qui existe pourtant dans
+    `_lecture.ts`. Faux positif rencontré en écrivant ce commentaire-là. Non corrigé — hors
+    périmètre de cette session.
+  - ⚠️ **`~/Library/Application Support/hean/` existe maintenant chez Thomas**, créé par le
+    premier lancement de la V2 (base vide, 32 Ko). Il n'existait pas avant — `tools/passe-de-verite`
+    s'interdisait même de le créer pour cette raison. La migration `noir/` → `hean/` de la PR #8
+    copie puis vérifie puis supprime : **elle doit vérifier ce qu'elle fait d'un dossier déjà
+    présent.** À dire à la session de la PR #8 avant son merge.
+  - **Pas vérifié de visu** : l'accès à l'écran a été refusé, donc personne n'a encore regardé
+    la fenêtre. La preuve est donc indirecte, et elle vaut ce qu'elle vaut : voir la mesure.
+  - **Premier chiffre mémoire de la V2 : 78 Mo** (`phys_footprint` cumulé, natif + les trois
+    processus WebKit), avec **305 pistes affichées**. Mesuré sur le binaire de **développement**,
+    donc pessimiste : JS non minifié et sourcemaps dans la WebView. Détail : `hean` 104 Mo de RSS,
+    WebKit GPU 32, Networking 30, WebContent 71. Le RSS cumulé (237 Mo) surcompte les pages
+    partagées — c'est le `footprint` qui est la mémoire réellement attribuée, et c'est lui qu'il
+    faut comparer au budget de 100 Mo.
+    - **La mesure n'a pas pu être prise sur la vraie base de Thomas**, qui est vide : les 305
+      pistes ont été indexées par `tools/passe-de-verite scanner` (le vrai code de la phase 2)
+      sur ses vrais fichiers, dans une base jetable copiée dans un `HOME` isolé. Sa
+      bibliothèque n'a pas été touchée.
+    - ⚠️ **Et c'est aussi la seule preuve que la fenêtre affiche bien quelque chose.** Première
+      mesure, Vite n'était pas lancé : fenêtre blanche, WebContent à **29 Mo**. Deuxième, avec
+      le serveur debout et la base chargée : **71 Mo**. Les 42 Mo d'écart sont les 305 lignes.
+      Un chiffre qui monte n'est pas une preuve élégante, mais c'en est une — alors qu'un
+      « l'app démarre » n'en aurait pas été une du tout.
+  - **Et le chiffre qui compte, en release : 73 Mo** avec 305 pistes affichées, contre
+    **60 Mo** fenêtre vide. Binaire `target/release/hean`, 7,6 Mo, construit avec
+    `HEAN_ALLOW_MISSING_SECRETS=1` — le `compile_error!` des secrets compile-time arrête un
+    `npm run tauri build` nu, par conception, et le binaire obtenu porte l'avertissement « ne
+    pas distribuer ». **Sous le budget de 100 Mo.** Le développement donnait 78 Mo : l'écart
+    est petit, la WebView domine et la minification ne change presque rien.
+    - **13 Mo pour 305 pistes, soit ~43 Ko par ligne affichée.** C'est le chiffre à retenir,
+      et il n'est pas rassurant : à 10 000 pistes — le cas de V006 — la même table coûterait
+      **~430 Mo au-dessus du socle**. Attendu, puisque la coquille rend les 305 lignes d'un
+      coup et qu'aucune virtualisation n'existe encore ; mais c'est désormais **mesuré** plutôt
+      que supposé, et ça donne à la phase 4 un argument chiffré au lieu d'une intuition.
+      V006 n'est donc pas qu'une affaire de 60 fps : c'est aussi une affaire de mémoire.
+    - **Méthode, pour que la comparaison avec V1 reste possible** (`tools/measure-app.sh`
+      l'exige) : `phys_footprint` cumulé sur le processus natif plus les trois processus
+      WebKit. Le RSS cumulé (201 Mo chargée, 180 Mo vide) surcompte les pages partagées et ne
+      doit pas être comparé au budget. **V1 n'a pas été mesurée dans la même passe** : il
+      faudra le faire avant de conclure quoi que ce soit sur « V2 fait mieux ».
