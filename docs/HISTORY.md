@@ -1002,8 +1002,20 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
       le serveur debout et la base chargée : **71 Mo**. Les 42 Mo d'écart sont les 305 lignes.
       Un chiffre qui monte n'est pas une preuve élégante, mais c'en est une — alors qu'un
       « l'app démarre » n'en aurait pas été une du tout.
-    - **Le profil release n'a pas pu être mesuré** : `npm run tauri build` s'arrête sur le
-      `compile_error!` des secrets compile-time (`HEAN_SENTRY_DSN`, `NOIR_WORKER_*`), par
-      conception. Il faut `HEAN_ALLOW_MISSING_SECRETS=1` pour un build de test — non fait,
-      l'allocation de la session s'est arrêtée là. C'est ce chiffre-là qui compte pour le
-      budget, et il reste à prendre.
+  - **Et le chiffre qui compte, en release : 73 Mo** avec 305 pistes affichées, contre
+    **60 Mo** fenêtre vide. Binaire `target/release/hean`, 7,6 Mo, construit avec
+    `HEAN_ALLOW_MISSING_SECRETS=1` — le `compile_error!` des secrets compile-time arrête un
+    `npm run tauri build` nu, par conception, et le binaire obtenu porte l'avertissement « ne
+    pas distribuer ». **Sous le budget de 100 Mo.** Le développement donnait 78 Mo : l'écart
+    est petit, la WebView domine et la minification ne change presque rien.
+    - **13 Mo pour 305 pistes, soit ~43 Ko par ligne affichée.** C'est le chiffre à retenir,
+      et il n'est pas rassurant : à 10 000 pistes — le cas de V006 — la même table coûterait
+      **~430 Mo au-dessus du socle**. Attendu, puisque la coquille rend les 305 lignes d'un
+      coup et qu'aucune virtualisation n'existe encore ; mais c'est désormais **mesuré** plutôt
+      que supposé, et ça donne à la phase 4 un argument chiffré au lieu d'une intuition.
+      V006 n'est donc pas qu'une affaire de 60 fps : c'est aussi une affaire de mémoire.
+    - **Méthode, pour que la comparaison avec V1 reste possible** (`tools/measure-app.sh`
+      l'exige) : `phys_footprint` cumulé sur le processus natif plus les trois processus
+      WebKit. Le RSS cumulé (201 Mo chargée, 180 Mo vide) surcompte les pages partagées et ne
+      doit pas être comparé au budget. **V1 n'a pas été mesurée dans la même passe** : il
+      faudra le faire avant de conclure quoi que ce soit sur « V2 fait mieux ».
