@@ -26,8 +26,21 @@
 //! sait aussi écrire des tags, et cet outil n'appelle jamais `ecrire`. La base SQLite qu'il
 //! crée est jetable et son chemin est donné en argument — jamais
 //! `~/Library/Application Support/hean/`, pour que l'outil ne puisse pas abîmer la
-//! bibliothèque de l'application, **ni même la créer** : ce dossier n'existe pas encore chez
-//! Thomas, et la migration `noir/` → `hean/` s'éteindrait définitivement s'il apparaissait.
+//! bibliothèque de l'application, **ni même la créer** : un outil de mesure n'écrit pas dans
+//! les données de l'application, et cette raison-là ne dépend de rien.
+//!
+//! **Les deux moitiés de la justification d'origine sont tombées, le 2026-11-24.** Elle
+//! disait « ce dossier n'existe pas encore chez Thomas, et la migration `noir/` → `hean/`
+//! s'éteindrait définitivement s'il apparaissait ». La première moitié est tombée quand la
+//! session de la coquille visible a lancé la V2 : le dossier existe, avec une base vide.
+//! La seconde est tombée avant, avec l'[ADR 0012](../../../docs/adr/0012-un-echec-de-migration-doit-rester-rattrapable.md) :
+//! une bibliothèque **vierge** — aucune ligne dans aucune table — est désormais écartée au
+//! lieu de bloquer la migration, et c’est INV-24. Mesuré le 2026-11-24 sur les deux vrais
+//! dossiers de Thomas, copiés dans un bac : 2 443 fichiers migrés sur 2 446, `playlists.json`
+//! / `listening_history.json` / `network_sources.json` / `config.json` identiques aux
+//! originaux. La précaution reste donc entière ; c'est son *pourquoi* qui était périmé, et un
+//! *pourquoi* faux fait renoncer à autre chose que ce qu'il protège.
+//!
 //! Rien ici ne touche aux données de la V1 : c'est le script Python qui les lit, et en
 //! lecture seule.
 //!
