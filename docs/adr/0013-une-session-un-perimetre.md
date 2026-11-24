@@ -1,4 +1,4 @@
-# 0010 — Une session, un périmètre ; et aucune session n'en démarre une autre
+# 0013 — Une session, un périmètre ; et aucune session n'en démarre une autre
 
 - **Date** : 2026-11-23
 - **État** : Acceptée
@@ -12,6 +12,15 @@
 > **une session ne démarre pas de session, et deux sessions n'écrivent jamais dans le même
 > fichier.** Elle décrit aussi le détecteur qui rendra la règle mécanique — il reste à
 > écrire, et c'est dit ici explicitement plutôt que promis ailleurs.
+
+
+> **Renuméroté de 0010 en 0013 le 2026-11-24.** Cet ADR est né sous le numéro 0010, qui
+> était déjà pris par la PR #8, ouverte et non fusionnée. `tools/check-adr.mjs` ne pouvait
+> pas le voir : il ne lit que la branche courante. C'est le trou que l'[ADR 0011](0011-derogation-inv-21-pour-les-exemples.md)
+> décrit et la raison pour laquelle la règle de numérotation dit désormais « ce tableau **et**
+> les PR ouvertes ». Une autre session l'a relevé. L'ironie mérite d'être écrite plutôt que
+> tue : **la décision contre le chevauchement entre sessions a été rédigée en chevauchant une
+> PR ouverte.** Seul le rangement change.
 
 ## Contexte
 
@@ -87,29 +96,47 @@ mesure, pas une phrase.
 
 **Forme retenue**, à implémenter par la session qui tient `tools/` :
 
-Pour chaque branche locale vivante, `./check` calcule les fichiers qu'elle modifie par
-rapport à `main` (`git diff --name-only main...<branche>`), et **refuse** si un même fichier
-apparaît dans deux branches, hors journaux en ajout seul. Le message nomme le fichier et les
-deux branches.
+Pour chaque branche locale **dont les commits ne sont pas déjà en amont**, `./check` calcule
+les fichiers qu'elle modifie par rapport à `main`, et **refuse** si un même fichier apparaît
+dans deux branches, hors fichiers partagés par nature.
 
-Trois propriétés rendent cette forme préférable aux alternatives :
+**La première rédaction de cette spécification était fausse, et la mesure l'a montrée.** Elle
+disait « pour chaque branche locale vivante » et `git diff --name-only main...<branche>`.
+Appliquée aux 8 branches vivantes du 2026-11-23, elle aurait crié sur **12 fichiers**, dont
+deux où une branche se disputait avec **sa propre branche déjà fusionnée** : `main...<branche>`
+montre ce qu'une branche a changé depuis son point de départ, pas ce qui en diffère encore,
+donc une branche fusionnée en rebase ou en squash continue de déclarer ses fichiers pour
+toujours. Ce dépôt fusionne en rebase et en squash : le détecteur aurait accumulé des faux
+positifs **définitifs**.
 
-- Elle **n'entretient aucune liste** de qui possède quoi. C'est la même inversion que celle
+**Les deux correctifs retenus :**
+
+- **`git cherry main <branche>`** pour établir la liste des branches, et non l'énumération
+  des branches locales. Il compare les *patch-id*, donc il sait qu'un commit rebasé est déjà
+  en amont. Ça ferme le défaut sans rien connaître des PR ni appeler d'API.
+- **L'exception ne couvre pas que les journaux en ajout seul.** Mesurés comme partagés par
+  nature : `docs/HISTORY.md` (8 branches), le skill des invariants (6), l'index des ADR (5),
+  les artefacts générés (4), `CLAUDE.md` (4). Chacun est nommé **un par un, avec sa raison
+  écrite** — jamais un motif, qui exempterait par accident ce que personne n'a examiné.
+
+**Ce qui tient de la forme de départ**, et c'est l'essentiel :
+
+- Elle **n'entretient aucune liste de propriétaires**. C'est la même inversion que celle
   appliquée aux détecteurs de taille le 2026-11-23 : on mesure le réel au lieu d'énumérer
   les cas connus. Une liste de propriétaires pourrirait exactement comme la liste
   d'extensions qui a laissé passer un fichier de 569 lignes.
 - Elle **ne lit aucun worktree**, seulement des branches. `tools/check-adr.mjs` porte déjà
   l'avertissement inverse en commentaire : lire les fichiers d'un worktree de session
-  produit des faux positifs. Comparer des branches n'a pas ce défaut.
+  produit des faux positifs.
 - Elle **ne dépend de rien hors de la machine** : pas d'API GitHub, pas de jeton, donc elle
   tourne à l'identique en local et en CI, comme l'exige
-  l'[ADR 0006](0006-socle-et-harnais-de-phase-0.md).
+  l'[ADR 0006](0006-socle-et-harnais-de-phase-0.md). C'est la raison pour laquelle on
+  préfère `git cherry` au pilotage par les PR ouvertes, qui réglerait le même défaut.
 
-**Le piège connu, à traiter dans l'implémentation** : sans l'exception des journaux en ajout
-seul, ce détecteur hurlerait à chaque session, puisque toutes ajoutent une ligne à
-`docs/HISTORY.md`. Un détecteur qui crie toujours est un détecteur qu'on éteint — c'est la
-cause racine n°3 du postmortem de V1. L'exception doit être écrite en dur et courte ; si
-elle s'allonge, c'est que la forme est mauvaise et il faut revenir ici.
+**Le piège, à ne pas perdre de vue** : un détecteur qui crie toujours est un détecteur qu'on
+éteint — cause racine n°3 du postmortem de V1. La liste des fichiers partagés par nature doit
+rester **courte et mesurée** ; si elle s'allonge à chaque session, c'est que la forme est
+mauvaise et il faut revenir ici plutôt que l'étendre.
 
 **Tant que ce détecteur n'existe pas, les trois règles restent réclamées.** C'est dit ici
 pour que personne ne croie la frontière tenue par une machine alors qu'elle l'est par de

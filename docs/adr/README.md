@@ -36,8 +36,8 @@ heure et huit renvois à corriger.
 | [0007](0007-format-interne-audio-et-preuve-du-bit-perfect.md) | Format interne audio `i32` à l'échelle 32 bits ; le bit-perfect devient une assertion | Acceptée |
 | [0008](0008-epingler-la-chaine-doutils.md) | La chaîne d'outils Rust est épinglée — `./check` est vraiment identique partout | Acceptée |
 | [0009](0009-bibliotheque-cle-dalbum-et-source-de-verite.md) | La bibliothèque : schéma SQLite strict et versionné, clé d'album typée, le fichier audio comme source de vérité | Acceptée |
-| [0010](0010-une-session-un-perimetre.md) | Une session, un périmètre ; et aucune session n'en démarre une autre | Acceptée |
 | [0011](0011-derogation-inv-21-pour-les-exemples.md) | Les exemples en ligne de commande écrivent sur stdout : dérogation à INV-21 | Acceptée |
+| [0013](0013-une-session-un-perimetre.md) | Une session, un périmètre ; et aucune session n'en démarre une autre | Acceptée |
 
 **Décisions encore ouvertes**, à transformer en ADR dès qu'elles sont prises :
 
@@ -49,4 +49,5 @@ heure et huit renvois à corriger.
 | WiFi Sync dans le périmètre de V2, et à quelle phase | rien | [`../../bootstrap/05-postmortem/chantier-wifi-sync/README.md`](../../bootstrap/05-postmortem/chantier-wifi-sync/README.md) |
 | V2 = mise à jour de V1 (même bundle identifier) ou app distincte | phase 7 | [`0003`](0003-dossier-de-donnees.md) |
 | Nom de service Keychain pour les mots de passe SMB | phase 3 | [`0003`](0003-dossier-de-donnees.md) |
+| **La règle des 400 lignes vise-t-elle les fichiers écrits par un outil ?** Thomas a tranché l'étape (2026-11-23, option A : une exception nommée pour les fichiers de verrouillage, dans `tools/check-sizes.sh`). La question de fond reste ouverte. | quand `src/ipc/bindings.ts` approchera 400 lignes | **Déclencheur chiffré** : `bindings.ts` est généré et mesuré, à **152 lignes pour 8 commandes IPC** — environ 19 lignes par commande, et V1 en avait **86**. Il franchira donc 400 vers la vingtaine de commandes : la question se reposera d'elle-même, sans que personne la rouvre. **Deux formes envisagées, et leurs défauts, pour ne pas les redécouvrir.** (B) « la règle ne vise que l'écrit à la main » : cohérent, mais « généré » n'est pas vérifiable sans une liste à entretenir — la forme même qui a créé les trous du 2026-11-23. (D) « l'exception reconnaît les fichiers qui s'annoncent générés » : auto-entretenue, puisque les cinq fichiers générés du dépôt le déclarent déjà en tête — mais ⚠️ **deux faiblesses mesurées** : les formulations divergent (trois phrasés, deux langues, et le marqueur n'est pas toujours en première ligne), donc il faudrait d'abord un **marqueur canonique** émis par `npm run gen` ; et keyer sur le **contenu** ouvre une porte, puisque coller le marqueur en tête d'un fichier écrit à la main suffirait à échapper à la règle — ce qui se voit dans un diff, mais existe. |
 | `noir://` → `hean://` et `NOIR_WORKER_*` → `HEAN_WORKER_*` | phase 2 / 7 | [`0003`](0003-dossier-de-donnees.md) — **pas tranché en phase 2** : la bibliothèque n'a besoin d'aucun protocole custom, le sujet revient avec les pochettes (phase 4) et les secrets (phase 7) |

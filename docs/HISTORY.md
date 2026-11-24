@@ -636,7 +636,390 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     le hook de fin de tâche ne se déclenche que si `src/` ou `src-tauri/src/` a bougé, et ici rien
     n'avait bougé. Un défaut connu d'une session et invisible à la suivante, c'est la dérive de
     documentation de V1 en miniature.
-- **2026-11-23** (soir, session d'orchestration) : **ADR 0010 — une session, un périmètre.** Cinq
+
+- **2026-11-23** (extensions non lues) : **la règle des 400 lignes ne lisait ni shell ni Python, et
+  un fichier de 569 lignes est passé vert.** Signalé par la session de la « passe de vérité », qui
+  le tenait d'`invariant-guardian` relisant son diff : son rapport Python était **le premier fichier
+  du dépôt à franchir la limite**, et il l'a franchie dans une langue que le détecteur ne lit pas.
+  Troisième variante du défaut du 2026-11-22 (`\bTrack\b` contre `Track_Serialize[]`) et du vieux
+  trou d'INV-21 sur `src-tauri/tests/` : **une règle n'est tenue que là où le garde-fou regarde.**
+  - **Mesuré avant de décider, et c'est ce qui a emporté la décision** : aucun fichier concerné
+    ne dépasse la limite, donc fermer le trou ne coûtait rien — ce qui enlevait la seule bonne
+    raison d'attendre. Dans six mois, il aurait fallu découper un fichier d'abord. **Et aucun
+    chemin de machine ne dormait dans les fichiers nouvellement couverts** : vérifié aussi avant,
+    pour ne pas introduire un rouge en même temps que le correctif.
+  - **Le chiffre que j'ai d'abord annoncé à Thomas était trompeur, et c'est la session de la
+    « passe de vérité » qui l'a corrigé.** J'avais dit « le plus gros fait 126 lignes sur 400 »,
+    mesuré sur `main` — or sa branche, encore en PR, porte `tools/passe-de-verite/rapport.py` à
+    **360 lignes** (vérifié : 360, 272, 191). Dès que sa PR fusionne, la marge n'est donc pas de
+    274 lignes mais de **40**. La conclusion ne change pas — le correctif reste gratuit — mais la
+    règle devient **immédiatement mordante**, et le prochain ajout à ce fichier la fera rougir.
+    C'est ce qu'on veut ; encore faut-il le dire à l'avance plutôt que de le découvrir. Leçon de
+    méthode : **mesurer sur `main` alors que des branches vivent à côté, c'est mesurer le passé** —
+    la même myopie que celle de `check-adr.mjs` sur les numéros d'ADR, trouvée la veille.
+  - **Le correctif n'est pas « ajouter deux extensions », c'est inverser la liste.** Une règle
+    tenue par la liste de ce qu'elle surveille oublie la langue qu'on ajoutera demain. Désormais
+    `check-sizes.sh` mesure **tout, sauf une liste d'exceptions écrite** — les binaires (`wc -l`
+    n'y veut rien dire) et `zones-interdites.txt` (une table lue par un script). Le **sens de
+    l'échec** change, et c'est là tout l'intérêt : un binaire nouveau fait rougir, et quelqu'un
+    écrit l'exception ; un langage nouveau ne passe plus en silence. **65 → 81 fichiers mesurés.**
+  - **Un troisième trou, trouvé en mesurant : `./check` lui-même.** 79 lignes, et mesuré par rien
+    — il n'est dans aucun dossier scanné. Le point d'entrée unique de tout le harnais échappait à
+    la règle qu'il applique aux autres. Il est dans les zones maintenant, avec
+    `tools/git-hooks/pre-commit`, qui n'a pas d'extension et qu'aucune recherche par extension ne
+    pouvait attraper.
+  - **Et le corpus se dérive de `git ls-files`**, comme `check-adr.mjs`. Ce n'était pas le sujet,
+    mais inverser la liste l'imposait : en lisant *tout* sur le disque, un `.DS_Store` aurait fait
+    rougir chez Thomas et passer en CI — le défaut du 2026-11-22 à l'envers, réintroduit par le
+    correctif d'un autre. Éprouvé : un fichier de 999 lignes non suivi par git est bien ignoré.
+  - **`aucun-chemin-machine.test.ts` : `.py`, `.json` et `.txt` manquaient**, et `.json` n'est pas
+    un détail — `.claude/settings.json` porte une commande de hook, donc c'est exactement un
+    fichier où un chemin en dur ne se résoudrait que chez une personne. **Inversé lui aussi** :
+    il lit tout le suivi moins les binaires, écrits avec leur raison. **90 → 96 fichiers lus.**
+    J'avais d'abord gardé sa liste en lui ajoutant une assertion de couverture ; la session de la
+    « passe de vérité » a fait remarquer que scanner par extension est précisément ce qui avait
+    créé les trois trous, et elle avait raison contre ma propre moitié de correctif. Garder une
+    liste d'un côté et l'inverser de l'autre aurait laissé une incohérence que quelqu'un
+    « simplifierait » plus tard en la trouvant arbitraire. Avant, les quatre tests du fichier
+    prouvaient que le détecteur *sait lire* un chemin de machine ; aucun qu'il *était passé
+    partout*.
+  - **Deux assertions de corpus plutôt qu'une**, parce que retourner une liste crée un risque
+    neuf : une exception trop large viderait le corpus en silence. Donc « il lit plus de 50
+    fichiers » **et** « les exceptions écrites correspondent à de la matière réelle » — cette
+    dernière se périme d'elle-même le jour où ces zones ne portent plus un seul binaire. Seuil
+    volontairement « au moins un » et non un compte exact : ajouter une police ou une icône est
+    banal et ne doit pas faire rougir une règle sur les chemins de machine.
+  - **Onze injections**, toutes rouges puis remises par copie, dont le cas réel (un Python de 569
+    lignes), `./check` à 420 lignes, une langue nouvelle (`.rb`) avec et sans chemin de machine,
+    le fichier sans extension, une exception volontairement trop large qui vide le corpus, et les
+    deux cas où le vert est la bonne réponse (fichier non suivi par git, dans les deux
+    détecteurs). `./check` vert, 19 vérifications — aucune vérification nouvelle, les deux
+    détecteurs existaient déjà. **65 → 81 fichiers mesurés, 90 → 96 fichiers lus.**
+  - **⚠️ UNE DÉCISION ATTEND THOMAS, et elle est née du mécanisme lui-même.** La branche de la
+    « passe de vérité » ajoute `tools/passe-de-verite/Cargo.lock`, **5 109 lignes**. Le détecteur
+    inversé le mesure — il fait donc exactement son travail : une forme imprévue échoue au lieu de
+    passer en silence, et il se trouve que le premier cas arrive le jour même. **Mais la suite
+    n'est pas une correction, c'est un changement de portée d'invariant**, donc elle ne se prend
+    pas seule (ADR 0005). Trois options remontées : une exception nommée pour les fichiers de
+    verrouillage, qui tient sur une propriété vérifiable — un lock est écrit par un outil et
+    régénéré, jamais relu, alors que la leçon de V1 porte sur ce qu'on **relit** (`lib.rs`,
+    4 870 lignes) ; ou la portée générale « la règle ne vise que les fichiers écrits à la main » ;
+    ou le retrait du lock de leur branche, qu'ils proposent eux-mêmes.
+    **Mesure qui élargit la question** : `src/ipc/bindings.ts` est généré, déjà mesuré, et à
+    **152 lignes pour 8 commandes IPC** — au même rythme il franchit 400 vers la vingtaine, et V1
+    en avait **86**. La règle se heurtera donc à un fichier que personne n'écrit à la main, lock ou
+    pas. Le lock n'est que le premier arrivé.
+    **Et aucune urgence** : les deux PR fusionnent seules sans rien casser — l'ancien détecteur ne
+    lit pas les `.lock`, et ma branche ne porte pas leur lock. **Seule la deuxième des deux fusions
+    rougit.** C'est arrivé : la PR #10 a fusionné, donc cette branche porte la décision.
+  - **Une quatrième option, venue de la même session, et meilleure que mes trois** : l'exception
+    reconnaît **les fichiers qui s'annoncent générés**. Vérifié — les cinq fichiers générés du
+    dépôt le déclarent en tête. L'exception cesse alors d'être une liste de noms et **se maintient
+    toute seule** : un générateur nouveau obtient la dérogation en émettant son en-tête, un
+    générateur qui n'en émet pas provoque un rouge qui pose la question. C'est l'inversion du
+    corpus, appliquée à l'exception.
+    **Ses deux faiblesses, mesurées et transmises avec elle.** (1) Les formulations divergent —
+    trois phrasés en deux langues, et le marqueur n'est pas toujours en première ligne
+    (`docs/generated/*.md` le mettent en troisième). Une expression régulière couvrant tout serait
+    fragile ; la forme solide veut un **marqueur canonique** émis par `npm run gen`, `Cargo.lock`
+    restant le seul cas étranger nommé. (2) Keyer sur le **contenu** ouvre une porte : coller le
+    marqueur en tête d'un fichier écrit à la main échappe à la règle. Moins grave qu'une extension
+    oubliée — ça se voit dans un diff — mais ça existe, et les options A et B n'ont pas ce défaut.
+    **Donc D est la bonne forme et A la bonne étape** : A s'écrit en une ligne et ne ferme aucune
+    porte, D mérite son ADR.
+  - **Signalé sans être corrigé, troisième lot** : rien ne vérifie qu'un fichier de
+    `docs/generated/` **s'annonce réellement généré**. `CLAUDE.md` affirme qu'ils le sont — une
+    phrase dans un document, donc exactement ce que ce harnais existe pour remplacer. Vérification
+    nouvelle, donc sa propre tâche. Trouvée en éprouvant l'option D.
+  - **Deux corrections venues des autres sessions, sur mon propre travail.** (1) J'avais annoncé à
+    Thomas « le plus gros fichier concerné fait 126 lignes sur 400 » : c'était la mesure de `main`,
+    alors que leur branche porte un fichier à **360**. La marge réelle après leur fusion est de
+    **40 lignes**, pas 274 — la conclusion tenait, le chiffre non. (2) J'avais gardé une liste
+    d'extensions dans `aucun-chemin-machine.test.ts` ; ils ont fait remarquer que scanner par
+    extension est précisément ce qui avait créé les trois trous. Ils avaient raison contre ma
+    moitié de correctif, et l'inversion a été étendue là aussi — ce qui a couvert, du même coup,
+    `tools/git-hooks/pre-commit`, qu'aucune liste d'extensions ne pouvait atteindre.
+  - **Tranché par Thomas le 2026-11-23 : option A.** Une exception nommée pour les fichiers de
+    verrouillage, écrite une fois dans `tools/check-sizes.sh`, sur la propriété qui la rend
+    tenable — un lock est écrit par un outil et régénéré, **jamais relu**, alors que la leçon de
+    V1 porte sur ce qu'on relit (`lib.rs` à 4 870 lignes, `views.js` à 3 512). Le motif vise le
+    nom de fichier **où qu'il soit**, donc les trois locks du dépôt sont couverts de la même
+    façon : `src-tauri/Cargo.lock` (5 265 lignes), `tools/passe-de-verite/Cargo.lock` (5 109) et
+    `package-lock.json` (2 180) — pas seulement celui qui rougissait. Éprouvé dans les deux sens :
+    un fichier de 5 109 lignes qui **n'est pas** un lock reste rouge, et `Cargo.lock.ts` — dont le
+    nom contient celui d'un lock — reste mesuré. L'exception n'a donc pas affaibli la règle.
+    `check-sizes` est vert, **88 fichiers mesurés**.
+  - **Un quatrième trou, trouvé en vérifiant que l'exception couvrait bien les trois locks, et
+    écrit sans être corrigé.** Deux des trois échappaient à la mesure pour une raison
+    **différente** de l'exception : ils sont **hors des zones scannées**. Autrement dit **les
+    zones sont elles aussi une liste**, avec la faiblesse exacte de celle des extensions qu'on
+    venait de supprimer. Et ce n'est pas théorique : `src-tauri/tests/` n'est pas dans les zones,
+    et **`src-tauri/tests/bibliotheque.rs` fait déjà 416 lignes** — élargir les zones rend
+    `./check` **rouge** tant que ce fichier n'est pas découpé. Donc pas un correctif d'une ligne,
+    et le fichier appartient au Rust de la bibliothèque, pas au harnais. Écrit dans la liste
+    « reste à brancher » en tête de [`check`](../check), avec le chiffre, pour que celui qui s'y
+    attellera sache ce qu'il paie.
+  - **L'option D est écrite comme échéance, pas comme dette urgente**, dans
+    [`docs/adr/README.md`](adr/README.md) avec son déclencheur chiffré et ses deux faiblesses —
+    pour que celui qui tranchera plus tard ne les redécouvre pas. La raison de ne pas l'avoir
+    prise ce soir, et elle est bonne : mon propre avis révisé disait « D est la bonne forme, **A
+    est la bonne étape** » — **quand une option nouvelle ne change pas la recommandation, elle ne
+    change pas la décision, elle change ce qu'on écrit pour plus tard.** D demande en plus un
+    marqueur canonique émis par `npm run gen`, donc un chantier, et elle ouvre une porte qu'A
+    n'ouvre pas : cela se discute à froid dans un ADR, pas dans un fil de résolution de conflit.
+  - **Ce que cette séquence a appris sur le travail à plusieurs sessions.** Trois corrections de
+    mon travail sont venues des autres sessions, et les trois portaient sur le fond : un chiffre
+    mesuré sur `main` alors qu'une branche vivante le démentait (126 contre 360) ; une liste
+    d'extensions que j'avais **gardée** dans l'un des deux détecteurs, alors que l'énumération est
+    précisément ce qui avait créé les trous ; et l'option D elle-même, meilleure que mes trois.
+    À l'inverse, j'ai refusé deux fois de trancher à la place de Thomas — l'offre de retirer le
+    lock, et l'exception elle-même — et c'était juste les deux fois. **Mesurer sur `main` quand
+    des branches vivent à côté, c'est mesurer le passé** : la même myopie que celle de
+    `check-adr.mjs` sur les numéros d'ADR, trouvée la veille.
+
+- **2026-11-23** (la limite de 400 lignes dans `src-tauri/tests/`) : **la règle était écrite dans
+  `CLAUDE.md` et dans le skill, et `./check` ne la tenait pas là où atterrissent les tests
+  d'intégration.** `tools/check-sizes.sh` bouclait sur `src`, `src-tauri/src`, `tests`, `tools` ;
+  `src-tauri/tests/bibliotheque.rs` y faisait 416 lignes sans que rien ne bronche. Relevé par
+  `invariant-guardian` à la relecture du correctif du champ `format`, qui sortait de son périmètre.
+  C'est la troisième fois que ce dossier est l'angle mort d'un garde-fou (INV-21, INV-06, et
+  celui-ci).
+  - **L'élargissement de `check-sizes.sh` n'est PAS dans cette branche** : ce fichier est tenu par
+    la session `harnais-detecteurs` (elle y refait la règle pour mesurer tous les fichiers suivis
+    par git), et l'écrire en parallèle, c'était écraser son travail. Sa liste de zones
+    (`src src-tauri/src tests tools check`) **n'a toujours pas `src-tauri/tests`** : il faut l'y
+    ajouter, et **seulement après** que cette branche a fusionné, sinon `./check` rougit sur
+    `bibliotheque.rs`. D'où l'ordre, non négociable : découpage d'abord, élargissement ensuite.
+  - **Le découpage** : `bibliotheque.rs` devient la cible `bibliotheque/`
+    (`main.rs` + `album.rs`, `edition.rs`, `scan.rs`, de 41 à 178 lignes) ; le bac à sable `Bac`
+    vit dans `tests/commun/mod.rs`, que Cargo ne prend pas pour une cible (il ne compile que
+    `tests/*.rs` et `tests/*/main.rs`) et que la cible déclare par `#[path]`. Le découpage
+    **déplace, il ne réécrit pas** : le code des tests est celui d'avant, à l'ajout de `pub` près.
+    Mesuré avant/après : 86 tests Rust dans les deux cas, les 15 mêmes noms dans la cible.
+  - **Ce que le découpage a déplacé dans le harnais** : INV-07 annonçait « test `bibliotheque.rs` »
+    et `check-invariants` exige que ce nom de fichier cite la règle — elle annonce maintenant
+    `edition.rs`. Quatre commentaires citaient `src-tauri/tests/bibliotheque.rs`
+    (`library/metadonnees.rs`, deux fichiers de `tests/ux/`) : ils pointent vers le dossier ou le
+    module qui porte la preuve. Le recensement des comportements (6 portés sur 24) n'a pas
+    bougé : `check-comportements` lit `tests/ux/`, pas les tests Rust.
+  - **Éprouvé par injection, sur l'élargissement écrit puis retiré de cette branche** : un fichier
+    de 450 lignes posé dans `src-tauri/tests/`, puis dans `src-tauri/tests/bibliotheque/` (la forme
+    du découpage), fait rougir `check-sizes` en le nommant — `trop gros (450 lignes > 400) :
+    src-tauri/tests/…`. Retiré par suppression, pas par `git checkout`. À refaire sur la version
+    de `harnais-detecteurs` quand elle ajoutera la zone : l'épreuve porte sur la boucle, pas sur la
+    sienne.
+  - **Les autres garde-fous au périmètre écrit à la main, passés en revue** (liste des
+    `tools/check-*` et des tests d'`architecture/`) :
+    - **`aucun-chemin-machine.test.ts` et `references-de-tests.test.ts` oubliaient
+      `src-tauri/tests/`** : élargis, et c'est resté vert. Éprouvés par injection (un chemin de
+      machine, une référence morte posés dans `src-tauri/tests/` les font rougir en nommant le fichier).
+    - **Les mêmes deux oublient aussi `tests/` (le TypeScript), et ceux-là ne sont PAS élargis** :
+      ils rougiraient. Chacun contient ses propres échantillons fautifs (un chemin de machine de V1,
+      deux références de test mortes) et se signalerait
+      lui-même. Ce qu'il faut corriger d'abord : une exception par **chemin exact**, comme
+      `AUTO_TEST` dans `une-seule-cle-dalbum.test.ts` — pas par motif.
+    - **Déjà complets sur `src-tauri/tests/`** : `backend.test.ts` (INV-21, INV-04, secrets),
+      `une-seule-source-de-pistes.test.ts` (INV-06), `check-invariants.mjs` (citations),
+      `check-fixtures-audio.sh` (recherche récursive). Hors sujet par construction : `ipc`,
+      `imports`, `css-*`, `svelte5-runes` (frontend seulement), `une-seule-cle-dalbum` (le Rust est
+      exclu exprès : c'est là que vit `AlbumKey::new`).
+    - **`src-tauri/examples/` n'existe pas** : aucun garde-fou ne peut l'oublier tant qu'il n'est pas
+      créé, et `backend.test.ts` refuse déjà tout `.rs` hors des dossiers scannés (ADR 0011). Le
+      jour où il est créé, ces deux listes de zones sont à relire.
+      > ⚠️ **Nuance mesurée le 2026-11-23, ajoutée sans retirer la phrase ci-dessus.** Ce filet est
+      > plus mince qu'il n'y paraît, et la deuxième moitié de la phrase — « ces deux listes de
+      > zones sont à relire » — est en fait tout ce sur quoi on peut compter. Simulé : à l'arrivée
+      > d'un `src-tauri/examples/` contenant du `excluded_paths`, `backend.test.ts` rougit **une
+      > fois**, par la note « muet » de sa dérogation, qui signale que **le dossier vient
+      > d'apparaître** et non la faute qu'il contient — et il se taira dès que la note sera
+      > retirée, puisque c'est le but de la dérogation accordée par l'ADR 0011. Pendant ce temps
+      > `une-seule-source-de-pistes.test.ts` reste à **zéro test rouge** : la violation d'**INV-06
+      > (🔴)** passe en silence, complètement. Donc le filet ne couvre qu'INV-21, et pour un seul
+      > passage. Ajouté par la session du harnais parce que la session qui a écrit la phrase est
+      > archivée et ne peut plus la nuancer elle-même ; ses mots sont laissés intacts, une
+      > affirmation fausse effacée sans trace étant pire qu'une affirmation fausse encadrée.
+    - **Un garde-fou hors `tools/` et `architecture/`, signalé par `invariant-guardian` et non
+      corrigé** : `.claude/hooks/contrat-de-fin-de-tache.sh`, ligne 56, ne reconnaît un test de
+      régression que dans `^(tests/|src-tauri/src/.*test)`. Un correctif dont le test arrive dans
+      `src-tauri/tests/` déclenche donc la relance « aucun test n'a bougé » : fausse alerte
+      bruyante, pas un trou silencieux. Correction : ajouter `src-tauri/tests/` au motif.
+    - **Une fragilité d'INV-07, préexistante** : `check-invariants.mjs` compare la couverture au
+      **nom de fichier seul**. `edition.rs` est générique : un futur `src-tauri/src/**/edition.rs`
+      qui citerait INV-07 garderait la règle 🔴 verte même si son test disparaissait. À corriger en
+      comparant des chemins — mais c'est un changement de contrat du skill, donc une tâche à part.
+    - **Déjà signalé ailleurs, non repris ici** : `check-sizes` ne lit ni `.py` ni `.sh`
+      (entrée de la passe de vérité ci-dessus).
+- **2026-11-23** (suite) : **le champ `format` disait `Mpeg`, il dit `MP3`.** Le seul défaut des
+  182 écarts de la passe de vérité où la V1 avait raison, corrigé avec la vérification qui
+  l'aurait vu.
+  - **La faute, et sa famille.** `metadonnees::lire` remplissait `format` avec
+    `format!("{:?}", fichier.file_type())` — la représentation de **débogage** d'un type de lofty
+    envoyée telle quelle vers l'affichage. Les 40 MP3 de la bibliothèque de Thomas annonçaient
+    `Mpeg` ; ffprobe dit `mp3`, la V1 écrivait `MP3`, et la parité avec elle est la cible
+    (ADR 0004). Les FLAC cachaient le reste : `Flac` ressemble à `FLAC`. Et un `Debug` **n'est lié
+    par aucun contrat** — une mise à jour de lofty peut renommer un variant sans que rien ne
+    bronche.
+  - **Le défaut invisible que le `Debug` cachait vraiment : ALAC et AAC confondus.** Les deux
+    s'affichaient `Mp4`, le nom du conteneur. C'est pourtant la distinction qui compte pour un
+    auditeur — sans perte contre avec perte. La table les sépare par la profondeur de bits, que
+    lofty ne renseigne que pour l'ALAC : le test sur `alac.m4a` et `aac.m4a` le prouve sur de
+    vrais fichiers, et c'est **le même test qu'employait la V1**.
+  - **Les sept noms, et un seul choix neuf.** `FLAC`, `MP3`, `WAV`, `AIFF`, `ALAC`, `AAC` sont
+    relevés dans le code de la V1, et les trois qui existent dans la bibliothèque de Thomas sont
+    confirmés par son cache (`FLAC` ×3 319, `MP3` ×79, `WAV` ×1). Le `.ogg` est le seul cas sans
+    précédent utilisable : la V1 le repliait sur « Other », qui n'est pas un nom de format. Choisi
+    **`Vorbis`**, le codec — comme ALAC et AAC — puisque OGG n'est que le conteneur. Aucun `.ogg`
+    dans la bibliothèque de Thomas : rien ne change pour lui, et le nom reste à son arbitrage.
+  - **Le repli se voit deux fois, et c'est la décision du correctif.** Un `FileType` hors des sept
+    ne retombe pas sur le `Debug` : il affiche `Unknown` **et** écrit une ligne dans le journal
+    (`tracing::warn!`, INV-21). Pourquoi deux : `Mpeg` ou `Mp4` passent pour des noms de format et
+    ne se signalent jamais, là où `Unknown` se lit comme un défaut ; et le scan n'accepte que sept
+    extensions, donc ce cas veut dire que le **contenu** d'un fichier ne correspond pas à son nom —
+    ce que Thomas doit pouvoir voir chez lui, pas seulement en dev. Pas une erreur : une piste dont
+    on ne sait pas nommer le format reste écoutable et reste dans la bibliothèque.
+  - **Quatre tests, et chacun éprouvé par injection.** `chaque_format_supporte_rend_son_nom_daffichage`
+    lit les **sept fixtures réelles** et attend les sept noms ; remettre le `{:?}` fait rougir six
+    des sept lignes (seul `Vorbis` coïncide avec son `Debug`). Vérifié : faute injectée → rouge sur
+    `flac-16-44.flac` (`Flac` au lieu de `FLAC`), puis remise par **copie**, jamais par
+    `git checkout <fichier>` (payé le 2026-11-22). S'y ajoutent la prémisse épinglée — le `Debug` de
+    lofty vaut bien `Mpeg`, donc si une version future écrivait `MP3` le test rougirait, et cet
+    échec serait la bonne nouvelle — et le type hors liste éprouvé sur quatre variants que l'app ne
+    supporte pas (`Opus`, `Ape`, `Speex`, `WavPack`).
+  - **`invariant-guardian` a trouvé un faux test dans mon propre travail.** Un quatrième test,
+    « les noms ne se recouvrent pas », dédupliquait un **tableau littéral** et comparait sa
+    longueur à elle-même : vert quoi que fasse le code de production, avec une docstring qui
+    promettait le contraire. La famille exacte du détecteur d'INV-06 refermé la veille — celui
+    qui cherchait `\bTrack\b` là où specta émet `Track_Serialize[]` : zéro trouvaille sur huit
+    commandes, auto-test vert pendant tout ce temps. Réécrit pour **interroger la fonction** au
+    lieu de recopier sa table (sept appels, le conteneur MP4 comptant pour deux), puis éprouvé :
+    faire rendre « AAC » à l'ALAC rougit. Un test qui ne peut pas échouer coûte plus qu'un test
+    absent — il fait lire une garantie au lieu de l'écrire.
+  - **Rien ne s'appuyait sur l'ancienne valeur** : aucune vue n'affiche encore `format` (phase 3),
+    et `src/ipc/bindings.ts` le voit comme un `string`. Les deux fausses données de test qui
+    portaient `'Flac'` (`tests/ux/_faux-backend.ts`, `tests/unit/groupement.test.ts`) passent à
+    `'FLAC'` : un faux backend qui rend une valeur que le vrai ne peut plus produire est le début
+    d'une dérive.
+  - **`./check` était rouge au démarrage, et pour rien** : `fast-check` est déclaré dans
+    `package.json` depuis la phase 2 mais absent du `node_modules` de ce worktree, créé avant.
+    `npm install` suffit. Au passage, `npm` normalise une ligne de `package-lock.json`
+    (`^4.11.0` → `4.11.0`, le lockfile gardait le caret là où `package.json` épingle) : **rétablie,
+    hors scope**, mais la dérive est réelle et reviendra au prochain `npm install`.
+  - **Signalé sans être corrigé — `check-sizes.sh` ne voit pas `src-tauri/tests/`.** Sa boucle
+    nomme `src`, `src-tauri/src`, `tests` et `tools`. Or `src-tauri/tests/bibliotheque.rs` est
+    à **487 lignes**, au-delà de la limite de 400 que la règle dit « refusée par `./check` » —
+    dépassement antérieur à ce diff, mais qui grossit avec lui, et c'est le fichier où
+    atterriront les tests d'intégration des phases suivantes. Même angle mort, au même endroit,
+    que celui d'INV-21 refermé le 2026-11-22 (`src-tauri/tests/` était hors du scan de
+    `backend.test.ts`). **Ordre obligatoire** pour le correctif : découper `bibliotheque.rs`
+    d'abord — ses sections sont déjà marquées —, **puis** ajouter le dossier à la boucle ;
+    l'inverse rend `./check` rouge sur le champ. Sa propre tâche.
+  - **Signalé sans être corrigé — une correction de dérivation n'atteint pas une base déjà
+    peuplée.** `appliquer_scan` est différentiel (B03) : un fichier dont la taille **et** la
+    mtime n'ont pas bougé n'est pas relu, donc une base existante garderait `Mpeg`
+    indéfiniment. Impact nul aujourd'hui — aucune bibliothèque livrée, aucune vue n'affiche
+    `format` — mais le mécanisme doit être nommé avant la phase 6, sinon le prochain correctif
+    de ce genre sera vert au test et invisible chez les testeurs.
+  - **La règle candidate existait déjà, et les deux sessions l'ont écrite de la même main.** En
+    fusionnant `main`, INV-23 — « un libellé destiné à l'affichage ne vient jamais d'un `{:?}` »,
+    🟡 — était là : la passe de vérité l'avait posée en même temps qu'elle trouvait le défaut,
+    avec `couverture : planifiée (phase 3)`. Je ne l'ai donc pas proposée à Thomas, je l'ai
+    **branchée** : `couverture : test bibliotheque.rs`, la section du test cite la règle, et les
+    comptes de `CLAUDE.md` suivent (6 actives, 9 planifiées). Le défaut quitte « Bugs connus »
+    par la même occasion. Une règle née d'un défaut et refermée par le correctif du même défaut :
+    c'est exactement la boucle que l'ADR 0005 demande, et elle s'est fermée sans que personne
+    n'ait à s'en souvenir — `./check` recomptait.
+  - **Reste à l'arbitrage de Thomas** : le nom affiché pour le `.ogg` (`Vorbis`, là où la V1
+    repliait sur « Other »). Zone `choix-produit`, aucun `.ogg` dans sa bibliothèque.
+
+- **2026-11-23** (zones de la règle de taille) : **`src-tauri/tests` entre enfin dans la règle des
+  400 lignes**, sur décision de Thomas. Ce n'était pas un choix nouveau : la PR #13 avait déjà
+  tranché que ce dossier entre dans les garde-fous — elle l'avait ajouté aux zones de
+  `aucun-chemin-machine` et de `references-de-tests`, **mais pas à `check-sizes.sh`**. L'écart
+  était un oubli, et son titre (« `src-tauri/tests` entre dans les garde-fous ») promettait plus
+  large que son périmètre. **88 → 96 fichiers mesurés.**
+  - **Ce que l'oubli coûtait, en silence** : `src-tauri/tests/bibliotheque.rs` dépassait la limite
+    **depuis la phase 2** (416 lignes) sans faire rougir quoi que ce soit, parce que la règle ne
+    regardait pas là. Son découpage par la PR #13 a ramené le plus gros fichier du dossier à 274
+    lignes, ce qui a rendu l'ajout gratuit — **mais c'est l'ordre inverse qui aurait dû se
+    produire** : la règle aurait dû crier, et le découpage aurait dû suivre. Un garde-fou qui
+    arrive après le correctif n'a protégé personne.
+  - **Éprouvé dans les trois sens**, dont celui qui prouve que le changement sert : un test Rust
+    de 450 lignes **passe vert sur `main`** et rouge après l'ajout. Même fichier, deux verdicts.
+  - ⚠️ **Et j'ai failli supprimer une zone en croyant en ajouter une.** Ma première écriture
+    donnait `ZONES=(src src-tauri/src src-tauri/tests tools check)` : `tests`, le TypeScript,
+    avait disparu. 15 fichiers sortaient de la surveillance, et **`check-sizes` restait VERT** —
+    puisqu'il ne restait rien de trop gros dans ce qu'il regardait encore. Ce qui l'a attrapé est
+    le **compte affiché** : 88 → 73 au lieu de monter. La leçon, qui vaut pour tout détecteur de
+    ce genre : **afficher la taille du corpus n'est pas de la décoration, c'est la seule chose qui
+    distingue « rien à signaler » de « je ne regarde plus ».** Un corpus qui rétrécit mériterait
+    sa propre assertion ; écrit ici, pas fait.
+  - `src-tauri/examples/` manque encore : il n'existe pas sur `main`, il arrive avec la migration
+    (PR #8), et c'est à ce moment-là qu'il faudra l'ajouter. Écrit dans la liste « reste à
+    brancher » en tête de [`check`](../check), avec l'angle mort d'INV-06 qui le double.
+
+
+- **2026-11-24** (coquille visible) : une fenêtre à ouvrir, avant la phase 3. Le plan plaçait
+  l'interface en phase 4 — Thomas n'avait donc encore jamais rien vu de la V2, et ne jugeait que
+  sur des rapports. Cette session insère une coquille **délibérément laide** : la vraie
+  bibliothèque lue par le code de la phase 2, un dossier à désigner, un scan dont le rapport
+  s'affiche. **Zéro ligne de Rust, zéro commande IPC ajoutée** : les quatre dont la coquille a
+  besoin (`list_tracks`, `library_roots`, `add_library_root`, `scan_library`) existaient depuis la
+  phase 2.
+  - **Le son n'y est pas, et c'est une décision de Thomas.** Le moteur de la phase 1 décode et
+    sait écrire un WAV, mais le backend CoreAudio n'existe pas : le seul `BackendAudio` implémenté
+    écrit un fichier. Trois options lui ont été posées — `afplay` provisoire, bouton éteint, ou
+    écrire CoreAudio d'abord. Il a choisi **bouton éteint** : pas de son provisoire à jeter. La
+    fenêtre le dit en clair, pour que l'absence ne soit pas prise pour une panne.
+  - **Un garde-fou a résisté à la consigne « aucun design », et il avait raison.** La consigne
+    disait de ne pas toucher aux tokens ; écrire `Canvas`/`CanvasText` à la place a **vidé le
+    corpus d'INV-20** (`css-variables-definies`) — ces deux lectures étaient les seules
+    `var()` de tout le projet, et le détecteur de « la règle la plus rentable de la liste »
+    passait au vert sans plus rien surveiller. La coquille garde donc deux variables, fond et
+    texte, et rien d'autre : on ne désarme pas un garde-fou pour du code jetable.
+  - ⚠️ **Le même détecteur lit les commentaires.** Un commentaire CSS qui *parle* de `var(--x)`
+    le fait rougir : `regles-css.ts` n'appelle pas `sansCommentaires`, qui existe pourtant dans
+    `_lecture.ts`. Faux positif rencontré en écrivant ce commentaire-là. Non corrigé — hors
+    périmètre de cette session.
+  - ⚠️ **`~/Library/Application Support/hean/` existe maintenant chez Thomas**, créé par le
+    premier lancement de la V2 (base vide, 32 Ko). Il n'existait pas avant — `tools/passe-de-verite`
+    s'interdisait même de le créer pour cette raison. La migration `noir/` → `hean/` de la PR #8
+    copie puis vérifie puis supprime : **elle doit vérifier ce qu'elle fait d'un dossier déjà
+    présent.** À dire à la session de la PR #8 avant son merge.
+  - **Pas vérifié de visu** : l'accès à l'écran a été refusé, donc personne n'a encore regardé
+    la fenêtre. La preuve est donc indirecte, et elle vaut ce qu'elle vaut : voir la mesure.
+  - **Premier chiffre mémoire de la V2 : 78 Mo** (`phys_footprint` cumulé, natif + les trois
+    processus WebKit), avec **305 pistes affichées**. Mesuré sur le binaire de **développement**,
+    donc pessimiste : JS non minifié et sourcemaps dans la WebView. Détail : `hean` 104 Mo de RSS,
+    WebKit GPU 32, Networking 30, WebContent 71. Le RSS cumulé (237 Mo) surcompte les pages
+    partagées — c'est le `footprint` qui est la mémoire réellement attribuée, et c'est lui qu'il
+    faut comparer au budget de 100 Mo.
+    - **La mesure n'a pas pu être prise sur la vraie base de Thomas**, qui est vide : les 305
+      pistes ont été indexées par `tools/passe-de-verite scanner` (le vrai code de la phase 2)
+      sur ses vrais fichiers, dans une base jetable copiée dans un `HOME` isolé. Sa
+      bibliothèque n'a pas été touchée.
+    - ⚠️ **Et c'est aussi la seule preuve que la fenêtre affiche bien quelque chose.** Première
+      mesure, Vite n'était pas lancé : fenêtre blanche, WebContent à **29 Mo**. Deuxième, avec
+      le serveur debout et la base chargée : **71 Mo**. Les 42 Mo d'écart sont les 305 lignes.
+      Un chiffre qui monte n'est pas une preuve élégante, mais c'en est une — alors qu'un
+      « l'app démarre » n'en aurait pas été une du tout.
+  - **Et le chiffre qui compte, en release : 73 Mo** avec 305 pistes affichées, contre
+    **60 Mo** fenêtre vide. Binaire `target/release/hean`, 7,6 Mo, construit avec
+    `HEAN_ALLOW_MISSING_SECRETS=1` — le `compile_error!` des secrets compile-time arrête un
+    `npm run tauri build` nu, par conception, et le binaire obtenu porte l'avertissement « ne
+    pas distribuer ». **Sous le budget de 100 Mo.** Le développement donnait 78 Mo : l'écart
+    est petit, la WebView domine et la minification ne change presque rien.
+    - **13 Mo pour 305 pistes, soit ~43 Ko par ligne affichée.** C'est le chiffre à retenir,
+      et il n'est pas rassurant : à 10 000 pistes — le cas de V006 — la même table coûterait
+      **~430 Mo au-dessus du socle**. Attendu, puisque la coquille rend les 305 lignes d'un
+      coup et qu'aucune virtualisation n'existe encore ; mais c'est désormais **mesuré** plutôt
+      que supposé, et ça donne à la phase 4 un argument chiffré au lieu d'une intuition.
+      V006 n'est donc pas qu'une affaire de 60 fps : c'est aussi une affaire de mémoire.
+    - **Méthode, pour que la comparaison avec V1 reste possible** (`tools/measure-app.sh`
+      l'exige) : `phys_footprint` cumulé sur le processus natif plus les trois processus
+      WebKit. Le RSS cumulé (201 Mo chargée, 180 Mo vide) surcompte les pages partagées et ne
+      doit pas être comparé au budget. **V1 n'a pas été mesurée dans la même passe** : il
+      faudra le faire avant de conclure quoi que ce soit sur « V2 fait mieux ».
+- **2026-11-23** (soir, session d'orchestration) : **ADR 0013 — une session, un périmètre.** Cinq
   sessions tournaient en parallèle, dont trois nées d'elles-mêmes : `passe-verite` avait démarré
   `champ-format-mpeg`, qui avait démarré `check-sizes-ne-voit-pas`, laquelle s'est mise à modifier
   `tools/check-sizes.sh` pendant que `harnais-detecteurs` y écrivait. L'écrasement a été évité
