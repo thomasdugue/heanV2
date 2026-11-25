@@ -8,6 +8,7 @@ pub mod commands;
 pub mod demarrage;
 pub mod library;
 pub mod migration;
+pub mod network;
 pub mod observability;
 pub mod secrets;
 pub mod store;
@@ -27,6 +28,10 @@ pub fn ipc_builder() -> Builder<tauri::Wry> {
         commands::bibliotheque::write_metadata,
         commands::bibliotheque::bulk_edit,
         commands::bibliotheque::exclude_track,
+        commands::reseau::network_sources,
+        commands::reseau::add_network_source,
+        commands::reseau::save_network_password,
+        commands::reseau::scan_network_source,
     ])
 }
 

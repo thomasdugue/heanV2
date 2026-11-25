@@ -17,6 +17,10 @@ import { commands } from './bindings';
 // détail : il lit `Track` et `Edition`.
 export type { RapportDeScan } from './bindings';
 export type { Track_Serialize as Track, Edition_Deserialize as Edition } from './bindings';
+// Une source réseau remonte du Rust : c'est la forme `_Serialize` qu'on lit. Elle descend
+// aussi, mais jamais telle quelle — `addNetworkSource` prend ses champs un par un, ce qui
+// fait que l'interface ne peut pas fabriquer une source avec un identifiant de son choix.
+export type { SourceReseau_Serialize as SourceReseau } from './bindings';
 
 export function appVersion(): Promise<string> {
   return commands.appVersion();
@@ -29,3 +33,7 @@ export function appVersion(): Promise<string> {
 // `src/ipc/` a le droit de les employer : `src/lib/library/repository.ts`.
 export const { listTracks, scanLibrary, writeMetadata, bulkEdit, excludeTrack, addLibraryRoot, libraryRoots } =
   commands;
+
+// Les commandes réseau (ADR 0016). Aucune ne rend de piste : un scan rend un rapport, et
+// c'est le dépôt qui recharge la liste si ce rapport dit que quelque chose a bougé (V004).
+export const { networkSources, addNetworkSource, saveNetworkPassword, scanNetworkSource } = commands;

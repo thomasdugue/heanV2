@@ -13,15 +13,15 @@
 //! modifiés concurremment, mais une base, un écrivain, et des transactions (ADR 0002).
 //! Si du code revenait poser ici un cache global mutable, il rouvrirait ces quatre portes.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use rusqlite::{params, Connection, OptionalExtension};
 
-use super::lignes::{self, en_i64, inserer, ligne_en_track, maintenant};
+use super::lignes::{self, inserer, ligne_en_track, maintenant};
 
 use super::migrations::{self, Migration};
 use super::metadonnees;
-use super::scan::{self, Trouvee};
+use super::scan::{self, Conclusion, Entree, Perimetre};
 use super::types::{Edition, RapportDeScan, Track};
 
 /// Le schéma, versionné dès la première migration (ADR 0002, conséquence acceptée).
@@ -88,6 +88,28 @@ pub const MIGRATIONS: &[Migration] = &[Migration {
           le    INTEGER NOT NULL
         ) STRICT;
     ",
+}, Migration {
+    version: 3,
+    nom: "sources réseau (ADR 0016)",
+    sql: "
+        -- Les partages SMB dont les pistes rejoignent la bibliothèque. AUCUNE colonne de mot
+        -- de passe : il vit dans le Keychain (ADR 0015), et une colonne pour l'accueillir
+        -- serait une invitation permanente à l'y mettre.
+        -- `id` est celui de V1 quand la source en vient : il est écrit dans chaque URI de
+        -- piste (`smb://{id}/{partage}/…`), donc le régénérer orphelinerait la bibliothèque.
+        CREATE TABLE sources_reseau (
+          id             TEXT    PRIMARY KEY NOT NULL,
+          nom            TEXT    NOT NULL,
+          hote           TEXT    NOT NULL,
+          partage        TEXT    NOT NULL,
+          chemin_distant TEXT    NOT NULL,
+          utilisateur    TEXT    NOT NULL,
+          domaine        TEXT,
+          invite         INTEGER NOT NULL,
+          active         INTEGER NOT NULL,
+          ajoutee_le     INTEGER NOT NULL
+        ) STRICT;
+    ",
 }];
 
 /// La clé de la liste d'exclusion dans le `config.json` de V1.
@@ -126,7 +148,14 @@ pub enum Erreur {
 }
 
 pub struct Depot {
-    conn: Connection,
+    /// `pub(super)` et non privé **depuis le 2026-11-25**, pour que `reglages.rs` porte les
+    /// tables qui ne sont pas des pistes (dossiers de bibliothèque, sources réseau,
+    /// marqueurs de reprise) sans un étage de délégation vide. Même frontière que
+    /// `lignes.rs` : ce fichier-ci décide **ce qui** entre et sort de la bibliothèque, ses
+    /// voisins savent **comment** une donnée s'écrit. Ce qui reste gardé par un test est la
+    /// surface d'écriture de `tracks` — `lignes::inserer` — et le nom de la table des
+    /// chemins exclus, qui n'apparaît que dans ce fichier.
+    pub(super) conn: Connection,
 }
 
 impl Depot {
@@ -150,24 +179,6 @@ impl Depot {
         conn.execute_batch("PRAGMA foreign_keys = ON")?;
         migrations::appliquer(&mut conn, MIGRATIONS)?;
         Ok(Depot { conn })
-    }
-
-    // --- racines de bibliothèque (B04) -------------------------------------------------
-
-    pub fn ajouter_racine(&mut self, dossier: &Path) -> Result<(), Erreur> {
-        self.conn.execute(
-            "INSERT OR IGNORE INTO racines (path, ajoutee_le) VALUES (?1, ?2)",
-            params![dossier.display().to_string(), maintenant()],
-        )?;
-        Ok(())
-    }
-
-    pub fn racines(&self) -> Result<Vec<PathBuf>, Erreur> {
-        let mut stmt = self.conn.prepare("SELECT path FROM racines ORDER BY path")?;
-        let out = stmt
-            .query_map([], |r| r.get::<_, String>(0))?
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(out.into_iter().map(PathBuf::from).collect())
     }
 
     // --- lecture : LE constructeur de liste de pistes (INV-06) -------------------------
@@ -220,43 +231,6 @@ impl Depot {
         Ok(out)
     }
 
-    /// Vrai si la base ne contient **aucune** ligne, dans aucune table (ADR 0012).
-    ///
-    /// Sert au démarrage à distinguer « V2 a créé son fichier de base en démarrant » de
-    /// « V2 a une bibliothèque », parce que le premier cas ne doit pas empêcher la migration
-    /// du dossier de V1 et que le second l'arrête. Le verdict autorise une suppression :
-    /// `lignes::est_vierge` le dérive donc du schéma au lieu de consulter une liste de
-    /// tables écrite à la main, qui serait muette le jour où une table arrive.
-    pub fn est_vierge(&self) -> Result<bool, Erreur> {
-        Ok(lignes::est_vierge(&self.conn)?)
-    }
-
-    // --- marqueurs de reprise (ADR 0010) -----------------------------------------------
-
-    /// Vrai si ce sujet a déjà été repris du dossier de V1.
-    ///
-    /// La reprise elle-même vit dans `reprise_v1.rs` et ne passe que par l'API publique de
-    /// ce dépôt. Ce n'est pas un découpage esthétique : INV-06 veut qu'un seul fichier
-    /// nomme la table des chemins exclus, donc tout ce qui touche à l'exclusion passe par
-    /// `exclure()` — y compris la reprise des exclusions de V1.
-    pub fn reprise_deja_faite(&self, sujet: &str) -> Result<bool, Erreur> {
-        let deja: Option<i64> = self
-            .conn
-            .query_row("SELECT le FROM reprises WHERE sujet = ?1", params![sujet], |r| r.get(0))
-            .optional()?;
-        Ok(deja.is_some())
-    }
-
-    /// Note qu'un sujet a été repris. Une reprise rejouée ressusciterait des réglages que
-    /// l'utilisateur a changés depuis dans V2 — par exemple une piste qu'il a cessé d'exclure.
-    pub fn noter_la_reprise(&mut self, sujet: &str) -> Result<(), Erreur> {
-        self.conn.execute(
-            "INSERT OR IGNORE INTO reprises (sujet, le) VALUES (?1, ?2)",
-            params![sujet, maintenant()],
-        )?;
-        Ok(())
-    }
-
     // --- scan (B02, B03) ---------------------------------------------------------------
 
     /// Scanne les racines enregistrées et met la base à jour, **en une transaction**.
@@ -266,55 +240,47 @@ impl Depot {
     /// l'interface n'a rien à recharger.
     pub fn scanner(&mut self) -> Result<RapportDeScan, Erreur> {
         let racines = self.racines()?;
-        let trouvees = scan::parcourir(&racines);
-        self.appliquer_scan(&trouvees)
+        let parcours = scan::parcourir(&racines);
+        // Un dossier illisible — NAS débranché, disque éjecté, permissions changées —
+        // rend la conclusion partielle, donc rien ne disparaît ce tour-ci (B17).
+        let conclusion = Conclusion::depuis(parcours.dossiers_illisibles);
+        let entrees: Vec<Entree> = parcours.trouvees.into_iter().map(Entree::Disque).collect();
+        self.appliquer(&entrees, &Perimetre::Disque, conclusion)
     }
 
-    fn appliquer_scan(&mut self, trouvees: &[Trouvee]) -> Result<RapportDeScan, Erreur> {
-        let mut rapport = RapportDeScan::default();
+    /// Taille et date des pistes que la base connaît dans ce périmètre.
+    ///
+    /// Publique **pour les sources distantes**, où relire un fichier coûte un aller-retour
+    /// réseau : l'inventaire SMB s'en sert pour n'ouvrir que ce qui est nouveau ou dont
+    /// l'empreinte a bougé (ADR 0016 §4). Un scan de disque, lui, n'en a pas besoin — il
+    /// relit un fichier pour le prix d'un `stat`.
+    pub fn empreintes_connues(&self, perimetre: &Perimetre) -> Result<Vec<(String, i64, i64)>, Erreur> {
+        self.empreintes(perimetre)
+    }
+
+    /// Applique un inventaire : **dans ce périmètre**, la bibliothèque devient ce que cet
+    /// inventaire dit. Hors de lui, rien ne bouge.
+    ///
+    /// **INV-27.** Un parcours de disque ne revoit aucune piste du NAS ; sans restriction,
+    /// la boucle des « disparues » effacerait les 3 137 pistes réseau de Thomas à son
+    /// premier passage, et le premier scan du NAS ses 305 pistes locales. La règle n'est
+    /// pas écrite en prose mais portée par un type sans variante « tout ».
+    ///
+    /// Ce qui est décidé ici et nulle part ailleurs : **le périmètre et la liste des chemins
+    /// exclus** (INV-06). Ce qui se passe ensuite — écrire une ligne, en effacer une — est
+    /// mécanique, et c'est `lignes` qui le sait, comme pour toutes les autres écritures de
+    /// piste.
+    pub fn appliquer(
+        &mut self,
+        entrees: &[Entree],
+        perimetre: &Perimetre,
+        conclusion: Conclusion,
+    ) -> Result<RapportDeScan, Erreur> {
         let exclus = self.chemins_exclus()?;
-        let connues = self.empreintes()?;
-        let mut vus: Vec<String> = Vec::with_capacity(trouvees.len());
-
+        let connues = self.empreintes(perimetre)?;
         let tx = self.conn.transaction()?;
-        for t in trouvees {
-            let chemin = t.chemin.display().to_string();
-            // LE filtre, appliqué à l'entrée comme à la sortie (INV-06).
-            if exclus.contains(&chemin) {
-                continue;
-            }
-            vus.push(chemin.clone());
-            match connues.iter().find(|(p, _, _)| *p == chemin) {
-                Some((_, taille, mtime)) if *taille == en_i64(t.taille) && *mtime == t.mtime_ns => continue,
-                existe => {
-                    let lues = match metadonnees::lire(&t.chemin) {
-                        Ok(l) => l,
-                        Err(e) => {
-                            // Un fichier abîmé n'interrompt pas le scan. Il est compté, et
-                            // journalisé via tracing — jamais via println! (INV-21).
-                            tracing::warn!(chemin = %chemin, erreur = %e, "tags illisibles, piste ignorée");
-                            rapport.illisibles += 1;
-                            continue;
-                        }
-                    };
-                    inserer(&tx, &lues.track, &lues.cle, t)?;
-                    if existe.is_some() {
-                        rapport.modifiees += 1;
-                    } else {
-                        rapport.ajoutees += 1;
-                    }
-                }
-            }
-        }
-
-        // Les pistes dont le fichier a disparu. Ce n'est PAS une exclusion : si le fichier
-        // revient (NAS rebranché), la piste revient avec lui.
-        for (chemin, _, _) in &connues {
-            if !vus.contains(chemin) {
-                tx.execute("DELETE FROM tracks WHERE path = ?1", params![chemin])?;
-                rapport.disparues += 1;
-            }
-        }
+        let rapport =
+            lignes::appliquer_inventaire(&tx, entrees, perimetre, &exclus, &connues, conclusion)?;
         tx.commit()?;
         tracing::info!(
             ajoutees = rapport.ajoutees,
@@ -329,14 +295,18 @@ impl Depot {
     /// Taille et date de modification des pistes connues. En `i64` et non en `u64` :
     /// SQLite n'a pas d'entier non signé, et rusqlite refuse `u64` — forcer la conversion
     /// ici évite qu'elle se fasse à l'aveugle dans une requête.
-    fn empreintes(&self) -> Result<Vec<(String, i64, i64)>, Erreur> {
+    fn empreintes(&self, perimetre: &Perimetre) -> Result<Vec<(String, i64, i64)>, Erreur> {
         let mut stmt = self.conn.prepare("SELECT path, taille, mtime_ns FROM tracks")?;
         let out = stmt
             .query_map([], |r| {
                 Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?))
             })?
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(out)
+        // Le tri se fait en Rust et non en SQL : un `LIKE` sur un préfixe choisi par
+        // l'utilisateur demanderait de l'échapper, et `Perimetre::contient` est la SEULE
+        // définition de « ce périmètre contient ce chemin ». Deux définitions — une en SQL,
+        // une en Rust — finiraient par diverger, et c'est une règle 🔴 qui en dépend.
+        Ok(out.into_iter().filter(|(p, _, _)| perimetre.contient(p)).collect())
     }
 
     // --- édition (B06, B07, B08 — INV-07) ----------------------------------------------

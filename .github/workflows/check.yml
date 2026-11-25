@@ -48,6 +48,17 @@ jobs:
           rustc --version
           cargo clippy --version
 
+      # `libsmbclient`, la bibliothèque C de Samba. Le `build.rs` de `pavao-sys` PANIQUE si
+      # `pkg-config` ne la trouve pas, donc c'est une dépendance de **compilation** et pas
+      # seulement d'exécution : sans cette étape, rien ne compile (ADR 0016, conséquences).
+      # La formule est keg-only, d'où le `PKG_CONFIG_PATH` exporté pour toutes les étapes
+      # suivantes. La machine de Thomas l'a déjà, depuis V1.
+      - name: libsmbclient (Samba)
+        run: |
+          brew install samba
+          echo "PKG_CONFIG_PATH=$(brew --prefix samba)/lib/pkgconfig:${PKG_CONFIG_PATH:-}" >> "$GITHUB_ENV"
+          pkg-config --modversion smbclient
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri

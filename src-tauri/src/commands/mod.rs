@@ -5,6 +5,7 @@
 //! client.ts → Svelte. Les commandes de la bibliothèque sont dans `bibliotheque.rs`.
 
 pub mod bibliotheque;
+pub mod reseau;
 
 /// Version de l'application, telle que déclarée dans `Cargo.toml`.
 #[tauri::command]

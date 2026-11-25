@@ -13,12 +13,13 @@
   // Un bouton qui passerait par `afplay` ferait sortir du son sans rien prouver du moteur ;
   // Thomas a tranché le 2026-11-23 : pas de son provisoire. Le clic choisit donc une piste
   // et montre ce que Hean jouera, et la fenêtre le dit en clair.
-  import { appVersion, type RapportDeScan, type Track } from './ipc/client';
+  import { appVersion, type RapportDeScan, type SourceReseau, type Track } from './ipc/client';
   // `bibliotheque` vient du dépôt et pas de `etat.ts` : le dépôt est LE point d'entrée du
   // frontend sur la bibliothèque, et il réexporte l'état pour ça.
   import { bibliotheque, creerDepot } from './lib/library/repository';
   import Dossiers from './lib/ui/Dossiers.svelte';
   import Pistes from './lib/ui/Pistes.svelte';
+  import Reseau from './lib/ui/Reseau.svelte';
   import { compte, duree, qualite } from './lib/ui/affichage';
 
   const depot = creerDepot();
@@ -31,6 +32,11 @@
   let dossiers = $state.raw<readonly string[]>([]);
   let choisie = $state<Track | null>(null);
   let rapport = $state<RapportDeScan | null>(null);
+  // 91 % de la bibliothèque de Thomas est sur son NAS (docs/MESURES-V1.md §1) : ces trois
+  // états-ci ne sont pas une annexe de l'écran, ils en sont la plus grande part.
+  let sources = $state.raw<readonly SourceReseau[]>([]);
+  let rapportReseau = $state<RapportDeScan | null>(null);
+  let scanEnCours = $state<string | null>(null);
   let version = $state<string | null>(null);
   let erreur = $state<string | null>(null);
   let occupe = $state(true);
@@ -61,6 +67,7 @@
     version = await appVersion();
     await depot.charger();
     dossiers = await depot.dossiers();
+    sources = await depot.sourcesReseau();
   }
 
   // Un seul passage : ce bloc ne LIT aucun état réactif, donc il ne se redéclenche pas.
@@ -83,6 +90,38 @@
       rapport = await depot.scanner();
     });
   }
+
+  function ajouterUneSource(
+    nom: string,
+    hote: string,
+    partage: string,
+    cheminDistant: string,
+    utilisateur: string,
+  ): void {
+    void tenter(async () => {
+      sources = await depot.ajouterUneSourceReseau(nom, hote, partage, cheminDistant, utilisateur);
+    });
+  }
+
+  function enregistrerLeMotDePasse(sourceId: string, motDePasse: string): void {
+    void tenter(() => depot.enregistrerLeMotDePasse(sourceId, motDePasse));
+  }
+
+  /**
+   * Un scan réseau dure des minutes. `scanEnCours` existe pour que la fenêtre dise
+   * **laquelle** est en cours, et le `finally` pour que ce soit vrai même quand le scan
+   * échoue — un indicateur qui reste allumé après une panne est pire que pas d'indicateur.
+   */
+  function scannerUneSource(sourceId: string): void {
+    scanEnCours = sourceId;
+    void tenter(async () => {
+      try {
+        rapportReseau = await depot.scannerUneSourceReseau(sourceId);
+      } finally {
+        scanEnCours = null;
+      }
+    });
+  }
 </script>
 
 <main>
@@ -95,6 +134,16 @@
   {/if}
 
   <Dossiers {dossiers} {rapport} {occupe} surAjout={ajouterUnDossier} surScan={scanner} />
+
+  <Reseau
+    {sources}
+    rapport={rapportReseau}
+    {occupe}
+    enCours={scanEnCours}
+    surAjout={ajouterUneSource}
+    surMotDePasse={enregistrerLeMotDePasse}
+    surScan={scannerUneSource}
+  />
 
   <section>
     <h2>Lecture</h2>

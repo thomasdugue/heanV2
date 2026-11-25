@@ -14,7 +14,7 @@
 // l'état local, et que toutes les vues sont prévenues.
 
 import type { Backend } from '../../src/lib/library/repository';
-import type { Edition, RapportDeScan, Track } from '../../src/ipc/client';
+import type { Edition, RapportDeScan, SourceReseau, Track } from '../../src/ipc/client';
 
 /** Une piste complète à partir de ce qui compte pour le test. */
 export function piste(p: Partial<Track> & { path: string }): Track {
@@ -44,8 +44,13 @@ export interface FauxBackend extends Backend {
   /** Combien de fois chaque commande a été appelée. C'est ce qui permet de prouver qu'un
    *  rechargement n'a PAS eu lieu (V004) — une absence ne se voit pas autrement. */
   readonly appels: Record<string, number>;
-  /** Ce que le prochain scan annoncera. */
+  /** Ce que le prochain scan annoncera — de disque comme de réseau. */
   prochainRapport: RapportDeScan;
+  /** Les sources réseau « enregistrées », pour que l'interface ait quelque chose à afficher. */
+  readonly sources: SourceReseau[];
+  /** Les mots de passe reçus. Un faux trousseau, qui sert à prouver qu'un mot de passe
+   *  DESCEND et ne remonte jamais : aucune méthode de ce faux n'en rend un. */
+  readonly motsDePasse: Map<string, string>;
 }
 
 const RIEN: RapportDeScan = { ajoutees: 0, modifiees: 0, disparues: 0, illisibles: 0 };
@@ -114,6 +119,49 @@ export function creerFauxBackend(initiales: readonly Track[] = []): FauxBackend 
     libraryRoots: () => {
       compter('libraryRoots');
       return Promise.resolve([]);
+    },
+
+    sources: [],
+    motsDePasse: new Map<string, string>(),
+
+    networkSources: () => {
+      compter('networkSources');
+      return Promise.resolve([...faux.sources]);
+    },
+    addNetworkSource: (nom, hote, partage, cheminDistant, utilisateur) => {
+      compter('addNetworkSource');
+      // L'identifiant est DÉRIVÉ côté Rust, pas tiré au hasard : ajouter deux fois le même
+      // partage rend la même source (ADR 0016). Le faux reproduit la propriété — la même
+      // entrée, pas une deuxième — sans recopier la fonction de dérivation, qui n'a qu'une
+      // implémentation au monde et se prouve en Rust (`network::uri`).
+      const id = `${hote}_${partage}_${cheminDistant}`;
+      const deja = faux.sources.findIndex((s) => s.id === id);
+      const source: SourceReseau = {
+        id,
+        nom,
+        hote,
+        partage,
+        chemin_distant: cheminDistant,
+        utilisateur,
+        domaine: null,
+        invite: false,
+        active: true,
+      };
+      if (deja >= 0) faux.sources[deja] = source;
+      else faux.sources.push(source);
+      return Promise.resolve([...faux.sources]);
+    },
+    saveNetworkPassword: (sourceId, motDePasse) => {
+      compter('saveNetworkPassword');
+      faux.motsDePasse.set(sourceId, motDePasse);
+      return Promise.resolve(null);
+    },
+    scanNetworkSource: (sourceId) => {
+      compter('scanNetworkSource');
+      if (!faux.sources.some((s) => s.id === sourceId)) {
+        return Promise.reject(new Error(`aucune source réseau ne porte l'identifiant ${sourceId}`));
+      }
+      return Promise.resolve(faux.prochainRapport);
     },
   };
   return faux;

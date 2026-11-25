@@ -51,6 +51,34 @@ pub struct Track {
     pub debit: Option<u32>,
 }
 
+/// Une source réseau : un partage SMB dont les pistes rejoignent la bibliothèque (ADR 0016).
+///
+/// Elle est **dans les types de la bibliothèque** et non dans `network/`, et la direction
+/// compte : une source réseau est une donnée que la base garde et que l'interface affiche ;
+/// ce qu'on en fait avec `libsmbclient` est l'affaire de `network/`, qui dépend d'ici et pas
+/// l'inverse.
+///
+/// **Aucun champ de mot de passe, et c'est voulu** : il vit dans le Keychain (ADR 0015).
+/// Un champ ici traverserait l'IPC, donc le mot de passe du NAS de Thomas apparaîtrait dans
+/// les outils de développement de la WebView.
+///
+/// `id` vient de V1 quand la source en vient : c'est lui qui est écrit dans les 3 137 URI de
+/// la bibliothèque de Thomas (`smb://{id}/{partage}/…`), donc le régénérer rendrait toutes
+/// ses pistes orphelines.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
+pub struct SourceReseau {
+    pub id: String,
+    pub nom: String,
+    pub hote: String,
+    pub partage: String,
+    /// Le dossier à scanner **dans** le partage, slash initial compris (`/LOSSLESS/complete`).
+    pub chemin_distant: String,
+    pub utilisateur: String,
+    pub domaine: Option<String>,
+    pub invite: bool,
+    pub active: bool,
+}
+
 /// Une édition de métadonnées. `None` = **ne pas toucher à ce champ**, ce qui est ce dont
 /// le bulk edit a besoin : la modale de V1 affichait « mixed values » pour les champs qui
 /// diffèrent entre les pistes sélectionnées, et ne devait écrire que ceux qu'on a remplis.

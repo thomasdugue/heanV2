@@ -25,7 +25,7 @@ D'où les trois piles :
 | Pile | Ce que ça veut dire | Combien |
 |---|---|---|
 | **rayé** | L'architecture de V2 rend la faute inexprimable. Plus de règle à retenir. | 6 |
-| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 18 |
+| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 19 |
 | **irréductible** | Comportement de CoreAudio, de WebKit ou de Gatekeeper. Aucun test ne le prouve. | 2 + 7 pièges |
 
 **La mesure du succès : la pile « irréductible » ne grossit pas, et la pile « test » se
@@ -143,10 +143,23 @@ dette **visible**, que `./check` recompte à chaque passage.
 ### INV-03 — SMB : connexion périmée = retry automatique
 - pile : test
 - gravité : 🔴 BLOQUANT
-- couverture : planifiée (phase 5) — conteneur Samba + proxy à injection de panne
-- pourquoi : `read_file_to_temp_progressive()` doit retenter avec une connexion fraîche si
-  `open_with()` échoue. En V1 les tests `network_source` étaient `#[ignore]` : la règle ne
-  se vérifiait qu'avec un vrai NAS, dans le bon état.
+- couverture : test client.rs
+- pourquoi : une opération SMB doit retenter avec une connexion fraîche si la première
+  échoue — un NAS ferme une session inactive, et `libsmbclient` ne s'en aperçoit qu'à
+  l'opération suivante. En V1 les tests `network_source` étaient `#[ignore]` : la règle ne se
+  vérifiait qu'avec un vrai NAS, dans le bon état.
+  **Elle n'attend plus la phase 5, et c'est la leçon à retenir de son branchement** : la
+  *réaction* à une connexion périmée a été séparée de sa *cause*. `reessayer_une_fois` ne
+  connaît ni SMB ni le réseau — deux fermetures, l'opération et le rafraîchissement — donc
+  elle s'éprouve par **injection de panne**, sans conteneur Samba et sans NAS allumé. Ce qui
+  demandait un vrai serveur était la cause, pas la réaction ; une couverture « planifiée »
+  peut donc cacher un découpage à faire plutôt qu'un outil à installer.
+  Quatre cas éprouvés, et le troisième est celui qu'on oublie : la première tentative échoue
+  puis la seconde réussit ; un échec persistant **ne boucle pas** (une boucle « jusqu'à ce que
+  ça marche » transformerait un NAS éteint en attente infinie — W005 pris par le mauvais
+  bout) ; une reconnexion qui échoue elle-même remonte **sa** cause, sinon l'utilisateur lit
+  « session périmée » alors que son mot de passe est refusé ; et un succès du premier coup ne
+  reconnecte jamais, donc le chemin normal — 3 137 fichiers — ne paie pas la règle.
 
 ### INV-04 — SMB : un échec Keychain remonte une erreur, jamais un mot de passe vide
 - pile : test
@@ -403,6 +416,33 @@ dette **visible**, que `./check` recompte à chaque passage.
   restées. Un retour arrière dont personne ne connaît l'existence n'en est pas un — c'est le
   raisonnement d'INV-21 appliqué à une bonne nouvelle. S'il faut de l'interface pour le dire,
   c'est une question ouverte, pas un acquis.
+
+### INV-27 — Un scan ne conclut la disparition d'une piste que dans son périmètre
+- pile : test
+- gravité : 🔴 BLOQUANT
+- couverture : test perimetre.rs
+- pourquoi : `Depot::appliquer` efface toute piste connue qu'il n'a pas revue — c'est ce qui
+  fait disparaître de la bibliothèque un fichier que l'utilisateur a supprimé. Avec deux
+  provenances dans la même base, le premier scan de disque aurait donc effacé les **3 137
+  pistes réseau** de Thomas (91 % de sa bibliothèque), et le premier scan réseau ses 305
+  pistes locales. En V1 les deux scans écrivaient dans le même cache global et la règle était
+  « n'oublie pas de filtrer » : la forme de règle qu'INV-06 existe pour ne plus écrire.
+  **La règle est un type, pas une phrase.** `scan::Perimetre` n'a **aucune variante « tout »** :
+  le dépôt ne peut pas oublier de restreindre, puisqu'il n'a pas le choix de ne pas le faire.
+  Le périmètre d'une source est le **préfixe** de ses URI, slash final compris — sans ce slash,
+  une source dont l'identifiant commence comme celui d'une autre effacerait les pistes de sa
+  voisine, et le test l'éprouve avec `dcdd24af` contre `dcdd24af-bis`.
+  **Et le volet qui a demandé le plus de travail est le second**, trouvé en écrivant le test et
+  non en relisant le code : un dossier que le serveur **refuse de lister** n'est pas un dossier
+  vide. Le parcours le journalisait et rien n'en tenait compte, donc un partage momentanément
+  inaccessible — ou une racine de disque éjectée, et Thomas n'en a qu'une — faisait **effacer
+  ses pistes**. C'est exactement ce que B17 dit depuis V1 (« un dossier absent ne doit pas faire
+  perdre la bibliothèque entière »), et la conséquence n'en avait jamais été tirée. D'où
+  `scan::Conclusion` : un parcours qui a sauté quelque chose rend `Partielle`, et rien ne
+  disparaît ce tour-là. Le seul coût est de voir une suppression au scan **suivant**.
+  Né le 2026-11-25 en branchant la part réseau (ADR 0016 §2). Les deux volets sont éprouvés
+  dans la même base, avec les deux provenances mélangées : un test qui n'en mettrait qu'une
+  passerait au vert avec ou sans la règle.
 
 ---
 
