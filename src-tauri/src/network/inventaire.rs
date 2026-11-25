@@ -177,7 +177,7 @@ fn descendre(
             inv.entrees.push(Entree::Distante(trouvee, None));
             continue;
         }
-        match lire_les_tags(smb, &enfant, &uri) {
+        match lire_les_tags(smb, &source.hote, &enfant, &uri) {
             Ok(lues) => inv.entrees.push(Entree::Distante(trouvee, Some(Box::new(lues)))),
             Err(erreur) => {
                 tracing::warn!(uri = %uri, erreur = %erreur, "tags illisibles sur le NAS, piste ignorée");
@@ -190,11 +190,20 @@ fn descendre(
 /// Lit les tags d'un fichier distant : l'en-tête quand le format le permet, et **le fichier
 /// entier en repli** si cet en-tête ne se parse pas.
 ///
+/// L'hôte est passé jusqu'ici pour que le message d'erreur le **nomme**. Sans lui, un
+/// échec de lecture de tags disait « lecture du fichier … sur  : … » — un message à trou,
+/// c'est-à-dire un message qui envoie chercher au mauvais endroit.
+///
 /// Le repli est ce qui remplace le parseur de blocs FLAC de V1 (~200 lignes écrites parce
 /// que lofty échouait sur un FLAC tronqué à 512 Kio). Il est journalisé à chaque fois : si
 /// la mesure montre qu'il se déclenche souvent, c'est **elle** qui justifiera d'écrire ces
 /// 200 lignes, pas la crainte de devoir le faire.
-fn lire_les_tags(smb: &dyn Smb, chemin: &str, uri: &str) -> Result<metadonnees::Lues, Erreur> {
+fn lire_les_tags(
+    smb: &dyn Smb,
+    hote: &str,
+    chemin: &str,
+    uri: &str,
+) -> Result<metadonnees::Lues, Erreur> {
     let max = entete::a_lire(chemin);
     let octets = smb.lire(chemin, max)?;
     match metadonnees::lire_depuis(&octets, uri) {
@@ -203,13 +212,13 @@ fn lire_les_tags(smb: &dyn Smb, chemin: &str, uri: &str) -> Result<metadonnees::
             tracing::debug!(uri, erreur = %partielle, "en-tête insuffisant, relecture du fichier entier");
             let tout = smb.lire(chemin, None)?;
             metadonnees::lire_depuis(&tout, uri).map_err(|e| Erreur::Fichier {
-                hote: String::new(),
+                hote: hote.to_string(),
                 chemin: uri.to_string(),
                 detail: e.to_string(),
             })
         }
         Err(e) => Err(Erreur::Fichier {
-            hote: String::new(),
+            hote: hote.to_string(),
             chemin: uri.to_string(),
             detail: e.to_string(),
         }),
