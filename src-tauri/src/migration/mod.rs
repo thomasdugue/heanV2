@@ -8,8 +8,8 @@
 //!
 //! ## La forme, et pourquoi c'est celle-là
 //!
-//! **Copier dans un dossier provisoire, vérifier, forcer sur le disque, échanger, supprimer
-//! l'original.** Cinq temps, et chacun ferme un mode de défaut :
+//! **Copier dans un dossier provisoire, vérifier, forcer sur le disque, échanger. Et laisser
+//! l'original en place.** Quatre temps, et chacun ferme un mode de défaut :
 //!
 //! 1. **Copier à côté** (`hean.en-cours-de-migration/`) plutôt que directement dans `hean/`.
 //!    Une copie interrompue — l'application tuée, la machine qui s'endort — laisse alors un
@@ -20,12 +20,17 @@
 //!    par leur contenu. C'est ce qui autorise l'étape suivante.
 //! 3. **Forcer sur le disque** (`durabilite.rs`) : `fs::copy` rend la main quand le cache du
 //!    système est à jour, pas quand le disque l'est. Sans ce temps-là, une coupure de courant
-//!    juste après la migration laissait un `hean/` d'apparence complète, des fichiers vides
-//!    dedans et plus de `noir/` du tout. C'est INV-25, née de la relecture de cette PR.
+//!    juste après la migration laissait un `hean/` d'apparence complète et des fichiers vides
+//!    dedans — certifiés complets par le témoin, donc jamais remigrés. C'est INV-25.
 //! 4. **Échanger** : un `rename` du provisoire vers `hean/`. Sur le même volume, c'est
 //!    atomique — il n'existe aucun instant où `hean/` est à moitié là.
-//! 5. **Supprimer l'original**, et seulement là. L'ADR 0003 l'écrit : « copie puis
-//!    vérification puis suppression de l'ancien, pas un `mv` sec ».
+//!
+//! **Et un cinquième temps qui n'existe plus : supprimer l'original.** L'ADR 0003 puis l'ADR 0010
+//! en faisaient le dernier geste ; Thomas a tranché l'inverse le 2026-11-25 (« Oui, garde-le »),
+//! et son dossier de V1 reste comme retour arrière vers la V1 — ADR 0014, INV-26, tenu par un
+//! test parce qu'un « nettoyage » de phase 3 remettrait cette suppression sans la relire comme
+//! une décision. Seul son **cache de téléchargement** est jeté : voir `cache_v1`, qui porte le
+//! périmètre exact et ce que garder coûte vraiment.
 //!
 //! ## Ce qui n'est pas ici
 //!
@@ -38,6 +43,7 @@
 //!   tous les autres — le provisoire est effacé, l'original n'a pas bougé. Un pré-contrôle
 //!   ajouterait du code et une façon de se tromper, sans rien garantir de plus.
 
+mod cache_v1;
 mod durabilite;
 pub mod inventaire;
 pub mod verification;
@@ -173,11 +179,10 @@ pub fn migrer_si_necessaire(source: &Path, cible: &Path) -> Result<Rapport, Erre
             // chaque démarrage. Les fichiers cachés sont donc **déplacés** dans le
             // provisoire, et non supprimés : ils retrouvent leur place après l'échange.
             //
-            // **La nuance, relevée en relecture** : si le `rename` juste en dessous échoue,
-            // ils restent dans le provisoire — que le démarrage suivant efface. Ils seraient
-            // donc perdus sur ce chemin-là, et « jamais supprimés » serait trop dire. Ce qui
-            // est en jeu est un fichier de préférences d'affichage du Finder, que le Finder
-            // réécrit ; ce qui compte ici est de ne pas l'écrire plus fort que ce n'est vrai.
+            // **La nuance, relevée en relecture** : si le `rename` juste en dessous échoue, ils
+            // restent dans le provisoire — que le démarrage suivant efface — donc « jamais
+            // supprimés » serait trop dire. C'est un fichier de préférences du Finder, que le
+            // Finder réécrit ; ce qui compte est de ne pas l'écrire plus fort que ce n'est vrai.
             deplacer_les_fichiers_caches(cible, &provisoire);
 
             std::fs::rename(&provisoire, cible).map_err(|source| Erreur::Echange {
@@ -185,30 +190,41 @@ pub fn migrer_si_necessaire(source: &Path, cible: &Path) -> Result<Rapport, Erre
                 source,
             })?;
 
-            // L'original, enfin — **et seulement si le renommage lui-même est durable**
-            // (INV-25) : c'est l'entrée du dossier parent qui porte le nouveau nom, et elle
-            // peut n'être pas encore sur le disque. Sinon on garde `noir/` : 572 Mo occupés
-            // pour rien valent mieux qu'un dossier de données qui n'existe plus sous aucun des
-            // deux noms. Le témoin étant dans `hean/`, le lancement suivant ne recommencera
-            // pas — ce qui est correct, puisque les données, elles, sont bien arrivées.
-            match durabilite::rendre_durable_le_renommage(cible) {
-                // Un échec de suppression n'est pas fatal : les données sont en sécurité à
-                // l'arrivée, et le témoin empêchera de recommencer.
-                Ok(()) => {
-                    if let Err(e) = std::fs::remove_dir_all(source) {
-                        tracing::warn!(
-                            source = %source.display(),
-                            erreur = %e,
-                            "l'ancien dossier n'a pas pu être supprimé — les données sont pourtant bien migrées"
-                        );
-                    }
-                }
-                Err(e) => tracing::error!(
+            // Le renommage est rendu durable à son tour : c'est l'entrée du dossier parent
+            // qui porte le nouveau nom, et la bibliothèque doit être sur le disque avant que
+            // l'application commence à y écrire. **Un échec n'est plus fatal depuis que
+            // l'original survit** — le lancement suivant trouverait le provisoire, l'effacerait
+            // et remigrerait depuis `noir/`, toujours là — donc il est journalisé, et c'est
+            // tout. Il ne garde plus rien d'irréversible : c'est le `rendre_durable` plus haut
+            // qui le fait, et INV-25 porte désormais sur lui seul.
+            if let Err(e) = durabilite::rendre_durable_le_renommage(cible) {
+                tracing::error!(
                     cible = %cible.display(),
                     erreur = %e,
-                    "le renommage n'a pas pu être forcé sur le disque : l'ancien dossier est conservé"
-                ),
+                    "le renommage du dossier de données n'a pas pu être forcé sur le disque"
+                );
             }
+
+            // **Le cache jetable, et lui seul** : seconde décision de Thomas, « Oui, jette le
+            // cache » (ADR 0014). Après le succès et jamais avant, au même rang qu'aurait eu la
+            // suppression du dossier dans l'ordre d'INV-25. Un échec n'est pas fatal — un cache
+            // qui résiste coûte 289 Mio, pas une donnée. Le périmètre est dans `cache_v1`.
+            match cache_v1::jeter(source) {
+                Ok(0) => {}
+                Ok(octets) => tracing::info!(octets, "cache de téléchargement de V1 jeté"),
+                Err(e) => tracing::warn!(erreur = %e, "le cache de V1 n'a pas pu être jeté"),
+            }
+
+            // **Dire où les données d'origine sont restées** (INV-26). Sans cette ligne,
+            // personne ne sait que le filet existe ni où le trouver — et un filet dont on ignore
+            // l'existence n'en est pas un. C'est le raisonnement d'INV-21 appliqué à une bonne
+            // nouvelle : ce journal est le seul canal qui existe aujourd'hui.
+            tracing::info!(
+                ancien = %source.display(),
+                "les données de l'ancienne version sont CONSERVÉES à cet emplacement : la \
+                 migration ne les supprime pas, elles servent de retour arrière (ADR 0014)"
+            );
+
             tracing::info!(
                 fichiers = relatifs.len(),
                 octets,

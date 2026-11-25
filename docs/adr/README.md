@@ -42,6 +42,7 @@ décisions sous le même numéro ont coûté une heure et huit renvois à corrig
 | [0011](0011-derogation-inv-21-pour-les-exemples.md) | Les exemples en ligne de commande écrivent sur stdout : dérogation à INV-21 | Acceptée |
 | [0012](0012-un-echec-de-migration-doit-rester-rattrapable.md) | Un échec de migration doit rester rattrapable : rien n'est créé dans le dossier de données avant son verdict | Acceptée |
 | [0013](0013-une-session-un-perimetre.md) | Une session, un périmètre ; et aucune session n'en démarre une autre | Acceptée |
+| [0014](0014-la-migration-conserve-le-dossier-de-v1.md) | La migration conserve le dossier de V1 moins son cache : « Oui, garde-le », « Oui, jette le cache » | Acceptée |
 
 **Décisions encore ouvertes**, à transformer en ADR dès qu'elles sont prises :
 
@@ -49,7 +50,6 @@ décisions sous le même numéro ont coûté une heure et huit renvois à corrig
 |---|---|---|
 | **Nouvelle cible de parité** après la passe « davantage de DM Sans » que Thomas fait côté design | phase 4 | Remplacera [`0004`](0004-cible-de-parite.md). Vérifié le 2026-11-21 : DM Sans **se charge** et le redesign v3 l'applique déjà aux grands titres ; la direction est d'élargir sa part. Méthode de réextraction : [`../../bootstrap/02-design/ECARTS-DESIGN.md`](../../bootstrap/02-design/ECARTS-DESIGN.md) §2. |
 | Identité d'une piste : par chemin de fichier, ou morceau logique avec N fichiers ? | phase 3 | 21 % de la bibliothèque est en double — [`../MESURES-V1.md`](../MESURES-V1.md) §10 |
-| **Garder `noir/` après la migration, au lieu de le supprimer ?** La raison de l'avoir écarté était « 283 Mo dupliqués sur le disque » — et cette prémisse est fausse : **mesuré le 2026-11-25, copier 400 Mo sur APFS ne consomme aucun espace**, parce que `std::fs::copy` clone. Un `noir/` conservé et jamais modifié ne coûterait donc presque rien, et offrirait un retour arrière aux ~50 testeurs. À mettre en face : ce que le Finder affichera comme place occupée, et le fait que V1 resterait utilisable. | rien | Remplacerait une conséquence acceptée de [`0010`](0010-methode-de-migration-des-donnees-v1.md) ; la mesure est en tête de `src-tauri/src/migration/verification.rs` |
 | Régime de V1 pendant la reconstruction (gel / hotfix seulement / évolution) | rien | [`0004`](0004-cible-de-parite.md) — la cible, elle, est tranchée |
 | WiFi Sync dans le périmètre de V2, et à quelle phase | rien | [`../../bootstrap/05-postmortem/chantier-wifi-sync/README.md`](../../bootstrap/05-postmortem/chantier-wifi-sync/README.md) |
 | V2 = mise à jour de V1 (même bundle identifier) ou app distincte | phase 7 | [`0003`](0003-dossier-de-donnees.md) |

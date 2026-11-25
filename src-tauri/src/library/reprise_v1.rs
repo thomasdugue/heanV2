@@ -138,6 +138,15 @@ pub fn analyser(config_json: &str) -> Result<Config, Erreur> {
 /// la PR #8, puis fermé ici : les constantes sont redevenues `pub(crate)`, ce qui sort du
 /// crate est cette fonction, et elle ne sait que **fabriquer** du JSON.
 ///
+/// **Ce qui n'est PAS fermé, et autant que ce soit écrit ici qu'ailleurs** : la chaîne que cette
+/// fonction rend contient le nom de la table en clair, puisque la clé de V1 et la table de V2
+/// portent le même mot. Qui le veut peut donc l'en extraire depuis un test et composer sa
+/// requête, sans déclencher aucun détecteur. Ce qui est fermé est la duplication **par
+/// inadvertance** — le mode de défaut réel d'INV-06, celui qui a coûté la régression de V1 —
+/// et non un chemin délibéré. « C'est le compilateur qui ferme » vaut pour la constante, pas
+/// pour la valeur. Relevé en relecture, et noté plutôt que corrigé : fabriquer un JSON de V1
+/// sans écrire la clé de V1 n'a pas de sens.
+///
 /// Trois endroits qui répétaient la même chose n'en font plus qu'un, ce qui est le vrai
 /// correctif : « n'oublie pas d'utiliser la constante partout » est la forme de règle qu'INV-06
 /// existe pour ne plus écrire.

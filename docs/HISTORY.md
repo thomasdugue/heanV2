@@ -1252,3 +1252,139 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
       rouge au prochain ajout. Une des lignes venait de cette session : elle a été récupérée en
       resserrant une phrase (149/150). Ce n'est pas une solution, c'est un sursis d'une ligne ;
       le fichier annonce lui-même qu'au-delà de ~150 il faut déplacer quelque chose dans un skill.
+    - **La relecture `invariant-guardian` du commit : AVERTISSEMENT, rien de 🔴.** Elle a retracé
+      elle-même l'ordre d'INV-25 sur **tous** les chemins d'échec, y compris celui où le nettoyage
+      du provisoire échoue à son tour (le témoin reste alors dans le dossier provisoire, donc
+      n'est pas lu : pas d'état pris pour normal), et rejoué le détecteur d'ordre sur le vrai
+      fichier du parent `e4156a0` pour vérifier qu'il y rougit. Trois de ses cinq 🟡 étaient des
+      **affirmations que le code ne tenait pas** — toujours la même famille, trois fois dans la
+      même soirée :
+      1. **mon propre *pourquoi* sur la double synchronisation était faux.** J'avais écrit que
+         `sync_data` serait le `fsync` ordinaire et `sync_all` le `F_FULLFSYNC`. Vérifié dans les
+         sources de la chaîne épinglée par l'ADR 0008 (`std/src/sys/fs/unix.rs`, Rust 1.93.1) :
+         sous `#[cfg(target_vendor = "apple")]`, `os_fsync` **et** `os_datasync` appellent tous
+         les deux `fcntl(fd, F_FULLFSYNC)`. Le code est donc **plus strict** que ce qu'il
+         annonçait — chaque fichier reçoit déjà une barrière disque complète, la sûreté n'était
+         pas en jeu — mais le *pourquoi* l'était, et c'est lui qu'on relit le jour où l'on veut
+         négocier le coût. Réécrit, sourcé, et la mesure cesse d'être un mystère : 90 ms pour
+         2 444 `F_FULLFSYNC` tient parce que la copie est un clone, donc presque aucune page sale.
+      2. **« 572 Mo occupés pour rien »**, à dix lignes d'un code dont le même commit établit que
+         la copie est un clone : les fichiers migrés partagent leurs blocs avec `hean/`, donc ce
+         que `noir/` occupe en propre est ce qui n'a PAS été migré — surtout les 289 Mo de
+         `smb_buffer/`, soit environ la moitié. Conclusion inchangée, prémisse corrigée.
+      3. **l'encadré « qui va rougir le premier » de `check-sizes.sh`** annonçait encore
+         « ramène à 397, rétablit de la marge » et « demarrage.rs 392, 8 de marge ». C'est 398 et
+         395 depuis ce soir. Cet encadré existe précisément pour qu'un rouge futur ne soit pas
+         pris pour un faux positif, et son propre texte dit qu'un avertissement nommant le
+         mauvais fichier envoie chercher au mauvais endroit.
+    - **Et un vrai défaut de harnais, le plus utile de son rapport** : `appelleInserer` n'avait
+      **aucune assertion de matière réelle**. Un renommage anodin de `lignes::inserer` en phase 3
+      et le motif ne matche plus rien : tests verts, surface d'écriture des pistes réouverte en
+      silence. C'est à l'identique le défaut payé en phase 0 — le détecteur de commandes
+      cherchait `\bTrack\b` là où specta émet `Track_Serialize[]`, zéro commande attrapée sur
+      huit, auto-tests verts pendant tout ce temps. Les deux détecteurs sont maintenant ancrés sur
+      le dépôt lui-même, et l'ancrage est éprouvé en injectant le renommage : il rougit.
+      **La leçon, pour le prochain détecteur** : un détecteur doit répondre par une assertion à
+      **deux** questions, pas une. « Est-ce que je regarde quelque chose ? » — la garde de
+      `_lecture` s'en charge depuis le 2026-11-23. « Est-ce que je reconnais quelque chose de
+      réel ? » — celle-là n'était tenue que par hasard, selon le détecteur.
+    - **Ce que la relecture a noté et que je n'ai pas corrigé**, parce que ce serait écrire plus
+      fort que ce n'est vrai dans l'autre sens : la chaîne rendue par `config_de_v1` contient le
+      nom de la table en clair, puisque la clé de V1 et la table de V2 portent le même mot. Qui
+      le veut peut l'en extraire et composer sa requête sans déclencher aucun détecteur. Ce qui
+      est fermé est la duplication **par inadvertance** — le mode de défaut réel d'INV-06 — pas un
+      chemin délibéré. Écrit dans `reprise_v1.rs`, à côté de la fonction.
+    - **Une règle candidate, pas écrite comme invariant : c'est à Thomas de dire si elle en est
+      un.** Chaque garde-fou porte sa propre liste de dossiers — cinq listes — donc un dossier de
+      code vivant qui naît entre dans trois sur cinq et l'oubli est invisible. Vu **trois fois**
+      en trois jours. Proposée par `invariant-guardian`, rangée dans la liste « reste à brancher »
+      en tête de `check` avec son mécanisme et le piège à éviter (le test doit nommer ce qu'il
+      exclut — `bootstrap/` est l'archive figée de V1 — sinon il retourne la liste au lieu de
+      l'unifier, et c'est la faute déjà écartée là-bas).
+
+- **2026-11-25** (décision de Thomas, après la fusion de la PR #8) : **la migration ne supprime
+  plus le dossier de V1 — « Oui, garde-le ».** ADR [0014](adr/0014-la-migration-conserve-le-dossier-de-v1.md),
+  INV-26, PR #17.
+  - **La question ne se posait que parce qu'une prémisse de l'ADR 0010 était fausse.** Il avait
+    écarté « garder l'original au cas où » parce que ce serait « 283 Mo dupliqués ». Mesuré :
+    sur APFS, `std::fs::copy` **clone** — copier 400 Mo ne consomme aucun espace. Donc les
+    2 443 fichiers migrés partagent leurs blocs avec `hean/`, et ce que `noir/` occupe encore en
+    propre est **289 Mio, entièrement son `smb_buffer/`** (3 fichiers FLAC, mesuré sur le dossier
+    réel). Le retour arrière vers la V1 coûte donc la moitié de ce que l'ADR 0010 croyait, et
+    rien du tout en données dupliquées. Thomas a tranché sur ce chiffre-là.
+  - **Ce qui est tenu par un mécanisme, et pas par cette entrée** : un test de forme refuse que
+    l'appel de suppression reparaisse dans `migration/mod.rs` (il était là la veille, il rendait
+    la main plus propre, et un « nettoyage » de phase 3 le remettrait sans le relire comme une
+    décision) ; un test de comportement rejoue la séquence de démarrage **deux fois** et établit
+    que la source survit intacte et que le second démarrage ne retouche à rien.
+  - **La crainte à écarter était la bonne** : un original qui survit pourrait faire remigrer
+    283 Mo à chaque lancement. Établi par test plutôt que par relecture — le témoin écrit dans la
+    cible est le seul juge, donc le second passage rend `DejaFaite`, ni `Faite` ni
+    `CibleDejaPeuplee`. Le test d'idempotence devait auparavant **recréer `noir/` à la main** pour
+    poser cette question ; elle se pose maintenant d'elle-même.
+  - **Neuf affirmations à retourner, et c'est le vrai coût du changement.** Une décision d'un mot
+    a invalidé : l'en-tête de `migration/mod.rs` (« cinq temps »), celui de `verification.rs`
+    (« la pièce qui autorise la suppression »), deux commentaires de `durabilite.rs`, quatre
+    assertions de tests qui vérifiaient la disparition, et **une ligne de
+    `tools/verifier-migration-reelle.sh` qui échouait si l'ancien dossier survivait** — devenue
+    celle qui échoue s'il disparaît. C'est la leçon de la soirée, pour la troisième fois : ce qui
+    coûte dans un changement de comportement n'est pas le code, c'est ce que le dépôt affirme
+    autour.
+  - **Et INV-25 a changé de gravité le jour de sa naissance.** Elle protégeait contre une perte
+    définitive ; l'original survivant, les octets ne sont plus perdus. Ce qui reste : le témoin
+    certifierait une copie trouée, donc l'application démarrerait sur une bibliothèque incomplète
+    **sans jamais remigrer**, et son propriétaire n'aurait aucune raison de soupçonner que ses
+    données entières sont à côté. Noté dans le skill avec la question posée à Thomas (rester 🔴
+    ou devenir 🟡) ; la règle, elle, ne bouge pas — elle coûte 90 ms.
+  - **Question ouverte, posée et non tranchée** : `smb_buffer/` est un cache **reconstructible**
+    que V1 était censé purger à chaque lancement (W008, correctif `eaee676`) et qu'il n'a pas
+    purgé. Le supprimer ne perdrait aucune donnée et ramènerait le retour arrière à un coût
+    presque nul. Mais « garde-le » répondait à « garder ton dossier V1 », pas à « garder tout sauf
+    le cache ». Au tableau des décisions ouvertes.
+  - **Et la règle des 400 lignes a crié, exactement où elle avait annoncé qu'elle crierait.**
+    `src-tauri/tests/demarrage.rs` est passé à **444 lignes** en recevant le test d'INV-26.
+    L'encadré « qui va rougir le premier » de `tools/check-sizes.sh` nommait ce fichier comme le
+    deuxième à franchir la limite et disait « c'est là qu'atterrira chaque test futur de la
+    séquence de démarrage ». C'est la première fois qu'une de ces prédictions est vérifiée par
+    les faits, et la consigne qui l'accompagnait — « il faudra découper, pas désactiver » — a été
+    suivie le jour même : cinq modules par thème dans `tests/demarrage/`, le plus gros à 126
+    lignes. **Le point d'entrée garde son nom**, et c'est un choix : une douzaine de textes du
+    dépôt renvoient à `src-tauri/tests/demarrage.rs`, dont l'ADR 0012, **et un ADR ne se
+    modifie pas** — déplacer ce nom aurait transformé une décision écrite en renvoi mort. Cargo
+    accepte cette forme (un fichier de cible, un dossier du même nom, des `#[path]` explicites
+    parce que les sous-modules d'une racine de cible se cherchent à côté d'elle).
+  - **Le détecteur de renvois morts m'a attrapé sur ma propre prose**, et c'est la bonne
+    nouvelle du découpage : le commentaire qui explique le piège des `#[path]` citait
+    `tests/bac.rs` — un chemin volontairement inexistant, donné en exemple — et
+    `tests/bibliotheque/main.rs` sans son préfixe `src-tauri/`. Deux renvois morts, refusés.
+    Un détecteur qui n'épargne pas l'explication de son propre contournement est un bon
+    détecteur.
+  - **Seconde décision, vingt minutes plus tard, ses mots : « Oui, jette le cache ».** Question
+    posée : « Je fais supprimer le cache de 289 Mo en migrant, et garder le reste ? » Donc la
+    migration jette `noir/smb_buffer/` après un échange réussi et vérifié, et **lui seul** — c'est
+    `migration/cache_v1.rs`, nouveau module qui porte le nom du dossier (une seule orthographe
+    dans le projet : `inventaire::IGNORES` le reprend de là, parce qu'un dossier « ignoré » sous
+    un nom et « supprimé » sous un autre est la faute d'INV-06 sur un chemin qui mène à un
+    `remove_dir_all` chez cinquante personnes).
+  - **Le périmètre a été tenu au mot, et c'est le point qui compte.** Trois autres fichiers de
+    `noir/` portent le mot *cache* — `tracks_cache.json` (1,7 Mo), `added_dates_cache.json`,
+    `network_scan_cache.json` — et ne sont pas jetables : c'est l'état de la bibliothèque V1, dont
+    les **3 443 pistes** de Thomas, donc c'est précisément ce qui rend le retour arrière utile.
+    Les supprimer aurait vidé le filet qu'il venait de décider de garder, pour 4 Mo. Une
+    suppression chez quelqu'un ne s'étend pas par déduction : ce qui n'a pas été arbitré n'est
+    pas couvert, et un test l'assure maintenant.
+  - **Un cache qui résiste ne fait pas échouer la migration** : il coûte 289 Mio, pas une donnée.
+    Éprouvé en retirant le droit d'écrire sur `noir/` — on peut encore lire, donc copier, mais
+    plus supprimer. (Le test rend les droits **avant** ses assertions : sans ça, un échec laisse
+    un dossier temporaire non effaçable derrière lui.)
+  - **La suppression du cache est entrée dans l'ordre d'INV-25**, au rang qu'avait celle du
+    dossier, et le détecteur de forme **distingue les deux suppressions** — sans quoi INV-26
+    passerait au vert sur la faute exacte qu'il existe pour voir.
+  - **Et `migration/mod.rs` est à 400 lignes sur 400.** Troisième point chaud du dépôt, après
+    `library/repository.rs` (398) et le feu `tests/demarrage.rs` (découpé ce soir). Deux
+    paragraphes d'en-tête ont été rapatriés dans l'ADR 0014 et dans `cache_v1.rs` pour y entrer —
+    c'est-à-dire que le détail est allé là où il appartenait, ce qui est le bon effet de la
+    règle, mais la marge est nulle. Noté dans l'encadré de `check-sizes.sh`.
+  - **Un nom de test est devenu faux et a été changé** : `un_dossier_v1_complet_se_migre_et_
+    lancien_disparait` → `..._et_lancien_est_conserve`. Un nom de test qui ment est une
+    affirmation de plus à retourner, et personne ne la relit.

@@ -116,13 +116,13 @@ toute donnée affichée, et les trois règles de performance — sont dans le sk
 Source de vérité : [`.claude/skills/hean-invariants/SKILL.md`](.claude/skills/hean-invariants/SKILL.md).
 Tableau à jour, **généré** : [`docs/generated/invariants.md`](docs/generated/invariants.md).
 
-**25 règles** — les 20 de V1 (ses documents en annonçaient 19 : le compte était faux) plus
-cinq nées du postmortem, des mesures de phase 1, de la passe de vérité (INV-23) et de la
-relecture de la migration (INV-24 et INV-25). Triées en trois piles :
+**26 règles** — les 20 de V1 (ses documents en annonçaient 19 : le compte était faux) plus six
+nées du postmortem, des mesures de phase 1, de la passe de vérité (INV-23), de la relecture de
+la migration (INV-24, INV-25) et d'une décision de Thomas (INV-26). Triées en trois piles :
 
 1. **Rayées (6)** — INV-06, 08, 09, 10, 14, 17 : inexprimables par construction (point d'entrée
    unique, SQLite transactionnel, Svelte réactif, `compile_error!` sur un secret manquant).
-2. **Devenues des tests (17)** — dont **8 déjà actives** (INV-01, 04, 07, 20, 21, 23, 24, 25) et **9 « planifiées »**,
+2. **Devenues des tests (18)** — dont **9 déjà actives** (INV-01, 04, 07, 20, 21, 23, 24, 25, 26) et **9 « planifiées »**,
    c'est-à-dire une dette visible que `./check` recompte à chaque passage.
 3. **Irréductibles (2 + 7 pièges de plateforme)** — AirPlay/CoreAudio, singleton libsmbclient,
    media keys, drag WebView, petits CSS Grid WebKit, LC_RPATH dyld, notarisation du DMG. Règles

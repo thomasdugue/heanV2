@@ -44,7 +44,11 @@ const SQL =
  * apparaisse** dans le dépôt.
  *
  * Le verrou principal est le compilateur : la constante est `pub(crate)`, donc elle ne sort
- * plus du crate (test ci-dessous). Celui-ci est la seconde ligne, à l'intérieur du crate.
+ * plus du crate (test ci-dessous). Celui-ci est la seconde ligne, à l'intérieur du crate — et
+ * **sa limite s'écrit** : il exige les deux signes dans le MÊME fichier. Un fichier qui rendrait
+ * la requête en chaîne et un autre qui l'exécuterait passeraient tous les deux. Il faut le
+ * vouloir ; le mode de défaut réel d'INV-06 est la duplication par inadvertance, et c'est
+ * contre celle-là que ces règles sont écrites.
  */
 export function nommeLaCleEtParleASqlite(code: string): boolean {
   const propre = sansCommentaires(code);
@@ -182,6 +186,26 @@ describe('INV-06 — une seule construction de liste de pistes', () => {
   it('le détecteur d’écriture voit un appel et pas une phrase', () => {
     expect(appelleInserer('inserer(&tx, &lues.track, &lues.cle, t)?;')).toBe(true);
     expect(appelleInserer('    // on pourrait inserer (ici) sans passer par le dépôt')).toBe(false);
+  });
+
+  it('et les deux détecteurs voient la matière réelle du dépôt', () => {
+    // **La seconde question qu'un détecteur doit savoir répondre par une assertion** : non pas
+    // « est-ce que je regarde quelque chose ? » (la garde de `_lecture` s'en charge) mais
+    // « est-ce que je RECONNAIS quelque chose de réel ? ». Relevé en relecture, et c'est le
+    // défaut exact payé en phase 0 : le détecteur de commandes de pistes cherchait `\bTrack\b`
+    // là où specta émet `Track_Serialize[]`, donc zéro commande attrapée sur huit, **auto-tests
+    // verts pendant tout ce temps**. Sans les deux lignes ci-dessous, un renommage anodin de
+    // `lignes::inserer` en phase 3 — `inserer_piste`, `ecrire_ligne` — laisse les tests verts et
+    // réouvre la surface d'écriture de `tracks` en silence.
+    expect(appelleInserer(lire(LIGNES_RS)), `${LIGNES_RS} définit inserer : le motif doit le voir`)
+      .toBe(true);
+    expect(appelleInserer(lire(DEPOT_RS)), `${DEPOT_RS} appelle inserer : le motif doit le voir`)
+      .toBe(true);
+    expect(
+      nommeLaCleEtParleASqlite(lire(DEPOT_RS)),
+      `${DEPOT_RS} nomme la clé ET exécute du SQL : c’est le seul fichier autorisé à le faire, ` +
+        `et c’est aussi le seul exemplaire réel sur lequel ce détecteur peut se prouver`,
+    ).toBe(true);
   });
 
   it('la reprise de V1 pose les exclusions AVANT les racines', () => {

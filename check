@@ -20,6 +20,24 @@
 #   [x] ajouter src-tauri/tests et src-tauri/examples aux ZONES de check-sizes  — fait
 #   [x] le même angle mort sur INV-06 (🔴) — voir ci-dessous                     — fait
 #   [ ] « un fichier de docs/generated/ s'annonce-t-il généré ? »                (2026-11-23)
+#   [ ] UNE liste des zones Rust vivantes, au lieu de cinq                       (2026-11-25)
+#
+#   - **La quatrième, née le 2026-11-25 du tour ci-dessus, et c'est une règle candidate.** Chaque
+#     garde-fou porte **sa propre liste de dossiers** : `check-sizes.sh`, les quatre règles Rust
+#     d'INV-06, `aucun-chemin-machine`, `references-de-tests`, `backend.test.ts`. Un dossier de
+#     code vivant qui naît entre donc dans trois listes sur cinq, et l'oubli est **invisible** —
+#     c'est « n'oublie pas de répéter ça partout », la forme de règle qu'INV-06 existe pour ne
+#     plus écrire, appliquée au harnais lui-même. Vu trois fois : `src-tauri/tests` le 2026-11-23,
+#     `src-tauri/examples` le 2026-11-25, et une **cinquième liste cachée dans un seul fichier**
+#     le même jour (le détecteur littéral gardait la sienne à trois lignes du corpus élargi).
+#     Mécanisme proposé : une seule liste des zones Rust vivantes, et un test qui rougit quand un
+#     dossier Rust suivi par git n'y est pas. ⚠️ Ce test doit nommer ce qu'il EXCLUT avec sa
+#     raison — `bootstrap/` est l'archive figée de V1 (ADR 0004) et `tools/passe-de-verite/` un
+#     crate détaché et jetable — sinon il retourne la liste au lieu de l'unifier, et c'est la
+#     faute écartée plus bas. Proposée par invariant-guardian en relecture du 2026-11-25 ;
+#     gravité suggérée 🟡, parce que le dommage est toujours indirect — un détecteur aveugle,
+#     jamais une donnée perdue — mais il désarme des règles 🔴. **Pas écrite comme invariant :
+#     c'est à Thomas de dire si elle en est un.**
 #
 # Les trois nées le 2026-11-23 en fermant les trous d'extensions de check-sizes. Les deux
 # premières sont closes le 2026-11-25, avec la PR #8 qui crée `src-tauri/examples/` : la

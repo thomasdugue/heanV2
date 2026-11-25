@@ -43,7 +43,14 @@ limit=400
 # ⚠️ QUI VA ROUGIR LE PREMIER, écrit d'avance pour que ce rouge ne soit pas pris pour un faux
 # positif. Les deux fichiers les plus tendus du dépôt, mesurés le 2026-11-23 :
 #
-#   1. `src-tauri/src/library/repository.rs` — **398 lignes sur main, 2 de marge.** C'est LUI le
+#   0. `src-tauri/src/migration/mod.rs` — **400 lignes sur 400, zéro marge**, depuis le
+#      2026-11-25 (ADR 0014 : la migration conserve le dossier de V1, moins son cache). Deux
+#      paragraphes d'en-tête ont déjà été rapatriés dans l'ADR et dans `cache_v1.rs` pour y
+#      entrer — le détail est allé là où il appartenait, ce qui est le bon effet de la règle, mais
+#      il n'en reste plus. Le prochain ajout ici DOIT sortir quelque chose du fichier ; la
+#      frontière la plus nette est l'inventaire des étapes (`copier`, `inventorier`, `descendre`),
+#      qui ne décide rien et pourrait vivre à côté de `inventaire.rs`.
+#   1. `src-tauri/src/library/repository.rs` — **398 lignes, 2 de marge.** C'est LUI le
 #      prochain, et il n'a rien à voir avec l'élargissement ci-dessus : il est dans
 #      `src-tauri/src`, donc couvert depuis toujours. Deux raisons de le savoir avant d'ouvrir le
 #      fichier. D'abord la phase 3 y touchera forcément — playlists, favoris et historique
@@ -52,15 +59,25 @@ limit=400
 #      sait comment une piste s'écrit, et le schéma ne peut pas déménager sans rouvrir INV-06,
 #      puisque ce fichier est le seul autorisé à nommer la table des chemins exclus. Le découpage
 #      se prépare donc AVANT d'écrire, pas après avoir vu le rouge.
-#      ⚠️ Et ce point chaud est sur `main` AUJOURD'HUI : il n'est pas apporté par la migration.
-#      La PR #8 fait même l'inverse — vérifié : elle sort quatre fonctions de ce fichier vers un
-#      nouveau `lignes.rs` (109 lignes) et le ramène de 398 à **397**, alors qu'elle y ajoute une
-#      migration de schéma, deux constantes et une méthode. Elle RÉTABLIT de la marge à iso-taille.
+#      ⚠️ Et ce point chaud ne vient PAS de la migration : il était déjà là. La PR #8 a sorti
+#      quatre fonctions de ce fichier vers un nouveau `lignes.rs` (109 lignes) et l'a ramené de
+#      398 à 397 tout en y ajoutant une migration de schéma, deux constantes et une méthode —
+#      puis l'a **rendu à 398** le 2026-11-25, pour cinq lignes de documentation disant pourquoi
+#      la clé de V1 est devenue `pub(crate)`. Donc : à iso-taille, et deux lignes de marge.
+#      Chiffre corrigé le 2026-11-25 — il annonçait encore « ramène à 397, rétablit de la
+#      marge », ce qui était vrai une heure et faux ensuite. C'est le défaut même que cet
+#      encadré existe pour éviter : un avertissement qui dit un chiffre périmé.
 #      La prochaine coupe est d'ailleurs déjà visible : `repository.rs` décide ce qui entre et
 #      sort, `lignes.rs` sait comment une piste s'écrit, et ce qui reste à sortir est un troisième
 #      thème — marqueurs de reprise et racines, qui ne nomment ni la table des chemins exclus ni
 #      les pistes, donc peuvent déménager sans rouvrir INV-06. Question posée à Thomas, pas faite.
-#   2. `src-tauri/tests/demarrage.rs` — 392 lignes, 8 de marge, arrive avec la migration (PR #8).
+#   2. `src-tauri/tests/demarrage.rs` — **a franchi la limite le 2026-11-25, à 444 lignes**, en
+#      recevant le test d'INV-26. Prédiction tenue, et c'est la seule ligne de cet encadré qui ait
+#      jamais été vérifiée par les faits : il annonçait ce fichier comme le deuxième à rougir et
+#      disait « c'est là qu'atterrira chaque test futur de la séquence de démarrage ». Découpé le
+#      jour même en cinq modules par thème (`tests/demarrage/`), le plus gros à 126 lignes, le
+#      point d'entrée gardant son nom pour ne pas transformer les renvois de l'ADR 0012 en renvois
+#      morts. Donc : **plus de point chaud ici**, et le prochain test de démarrage a de la place.
 #      Celui-là est bien dans la zone ajoutée ci-dessus, et c'est là qu'atterrira chaque test
 #      futur de la séquence de démarrage.
 #

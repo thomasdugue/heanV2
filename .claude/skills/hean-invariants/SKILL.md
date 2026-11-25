@@ -25,7 +25,7 @@ D'où les trois piles :
 | Pile | Ce que ça veut dire | Combien |
 |---|---|---|
 | **rayé** | L'architecture de V2 rend la faute inexprimable. Plus de règle à retenir. | 6 |
-| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 17 |
+| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 18 |
 | **irréductible** | Comportement de CoreAudio, de WebKit ou de Gatekeeper. Aucun test ne le prouve. | 2 + 7 pièges |
 
 **La mesure du succès : la pile « irréductible » ne grossit pas, et la pile « test » se
@@ -301,7 +301,7 @@ dette **visible**, que `./check` recompte à chaque passage.
 ### INV-24 — Rien n'est créé dans le dossier de données avant que la migration ait rendu son verdict
 - pile : test
 - gravité : 🔴 BLOQUANT
-- couverture : test `demarrage.rs` — la séquence réelle de `run()`, rejouée en entier
+- couverture : test `echec_rattrapable.rs` (cible `demarrage`) — la séquence réelle de `run()`, rejouée en entier
 - pourquoi : **règle née le 2026-11-23 d'une relecture, et mesurée.** `run()` ouvrait la
   bibliothèque **quoi qu'il arrive**, y compris juste après un échec de migration — et ouvrir
   la bibliothèque crée le dossier de données. Donc un seul fichier de pochette illisible, ou
@@ -329,7 +329,7 @@ dette **visible**, que `./check` recompte à chaque passage.
   arrête la migration de toute façon, et une base vierge est effacée juste après), mais
   l'énoncé devait coller au code plutôt que l'inverse. Relevé en relecture du 2026-11-23.
 
-### INV-25 — La copie d'une migration est forcée sur le disque avant que l'original soit supprimé
+### INV-25 — La copie d'une migration est sur le disque avant que le témoin ne la certifie
 - pile : test
 - gravité : 🔴 BLOQUANT
 - couverture : architecture `migration-durable.test.ts` — l'ordre des quatre étapes irréversibles
@@ -346,12 +346,63 @@ dette **visible**, que `./check` recompte à chaque passage.
   précisément au moment où l'on redémarre sa machine — et il n'y a pas de deuxième chance,
   puisque l'original a disparu. C'est la même famille qu'INV-22 : un défaut qui ne se voit pas
   ne se signale pas.
+  **⚠️ La gravité a changé le 2026-11-25, le jour même, et il faut le dire plutôt que de laisser
+  le 🔴 se périmer** : Thomas a décidé que la migration ne supprime plus `noir/` (ADR 0014,
+  INV-26). Les octets ne sont donc plus perdus — ils sont dans l'ancien dossier, toujours là. Ce
+  qui reste, et qui justifie encore la règle : le témoin **certifierait une copie trouée**, donc
+  l'application démarrerait sur une bibliothèque incomplète **sans jamais remigrer**, et son
+  propriétaire n'aurait aucune raison de soupçonner que ses données entières sont à côté.
+  Réparable à la main par quelqu'un qui sait lire un dossier `Application Support` ; invisible
+  pour tous les autres, c'est-à-dire pour les cinquante testeurs. À Thomas de dire si cela reste
+  🔴 ou devient 🟡 — la règle, elle, ne bouge pas : elle coûte 90 ms.
   **Et le coût est mesuré, pour qu'il ne serve pas de prétexte** : 90 ms sur le dossier réel de
-  Thomas (2 444 fichiers, 283 Mo, le 2026-11-25). La règle ne porte donc pas sur « combien de
+  Thomas (2 444 fichiers synchronisés — les 2 443 migrés plus le témoin, écrit juste avant —
+  283 Mo, le 2026-11-25). Il est si bas parce que la copie est un **clone** APFS : il n'y a
+  presque aucune page sale à pousser (voir `migration/durabilite.rs`, qui dit aussi ce que
+  `sync_data` et `sync_all` font vraiment sur Apple — les deux sont `F_FULLFSYNC`). La règle ne porte donc pas sur « combien de
   fichiers synchroniser » — ça se négocie — mais sur l'**ordre** : durable, puis irréversible.
   D'où la forme de la couverture, un test de forme : la propriété ne s'observe qu'en coupant le
   courant au bon millième de seconde, mais l'ordre des appels, lui, se lit. (Gravité 🔴 par
   défaut, comme INV-24, en attendant que Thomas la classe — c'est une perte de données.)
+
+### INV-26 — La migration ne supprime pas le dossier de V1, sauf son cache de téléchargement
+- pile : test
+- gravité : 🔴 BLOQUANT
+- couverture : architecture `migration-durable.test.ts` — l'appel de suppression ne doit pas reparaître
+- pourquoi : **règle née le 2026-11-25 d'une décision de Thomas, dans ses mots : « Oui,
+  garde-le ».** Question posée : « Je fais garder ton dossier V1 au lieu de le supprimer ? » Il a
+  choisi le filet de retour arrière vers la V1. L'ADR 0014 l'acte et remplace sur ce point
+  l'ADR 0010, dont la suppression était le quatrième temps.
+  **Une seule exception, nommée, et elle vient de lui aussi** : « Je fais supprimer le cache de
+  289 Mo en migrant, et garder le reste ? » → **« Oui, jette le cache »**. Donc `noir/smb_buffer/`
+  est supprimé après un échange réussi et vérifié, et **lui seul**. Le périmètre est écrit dans
+  `migration/cache_v1.rs`, avec la raison : trois autres fichiers de `noir/` portent le mot
+  *cache* (`tracks_cache.json`, `added_dates_cache.json`, `network_scan_cache.json`) et ne sont
+  pas jetables — c'est l'état de la bibliothèque V1, dont les 3 443 pistes de Thomas. Les
+  supprimer viderait le filet qu'on vient de décider de garder, pour 4 Mo. Une suppression chez
+  quelqu'un ne s'étend pas par déduction : ce qui n'a pas été arbitré n'est pas couvert.
+  **Ce n'est pas qu'une préférence : la prémisse de l'ADR 0010 était fausse.** Il écartait
+  « garder l'original au cas où » parce que ce serait « 283 Mo dupliqués sur le disque ». Mesuré
+  le 2026-11-25 : sur APFS, `std::fs::copy` **clone** — copier 400 Mo ne consomme aucun espace —
+  donc les fichiers migrés partagent leurs blocs avec `hean/`. Ce que `noir/` occupe encore en
+  propre est ce qui n'a PAS été migré, c'est-à-dire son cache SMB : **289 Mio en trois fichiers,
+  sur 572 Mio apparents**. La décision a donc été prise sur un chiffre juste.
+  **Pourquoi un test et pas une ligne de documentation.** La suppression existait, elle rendait
+  la main plus propre, et un « nettoyage » de phase 3 la remettrait sans que personne ne la
+  relise comme une décision — c'est la forme même de régression que ce projet existe pour
+  fermer. Deux mécanismes, et c'est voulu : un test de forme refuse que l'appel reparaisse
+  (`migration-durable.test.ts`), et un test de comportement rejoue la séquence de démarrage
+  **deux fois** pour établir ce que garder l'original ne casse pas — la source survit intacte, et
+  le témoin seul empêche de remigrer 283 Mo à chaque lancement
+  (`src-tauri/tests/demarrage/retour_arriere.rs`, plus l'idempotence dans `migration.rs`).
+  **Un échec de la suppression du cache n'est pas fatal** : un cache qui résiste coûte 289 Mio,
+  pas une donnée, et faire échouer une migration pour de la place disque serait l'inverse de ce
+  que l'ADR 0012 a établi. Avertissement au journal, migration réussie (test dans
+  `migration.rs`, qui provoque la panne en retirant le droit d'écrire sur `noir/`).
+  **Et le filet doit se savoir** : une ligne de journal dit où les données d'origine sont
+  restées. Un retour arrière dont personne ne connaît l'existence n'en est pas un — c'est le
+  raisonnement d'INV-21 appliqué à une bonne nouvelle. S'il faut de l'interface pour le dire,
+  c'est une question ouverte, pas un acquis.
 
 ---
 
