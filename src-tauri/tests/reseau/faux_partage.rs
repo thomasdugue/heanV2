@@ -116,3 +116,20 @@ impl Smb for FauxPartage {
         })
     }
 }
+
+/// Le partage **par référence**, pour que le test garde la main dessus pendant que
+/// `network::scanner_avec` le consomme.
+///
+/// Cette fonction-là est la raison d'être de ce bloc : `scanner_avec` prend un
+/// `Box<dyn Smb>`, donc sans ce renvoi il faudrait céder le faux à la boîte — et on ne
+/// pourrait plus lui demander ce qu'il a lu une fois le scan fini. Or compter les lectures
+/// est ce qui prouve qu'une lecture **n'a pas** eu lieu.
+impl Smb for &FauxPartage {
+    fn lister(&self, chemin: &str) -> Result<Vec<Entree>, Erreur> {
+        (**self).lister(chemin)
+    }
+
+    fn lire(&self, chemin: &str, max: Option<usize>) -> Result<Vec<u8>, Erreur> {
+        (**self).lire(chemin, max)
+    }
+}

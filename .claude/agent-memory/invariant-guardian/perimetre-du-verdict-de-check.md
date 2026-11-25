@@ -24,6 +24,15 @@ Les deux questions à poser sur un diff de phase :
 Au 2026-11-22 (phase 2) : 6 portés — V004, V012, V013, V014, V015, W006 — tous hors verdict ;
 V015 et W006 doublés côté Rust.
 
+**Troisième cas, trouvé le 2026-11-25 (part réseau) : un fichier de `tests/ux/` dont AUCUN
+test ne cite un `Vxxx`/`Wxxx` n'est ni dans le verdict ni dans le tableau de bord.**
+`tools/check-comportements.mjs` ne lit l'état que des titres qui citent un identifiant du
+contrat ; `vitest.config.ts` n'inclut de `tests/ux/` que `contrat-complet.test.ts`. Donc les
+5 tests de `tests/ux/reseau.test.ts` — mot de passe qui ne remonte jamais, condition de
+rechargement V004 partagée, source dérivée — peuvent tous devenir rouges sans que `./check`
+bouge d'un pixel. Le fichier explique très bien pourquoi il ne porte V009/W005/W007 ; ce qu'il
+ne dit pas, c'est que ses assertions ne sont surveillées par rien.
+
 **Why:** relecture de la phase 2 — c'est le seul affaiblissement trouvé dans un diff par ailleurs
 exemplaire, et il ne se voit pas en lisant les tests, seulement en lisant le périmètre.
 **How to apply:** même méthode que [[verifier-inv-21-completement]] — une règle n'est tenue que là

@@ -16,6 +16,11 @@
 // échouer.** La seconde moitié compte autant que la première — un `aPorter()` sur un
 // comportement qui passe voudrait dire que le tableau de bord sous-compte l'avancement.
 //
+// **Et depuis le 2026-11-25, une troisième moitié** : un test de `tests/ux/` qui ne cite
+// AUCUN comportement est un test ordinaire, donc il doit passer. Sans elle, les cinq tests
+// de `reseau.test.ts` tournaient sans que personne ne lise leur verdict — le même trou que
+// celui qui a fait naître ce script, reparu dans ce script. Voir la section 3 plus bas.
+//
 // Rien n'est écrit à la main ici : le total vient du contrat, la liste des portés se déduit
 // des fichiers de test, et l'état vient de la suite elle-même.
 import { execFileSync } from 'node:child_process';
@@ -85,6 +90,39 @@ try {
     const s = etat.get(cites.get(id));
     if (s === 'passed') {
       erreurs.push(`${id} passe alors qu'il est marqué « à porter » : retirer son aPorter()`);
+    }
+  }
+
+  // --- 3. les tests de `tests/ux/` qui ne citent AUCUN comportement ---------------------
+  //
+  // **Troisième trou de la même famille, ouvert le 2026-11-25 et relevé par
+  // invariant-guardian.** Ce script ne lisait l'état que des titres citant un identifiant du
+  // contrat, et `vitest.config.ts` n'inclut de `tests/ux/` que `contrat-complet.test.ts`.
+  // Donc un test posé dans `tests/ux/` sans citer de `Vxxx`/`Wxxx` **tournait sans que
+  // personne ne lise son verdict** : les cinq tests de `reseau.test.ts` — le mot de passe qui
+  // descend sans remonter, la condition V004 partagée entre les deux chemins de scan,
+  // l'identifiant dérivé — pouvaient tous devenir rouges, `./check` restant VERT.
+  //
+  // C'est exactement ce que ce fichier existe pour empêcher, appliqué à lui-même : un défaut
+  // qui ne se voit pas se propage. La règle est donc symétrique des deux précédentes : un
+  // comportement porté doit passer, un comportement à porter doit échouer, et **un test qui
+  // ne parle d'aucun comportement est un test ordinaire : il doit passer**.
+  //
+  // Pourquoi ici et pas dans `vitest.config.ts` : les deux suites ne peuvent pas fusionner —
+  // celle-ci est ROUGE par construction tant que des comportements restent à porter, et
+  // `./check` n'a pas à la lire comme un échec. Le verdict se compose donc ici, où la
+  // distinction entre « rouge attendu » et « rouge subi » est déjà écrite.
+  const TITRES_DE_COMPORTEMENT = new Set(cites.values());
+  for (const fichier of json.testResults ?? []) {
+    for (const r of fichier.assertionResults ?? []) {
+      if (TITRES_DE_COMPORTEMENT.has(r.title)) continue;
+      if (/^[VW]\d{3}\b/.test(r.title)) continue; // cite un comportement disparu : déjà signalé
+      if (r.status !== 'passed') {
+        erreurs.push(
+          `tests/ux — « ${r.title} » est ${r.status} : un test qui ne cite aucun comportement ` +
+            `est un test ordinaire, il doit passer`,
+        );
+      }
     }
   }
 } finally {

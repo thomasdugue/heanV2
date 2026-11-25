@@ -10,9 +10,10 @@
 //! à son tour. C'est la seule forme qui prouve quelque chose : un test qui ne mettrait qu'un
 //! type de piste dans la base passerait au vert avec ou sans la règle.
 
-use hean_lib::library::scan::{Conclusion, Perimetre};
+use std::sync::Mutex;
+
 use hean_lib::library::SourceReseau;
-use hean_lib::network::{inventaire, uri};
+use hean_lib::network::uri;
 
 use crate::commun::Bac;
 use crate::faux_partage::FauxPartage;
@@ -44,21 +45,52 @@ fn nas() -> FauxPartage {
         .fichier("/LOSSLESS/album/b.flac", flac())
 }
 
-/// Scanne la source dans le dépôt, comme `network::scanner_une_source` le fait, mais sans
-/// trousseau ni `libsmbclient` : les trois temps sont les mêmes, seule la couture change.
+/// Scanne la source en appelant **la fonction de production**, `network::scanner_avec`.
+///
+/// ⚠️ **Cette fonction réassemblait les trois temps à la main jusqu'au 2026-11-25**, et
+/// c'était le défaut que ces tests avaient en propre : les huit assertions ci-dessous
+/// éprouvaient INV-27, mais pas son **câblage**. Quelqu'un qui aurait écrit
+/// `Perimetre::Source(source_id.to_string())` — sans le slash final — ou `Conclusion::Complete`
+/// en dur dans `network/mod.rs` aurait fait disparaître les pistes d'une source voisine, ou
+/// celles d'un partage momentanément refusé, **et tous ces tests seraient restés verts**.
+/// C'est mot pour mot la leçon d'INV-24 : un test qui saute une étape de la séquence réelle
+/// n'éprouve pas le produit. Relevé par invariant-guardian.
+///
+/// Ce qui reste hors d'atteinte — et c'est la part irréductible — est `ClientSmb` lui-même :
+/// le trousseau et `libsmbclient`. La fabrique injectée est exactement cette frontière.
 fn scanner_le_nas(
-    depot: &mut hean_lib::library::Depot,
+    depot: &Mutex<hean_lib::library::Depot>,
     partage: &FauxPartage,
     source: &SourceReseau,
 ) -> hean_lib::library::RapportDeScan {
-    let perimetre = Perimetre::Source(uri::prefixe(&source.id));
-    let deja = inventaire::DejaConnu::depuis_le_depot(depot, &perimetre).expect("état connu");
-    let inv = inventaire::inventorier(partage, source, &deja).expect("inventaire");
-    let mut rapport = depot
-        .appliquer(&inv.entrees, &perimetre, Conclusion::depuis(inv.dossiers_illisibles))
-        .expect("application");
-    rapport.illisibles += inv.illisibles;
-    rapport
+    hean_lib::network::scanner_avec(depot, &source.id, |_| Ok(Box::new(partage)))
+        .expect("le scan doit aboutir")
+}
+
+/// Le dépôt derrière son verrou, comme l'application le tient (`Mutex<Depot>`).
+fn verrouille(depot: hean_lib::library::Depot) -> Mutex<hean_lib::library::Depot> {
+    Mutex::new(depot)
+}
+
+/// Lire la bibliothèque sans écrire : les assertions passent par là.
+fn pistes(depot: &Mutex<hean_lib::library::Depot>) -> Vec<hean_lib::library::Track> {
+    depot.lock().expect("verrou").lister_pistes().expect("liste")
+}
+
+/// Enregistre la source **dans la base**, parce que c'est ce que la production fait :
+/// `scanner_avec` la relit par son identifiant et refuse de scanner ce qu'elle ne connaît
+/// pas. Les tests passaient un `&SourceReseau` de côté jusqu'au 2026-11-25 et sautaient donc
+/// cette étape.
+fn enregistrer(depot: &Mutex<hean_lib::library::Depot>, source: &SourceReseau) {
+    depot
+        .lock()
+        .expect("verrou")
+        .enregistrer_source_reseau(source)
+        .expect("source enregistrée");
+}
+
+fn scanner_le_disque(depot: &Mutex<hean_lib::library::Depot>) -> hean_lib::library::RapportDeScan {
+    depot.lock().expect("verrou").scanner().expect("scan du disque")
 }
 
 /// **LE test d'INV-27.** Les deux provenances cohabitent, et chaque scan laisse l'autre
@@ -67,35 +99,36 @@ fn scanner_le_nas(
 #[test]
 fn un_scan_de_disque_nefface_pas_les_pistes_du_nas_et_reciproquement() {
     let bac = Bac::avec("inv27", &["tags-nfd.flac", "artist-feat.flac"]);
-    let mut depot = bac.scanne();
-    let locales = depot.lister_pistes().expect("liste").len();
+    let depot = verrouille(bac.scanne());
+    enregistrer(&depot, &source());
+    let locales = pistes(&depot).len();
     assert_eq!(locales, 2, "les deux fixtures locales sont en base");
 
     // Le NAS arrive.
-    let rapport = scanner_le_nas(&mut depot, &nas(), &source());
+    let rapport = scanner_le_nas(&depot, &nas(), &source());
     assert_eq!(rapport.ajoutees, 2, "deux pistes distantes ajoutées");
     assert_eq!(
         rapport.disparues, 0,
         "le scan réseau n'a pas à conclure la disparition d'une piste locale"
     );
-    assert_eq!(depot.lister_pistes().expect("liste").len(), 4);
+    assert_eq!(pistes(&depot).len(), 4);
 
     // Puis un scan de disque, qui ne voit aucune piste SMB.
-    let rapport = depot.scanner().expect("rescan du disque");
+    let rapport = scanner_le_disque(&depot);
     assert_eq!(
         rapport.disparues, 0,
         "le scan de disque ne voit aucune piste du NAS : il ne doit pas les effacer"
     );
     assert_eq!(
-        depot.lister_pistes().expect("liste").len(),
+        pistes(&depot).len(),
         4,
         "les 4 pistes sont toujours là — c'est INV-27"
     );
 
     // Et dans l'autre sens : un second scan réseau ne touche pas aux locales.
-    let rapport = scanner_le_nas(&mut depot, &nas(), &source());
+    let rapport = scanner_le_nas(&depot, &nas(), &source());
     assert!(rapport.sans_changement(), "{rapport:?}");
-    assert_eq!(depot.lister_pistes().expect("liste").len(), 4);
+    assert_eq!(pistes(&depot).len(), 4);
 }
 
 /// Deux sources réseau ne se marchent pas dessus non plus. Le périmètre est le **préfixe**
@@ -104,28 +137,30 @@ fn un_scan_de_disque_nefface_pas_les_pistes_du_nas_et_reciproquement() {
 #[test]
 fn deux_sources_reseau_ne_seffacent_pas_lune_lautre() {
     let bac = Bac::avec("inv27-deux-sources", &[]);
-    let mut depot = bac.depot();
+    let depot = verrouille(bac.depot());
+    enregistrer(&depot, &source());
 
     let mut deuxieme = source();
     // Un identifiant qui COMMENCE comme le premier : c'est le cas qui casse si le préfixe
     // oublie son slash final.
     deuxieme.id = "dcdd24af-bis".into();
     deuxieme.nom = "autre-nas".into();
+    enregistrer(&depot, &deuxieme);
 
-    scanner_le_nas(&mut depot, &nas(), &source());
-    scanner_le_nas(&mut depot, &nas(), &deuxieme);
-    assert_eq!(depot.lister_pistes().expect("liste").len(), 4, "2 pistes × 2 sources");
+    scanner_le_nas(&depot, &nas(), &source());
+    scanner_le_nas(&depot, &nas(), &deuxieme);
+    assert_eq!(pistes(&depot).len(), 4, "2 pistes × 2 sources");
 
     // Rescanner la première ne doit rien retirer à la seconde.
-    let rapport = scanner_le_nas(&mut depot, &nas(), &source());
+    let rapport = scanner_le_nas(&depot, &nas(), &source());
     assert_eq!(rapport.disparues, 0, "{rapport:?}");
-    assert_eq!(depot.lister_pistes().expect("liste").len(), 4);
+    assert_eq!(pistes(&depot).len(), 4);
 
     // Et un NAS devenu vide n'efface QUE ses pistes.
     let vide = FauxPartage::nouveau().dossier("/LOSSLESS", &[]);
-    let rapport = scanner_le_nas(&mut depot, &vide, &source());
+    let rapport = scanner_le_nas(&depot, &vide, &source());
     assert_eq!(rapport.disparues, 2, "les deux pistes de cette source, et pas plus");
-    let restantes = depot.lister_pistes().expect("liste");
+    let restantes = pistes(&depot);
     assert_eq!(restantes.len(), 2);
     assert!(
         restantes.iter().all(|p| p.path.starts_with("smb://dcdd24af-bis/")),
@@ -141,17 +176,18 @@ fn deux_sources_reseau_ne_seffacent_pas_lune_lautre() {
 #[test]
 fn une_piste_distante_exclue_ne_revient_pas() {
     let bac = Bac::avec("inv06-distant", &[]);
-    let mut depot = bac.depot();
-    scanner_le_nas(&mut depot, &nas(), &source());
+    let depot = verrouille(bac.depot());
+    enregistrer(&depot, &source());
+    scanner_le_nas(&depot, &nas(), &source());
 
     let a = uri::de_fichier("dcdd24af", "music", "/LOSSLESS/album/a.flac");
-    depot.exclure(&a).expect("exclusion");
-    assert_eq!(depot.lister_pistes().expect("liste").len(), 1);
+    depot.lock().expect("verrou").exclure(&a).expect("exclusion");
+    assert_eq!(pistes(&depot).len(), 1);
 
-    let rapport = scanner_le_nas(&mut depot, &nas(), &source());
+    let rapport = scanner_le_nas(&depot, &nas(), &source());
     assert_eq!(rapport.ajoutees, 0, "le scan réseau ne réintroduit pas une piste exclue");
-    assert_eq!(depot.lister_pistes().expect("liste").len(), 1);
-    assert!(depot.piste(&a).expect("lecture").is_none());
+    assert_eq!(pistes(&depot).len(), 1);
+    assert!(depot.lock().expect("verrou").piste(&a).expect("lecture").is_none());
 }
 
 /// Le scan différentiel d'une source distante : le deuxième scan ne **relit** rien. C'est ce
@@ -160,14 +196,15 @@ fn une_piste_distante_exclue_ne_revient_pas() {
 #[test]
 fn un_second_scan_reseau_ne_relit_aucun_fichier() {
     let bac = Bac::avec("differentiel-reseau", &[]);
-    let mut depot = bac.depot();
+    let depot = verrouille(bac.depot());
+    enregistrer(&depot, &source());
 
     let premier = nas();
-    scanner_le_nas(&mut depot, &premier, &source());
+    scanner_le_nas(&depot, &premier, &source());
     assert_eq!(premier.lectures().len(), 2, "le premier scan lit les deux fichiers");
 
     let second = nas();
-    let rapport = scanner_le_nas(&mut depot, &second, &source());
+    let rapport = scanner_le_nas(&depot, &second, &source());
     assert!(rapport.sans_changement(), "{rapport:?}");
     assert!(
         second.lectures().is_empty(),
@@ -182,7 +219,8 @@ fn un_second_scan_reseau_ne_relit_aucun_fichier() {
 #[test]
 fn un_fichier_distant_modifie_est_relu_quand_le_serveur_donne_ses_stats() {
     let bac = Bac::avec("differentiel-stats", &[]);
-    let mut depot = bac.depot();
+    let depot = verrouille(bac.depot());
+    enregistrer(&depot, &source());
 
     let avec_stats = |mtime: i64| {
         FauxPartage::nouveau()
@@ -196,12 +234,12 @@ fn un_fichier_distant_modifie_est_relu_quand_le_serveur_donne_ses_stats() {
     };
 
     let premier = avec_stats(1);
-    scanner_le_nas(&mut depot, &premier, &source());
+    scanner_le_nas(&depot, &premier, &source());
     assert_eq!(premier.lectures().len(), 2);
 
     // `a.flac` a changé de date, `b.flac` non.
     let second = avec_stats(999);
-    let rapport = scanner_le_nas(&mut depot, &second, &source());
+    let rapport = scanner_le_nas(&depot, &second, &source());
     assert_eq!(rapport.modifiees, 1, "{rapport:?}");
     assert_eq!(rapport.ajoutees, 0);
     assert_eq!(
@@ -218,7 +256,8 @@ fn un_fichier_distant_modifie_est_relu_quand_le_serveur_donne_ses_stats() {
 #[test]
 fn linventaire_demande_un_entete_pour_un_flac_et_tout_pour_un_mp3() {
     let bac = Bac::avec("entete-demandee", &[]);
-    let mut depot = bac.depot();
+    let depot = verrouille(bac.depot());
+    enregistrer(&depot, &source());
     let mp3 = std::fs::read(crate::commun::fixture("mp3-320.mp3")).expect("fixture");
     let partage = FauxPartage::nouveau()
         .dossier("/LOSSLESS", &[("album", true)])
@@ -226,13 +265,13 @@ fn linventaire_demande_un_entete_pour_un_flac_et_tout_pour_un_mp3() {
         .fichier("/LOSSLESS/album/a.flac", flac())
         .fichier("/LOSSLESS/album/b.mp3", mp3);
 
-    scanner_le_nas(&mut depot, &partage, &source());
+    scanner_le_nas(&depot, &partage, &source());
     assert_eq!(
         partage.tailles_demandees(),
         vec![Some(hean_lib::network::entete::TAILLE_ENTETE), None],
         "le FLAC se lit par son en-tête, le MP3 en entier"
     );
-    assert_eq!(depot.lister_pistes().expect("liste").len(), 2);
+    assert_eq!(pistes(&depot).len(), 2);
 }
 
 /// Un dossier que le NAS refuse est compté et sauté, et **ses pistes ne disparaissent pas**.
@@ -244,20 +283,21 @@ fn linventaire_demande_un_entete_pour_un_flac_et_tout_pour_un_mp3() {
 #[test]
 fn un_dossier_refuse_ne_fait_pas_disparaitre_ses_pistes() {
     let bac = Bac::avec("dossier-refuse", &[]);
-    let mut depot = bac.depot();
-    scanner_le_nas(&mut depot, &nas(), &source());
-    assert_eq!(depot.lister_pistes().expect("liste").len(), 2);
+    let depot = verrouille(bac.depot());
+    enregistrer(&depot, &source());
+    scanner_le_nas(&depot, &nas(), &source());
+    assert_eq!(pistes(&depot).len(), 2);
 
     let refusant = FauxPartage::nouveau()
         .dossier("/LOSSLESS", &[("album", true)])
         .refuser("/LOSSLESS/album");
-    let rapport = scanner_le_nas(&mut depot, &refusant, &source());
+    let rapport = scanner_le_nas(&depot, &refusant, &source());
     assert_eq!(
         rapport.disparues, 0,
         "un dossier refusé n'est pas un dossier vide : {rapport:?}"
     );
     assert_eq!(
-        depot.lister_pistes().expect("liste").len(),
+        pistes(&depot).len(),
         2,
         "les deux pistes sont toujours là"
     );
@@ -267,9 +307,9 @@ fn un_dossier_refuse_ne_fait_pas_disparaitre_ses_pistes() {
     let vide = FauxPartage::nouveau()
         .dossier("/LOSSLESS", &[("album", true)])
         .dossier("/LOSSLESS/album", &[]);
-    let rapport = scanner_le_nas(&mut depot, &vide, &source());
+    let rapport = scanner_le_nas(&depot, &vide, &source());
     assert_eq!(rapport.disparues, 2, "{rapport:?}");
-    assert!(depot.lister_pistes().expect("liste").is_empty());
+    assert!(pistes(&depot).is_empty());
 }
 
 /// Le même raisonnement sur le **disque**, parce que c'est le même code et le même défaut :
@@ -280,14 +320,16 @@ fn un_dossier_refuse_ne_fait_pas_disparaitre_ses_pistes() {
 #[test]
 fn une_racine_de_disque_devenue_illisible_nefface_pas_ses_pistes() {
     let bac = Bac::avec("racine-illisible", &["tags-nfd.flac", "artist-feat.flac"]);
-    let mut depot = bac.scanne();
-    assert_eq!(depot.lister_pistes().expect("liste").len(), 2);
+    let depot = verrouille(bac.scanne());
+    assert_eq!(pistes(&depot).len(), 2);
 
     // Une seconde racine qui n'existe pas : le parcours la saute et le dit.
     depot
+        .lock()
+        .expect("verrou")
         .ajouter_racine(std::path::Path::new("/dossier/qui/nexiste/pas"))
         .expect("racine");
-    let rapport = depot.scanner().expect("rescan");
+    let rapport = scanner_le_disque(&depot);
     assert_eq!(rapport.disparues, 0, "{rapport:?}");
-    assert_eq!(depot.lister_pistes().expect("liste").len(), 2);
+    assert_eq!(pistes(&depot).len(), 2);
 }
