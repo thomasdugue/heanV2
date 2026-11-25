@@ -50,6 +50,18 @@ rusqlite = { version = "0.43", features = ["bundled"] }
 # au-delà de la `rust-version` du crate (ADR 0008 — la chaîne d'outils est épinglée).
 lofty = "0.22"
 
+# NAS/SMB (ADR 0016). `pavao` enveloppe `libsmbclient`, la bibliothèque C de Samba — donc
+# `brew install samba` est nécessaire pour COMPILER (son build.rs panique sinon, et la CI
+# l'installe). C'est le prix du seul chemin qui lit un partage SMB sans l'avoir monté :
+# monter le volume donnerait des chemins `/Volumes/...`, c'est-à-dire une autre identité de
+# piste à chaque montage, et des pistes « disparues » dès le volume démonté.
+# ⚠️ `libsmbclient` est un SINGLETON de process (PLAT-2, 🔴) : tout passe par un mutex unique.
+pavao = "0.2"
+
+# Keychain macOS pour les mots de passe SMB (ADR 0015). Le mot de passe ne touche jamais le
+# disque de l'app : ni dans la base, ni dans un JSON.
+security-framework = "3"
+
 # Normalisation Unicode (ADR 0009). Le SEUL usage légitime est `AlbumKey::new` : trois bugs
 # de V1 venaient d'une normalisation (trim + NFC) réécrite à plusieurs endroits.
 unicode-normalization = "0.1"

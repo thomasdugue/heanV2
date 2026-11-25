@@ -14,14 +14,19 @@
 
 import {
   addLibraryRoot,
+  addNetworkSource,
   bulkEdit,
   excludeTrack,
   libraryRoots,
   listTracks,
+  networkSources,
+  saveNetworkPassword,
   scanLibrary,
+  scanNetworkSource,
   writeMetadata,
   type Edition,
   type RapportDeScan,
+  type SourceReseau,
   type Track,
 } from '../../ipc/client';
 import { bibliotheque, estChargee, majDesPistes, oublierLaPiste, remplacerLesPistes } from './etat';
@@ -39,6 +44,20 @@ export interface Backend {
   excludeTrack: (path: string) => Promise<null>;
   addLibraryRoot: (path: string) => Promise<string[]>;
   libraryRoots: () => Promise<string[]>;
+  // Les sources réseau (ADR 0016). Elles passent par ce dépôt-ci et pas par un second :
+  // 91 % de la bibliothèque de Thomas vient de là, donc un scan réseau change la même
+  // liste de pistes qu'un scan de disque, et c'est le même rechargement conditionnel qui
+  // doit s'appliquer (V004).
+  networkSources: () => Promise<SourceReseau[]>;
+  addNetworkSource: (
+    nom: string,
+    hote: string,
+    partage: string,
+    cheminDistant: string,
+    utilisateur: string,
+  ) => Promise<SourceReseau[]>;
+  saveNetworkPassword: (sourceId: string, motDePasse: string) => Promise<null>;
+  scanNetworkSource: (sourceId: string) => Promise<RapportDeScan>;
 }
 
 /** L'IPC réelle, assemblée ici — le seul endroit du frontend où ces noms ont le droit d'être. */
@@ -50,6 +69,11 @@ export const IPC_REELLE: Backend = {
   excludeTrack: (path) => excludeTrack(path),
   addLibraryRoot: (path) => addLibraryRoot(path),
   libraryRoots: () => libraryRoots(),
+  networkSources: () => networkSources(),
+  addNetworkSource: (nom, hote, partage, cheminDistant, utilisateur) =>
+    addNetworkSource(nom, hote, partage, cheminDistant, utilisateur),
+  saveNetworkPassword: (sourceId, motDePasse) => saveNetworkPassword(sourceId, motDePasse),
+  scanNetworkSource: (sourceId) => scanNetworkSource(sourceId),
 };
 
 /** Un abonné : une vue qui veut être prévenue quand la bibliothèque change. */
@@ -71,6 +95,24 @@ export interface Depot {
   exclure: (chemin: string) => Promise<void>;
   ajouterUnDossier: (chemin: string) => Promise<string[]>;
   dossiers: () => Promise<string[]>;
+  /** Les sources réseau enregistrées (ADR 0016). */
+  sourcesReseau: () => Promise<SourceReseau[]>;
+  ajouterUneSourceReseau: (
+    nom: string,
+    hote: string,
+    partage: string,
+    cheminDistant: string,
+    utilisateur: string,
+  ) => Promise<SourceReseau[]>;
+  /** Enregistre un mot de passe dans le trousseau macOS. Il descend et ne remonte jamais. */
+  enregistrerLeMotDePasse: (sourceId: string, motDePasse: string) => Promise<void>;
+  /**
+   * Scanne une source réseau. **Même condition de rechargement qu'un scan de disque**, et
+   * littéralement la même fonction (`rechargerSiChange`) : c'est la raison pour laquelle
+   * cette méthode vit ici et pas dans un second dépôt — deux endroits appliqueraient la
+   * condition, et l'un des deux finirait par l'oublier (V004).
+   */
+  scannerUneSourceReseau: (sourceId: string) => Promise<RapportDeScan>;
   /** S'abonner aux changements. Rend la fonction de désabonnement. */
   surChangement: (abonne: Abonne) => () => void;
 }
@@ -97,20 +139,28 @@ export function creerDepot(backend: Backend = IPC_REELLE): Depot {
     prevenirTousLesAbonnes();
   };
 
+  /**
+   * **LA condition de V004, écrite une seule fois.** En V1, `scan_complete` rechargeait
+   * toujours la bibliothèque, et ce rechargement entrait en course avec le premier rendu de
+   * la home — l'utilisateur voyait un état partiel, ou un clignotement.
+   *
+   * Elle est une fonction et non deux `if` parce qu'il y a maintenant **deux** chemins de
+   * scan, le disque et le réseau (ADR 0016), et que 91 % de la bibliothèque de Thomas passe
+   * par le second. Deux copies de la condition, c'est la famille de défaut de V1 : celle
+   * qu'on oublie de mettre à jour est précisément celle qui compte.
+   */
+  const rechargerSiChange = async (rapport: RapportDeScan): Promise<RapportDeScan> => {
+    if (rapport.ajoutees === 0 && rapport.modifiees === 0 && rapport.disparues === 0) {
+      return rapport;
+    }
+    await charger();
+    return rapport;
+  };
+
   return {
     charger,
 
-    scanner: async () => {
-      const rapport = await backend.scanLibrary();
-      // LA condition de V004. En V1, `scan_complete` rechargeait toujours, et ce
-      // rechargement entrait en course avec le premier rendu de la home — l'utilisateur
-      // voyait un état partiel, ou un clignotement.
-      if (rapport.ajoutees === 0 && rapport.modifiees === 0 && rapport.disparues === 0) {
-        return rapport;
-      }
-      await charger();
-      return rapport;
-    },
+    scanner: async () => rechargerSiChange(await backend.scanLibrary()),
 
     editer: async (chemin, edition) => {
       // La piste rendue par le backend vient de la RELECTURE du fichier audio (INV-07) :
@@ -133,6 +183,17 @@ export function creerDepot(backend: Backend = IPC_REELLE): Depot {
     ajouterUnDossier: (chemin) => backend.addLibraryRoot(chemin),
     dossiers: () => backend.libraryRoots(),
 
+    sourcesReseau: () => backend.networkSources(),
+    ajouterUneSourceReseau: (nom, hote, partage, cheminDistant, utilisateur) =>
+      backend.addNetworkSource(nom, hote, partage, cheminDistant, utilisateur),
+
+    enregistrerLeMotDePasse: async (sourceId, motDePasse) => {
+      await backend.saveNetworkPassword(sourceId, motDePasse);
+    },
+
+    scannerUneSourceReseau: async (sourceId) =>
+      rechargerSiChange(await backend.scanNetworkSource(sourceId)),
+
     surChangement: (abonne) => {
       abonnes.add(abonne);
       return () => abonnes.delete(abonne);
@@ -141,3 +202,4 @@ export function creerDepot(backend: Backend = IPC_REELLE): Depot {
 }
 
 export { bibliotheque, estChargee };
+export type { SourceReseau };

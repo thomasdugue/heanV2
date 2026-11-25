@@ -3,10 +3,44 @@ name: hean-smb
 description: Sous-système NAS/SMB de Hean — pavao/libsmbclient singleton, URI smb://, téléchargement progressif, SmbProgressiveFile, gapless SMB, Keychain/password cache, discovery mDNS, scan différentiel. Charger avant de toucher src-tauri/src/network/, audio_play/audio_preload_next côté SMB, ou network.js.
 ---
 
-> ⚠️ **Version V1, à adapter.** Les chemins de fichiers cités ici (`noir-tauri/src/…`,
-> `src-tauri/src/…`) sont ceux de Hean V1 et n'existent pas encore dans ce dépôt. Le *savoir*
-> est valide ; les chemins sont à remplacer au fur et à mesure que le code de V2 apparaît.
+> ⚠️ **Mi-V1, mi-V2 depuis le 2026-11-25.** La partie **lecture et inventaire** existe
+> maintenant dans V2 et est décrite en tête de ce fichier. Le reste — téléchargement
+> progressif, `SmbProgressiveFile`, gapless SMB, pochettes, découverte mDNS — est encore du
+> savoir V1 : les chemins `noir-tauri/src/…` sont ceux de V1 et n'existent pas dans ce dépôt.
 > Référence complète : [`bootstrap/04-invariants/README.md`](../../../bootstrap/04-invariants/README.md).
+
+## Ce qui existe dans V2 (ADR 0016)
+
+```
+src-tauri/src/network/
+├── mod.rs           scanner_une_source() — la forme en TROIS TEMPS (voir ci-dessous)
+├── identifiants.rs  Keychain : cascade com.tdugue.hean.smb → com.tdugue.noir.smb (ADR 0015)
+├── client.rs        libsmbclient via pavao, UN mutex de process, reessayer_une_fois (INV-03)
+├── uri.rs           smb://{id}/{partage}/{chemin} — format hérité de V1, épinglé par test
+├── entete.rs        1 Mio d'en-tête pour FLAC/WAV/AIFF, fichier entier pour MP3/M4A/OGG
+├── inventaire.rs    parcours différentiel, sans verrou de bibliothèque
+└── reprise_v1.rs    les sources de network_sources.json, identifiants CONSERVÉS
+```
+
+**La forme en trois temps d'un scan, et pourquoi elle n'est pas négociable.** Un scan dure des
+minutes et `libsmbclient` est un singleton de process. Donc : (1) verrou **court** sur le dépôt
+pour lire la source et les empreintes connues ; (2) parcours SMB et lecture des tags **sans
+aucun verrou de bibliothèque** ; (3) verrou **court** pour appliquer en une transaction. Tenir
+le verrou pendant le parcours bloquerait `list_tracks` et gèlerait la fenêtre — W005 par la cause.
+
+**INV-27 — un scan n'efface que dans son périmètre.** `library::scan::Perimetre` n'a pas de
+variante « tout ». Sans ça, le premier scan de disque effaçait les 3 137 pistes du NAS. Et
+`scan::Conclusion::Partielle` interdit toute disparition quand un dossier n'a pas pu être lu :
+un dossier refusé n'est pas un dossier vide.
+
+**Le scan différentiel d'une source distante.** `pavao::list_dirplus` (readdirplus SMB2) rend
+taille et date **par dossier**, donc sans payer un `stat` par fichier ; quand le serveur ne
+répond pas, le repli ne rend que des noms et une piste déjà connue n'est pas relue. V1 était
+toujours dans ce second cas : ses 3 137 entrées de cache portent `size: 0, modified: 0`.
+
+**Ce qui n'existe PAS encore dans V2** : lecture audio depuis le NAS, pochettes SMB, découverte
+mDNS. Le backend de sortie CoreAudio n'existe pas, donc du streaming ne serait démontrable par
+rien. Tout ce qui suit décrit V1.
 
 
 # hean-smb — NAS, SMB & streaming réseau

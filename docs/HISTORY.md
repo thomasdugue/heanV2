@@ -1388,3 +1388,152 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   - **Un nom de test est devenu faux et a été changé** : `un_dossier_v1_complet_se_migre_et_
     lancien_disparait` → `..._et_lancien_est_conserve`. Un nom de test qui ment est une
     affirmation de plus à retourner, et personne ne la relit.
+- **2026-11-25** (soir, suite) : **le NAS devient visible.** 91 % de la bibliothèque de Thomas est
+  sur son NAS — 3 137 pistes sur 3 443 — et V2 n'affichait que les 305 locales. V2 lit maintenant un
+  partage SMB directement (`libsmbclient` via `pavao`), reprend la source `dugstation` du
+  `network_sources.json` de V1 **avec son identifiant**, et un scan fait entrer ses pistes dans la
+  même base SQLite que les locales. ADR [0016](adr/0016-la-part-reseau-de-la-bibliotheque.md)
+  (acceptée) et **[0015](adr/0015-nom-de-service-keychain-pour-les-mots-de-passe-smb.md)
+  (proposée — une question posée à Thomas, pas une décision prise)**. `./check` vert : **27
+  invariants** dont 11 actifs, **187 tests Rust** (139 au début de session, +48), **93 tests
+  d'architecture et unitaires** (+2) et **18 comportements verts sur 36** dans la suite UX (+5
+  tests, le compte des 24 comportements portés ne bouge pas : 6). Protocole de test à la fin de
+  cette entrée.
+  - **INV-27 est née, et elle est 🔴.** `Depot::appliquer` efface toute piste de son périmètre
+    qu'il n'a pas revue — c'est ce qui fait disparaître un fichier supprimé. Avec deux
+    provenances dans la même base, **le premier scan de disque aurait effacé les 3 137 pistes du
+    NAS**, et le premier scan réseau les 305 locales. La règle n'est pas une phrase mais un type :
+    `scan::Perimetre` n'a **aucune variante « tout »**, donc le dépôt ne peut pas oublier de
+    restreindre. Le périmètre d'une source est le *préfixe* de ses URI, slash final compris — et
+    le test l'éprouve avec `dcdd24af` contre `dcdd24af-bis`, parce que sans ce slash une source
+    effacerait les pistes de sa voisine.
+  - **Et le second volet d'INV-27 est un défaut PRÉ-EXISTANT, trouvé en écrivant son test et pas
+    en relisant le code.** Un dossier que le serveur **refuse de lister** n'est pas un dossier
+    vide : le parcours le journalisait et personne n'en tirait la conséquence, donc un partage
+    momentanément inaccessible — ou une racine de disque éjectée, et Thomas n'en a qu'une —
+    **faisait effacer ses pistes**. C'est mot pour mot ce que B17 dit depuis V1 (« un dossier
+    absent ne doit pas faire perdre la bibliothèque entière ») ; la conséquence n'en avait jamais
+    été tirée. D'où `scan::Conclusion` : un parcours qui a sauté quelque chose rend `Partielle`,
+    et rien ne disparaît ce tour-là. Le seul coût est de voir une suppression au scan **suivant**.
+    La leçon est sur la méthode : le test a été écrit *avant* de savoir ce qu'il trouverait, et
+    c'est lui qui a trouvé.
+  - **INV-03 quitte la dette, et c'était un découpage à faire, pas un outil à installer.** Sa
+    couverture disait « planifiée (phase 5) — conteneur Samba + proxy à injection de panne »
+    depuis le départ. Il a suffi de séparer la **réaction** à une connexion périmée de sa
+    **cause** : `reessayer_une_fois` prend deux fermetures et ne connaît ni SMB ni le réseau, donc
+    elle s'éprouve par injection de panne, sans NAS et sans conteneur. Quatre cas, dont les deux
+    qu'on oublie : un échec persistant **ne boucle pas** (une boucle « jusqu'à ce que ça marche »
+    transformerait un NAS éteint en attente infinie — W005 par le mauvais bout), et une
+    reconnexion qui échoue remonte **sa** cause, sinon l'utilisateur lit « session périmée »
+    alors que son mot de passe est refusé. **Une couverture « planifiée » peut cacher un
+    découpage, pas seulement un outil manquant** — ça valait d'être relu sur les sept restantes.
+  - **Le détecteur muet d'INV-04 est devenu bavard, à la date qu'il avait écrite.** Son
+    commentaire disait : « la phase 5 le rendra bavard, et c'est à ce moment-là qu'il faudra lui
+    ajouter une assertion sur la matière réelle, c'est-à-dire sur le vrai appel au Keychain ». La
+    condition est remplie, les assertions sont écrites — dont la plus utile : la faute de V1
+    (`unwrap_or_default()` sur un mot de passe) est **injectée dans le texte du fichier réel**, à
+    l'endroit exact où elle se produirait. Un auto-test ne prouve que ce qu'on a inventé.
+  - **Trois affirmations du brief vérifiées avant d'être crues, dont une fausse.** (1) « L'écart
+    apparent » entre le préfixe du cache de V1 (`…/music/LOSSLESS`) et `remote_path`
+    (`/LOSSLESS/complete`) n'en est pas un : le premier est juste plus court, et **3 137 des
+    3 137** entrées commencent par `…/music/LOSSLESS/complete/`. (2) Le format d'URI est bien
+    `smb://{id}/{partage}/{chemin}`, lu dans `walk_smb_audio_files` de V1 et épinglé par un test
+    qui rejoue un chemin réel, caractère pour caractère. (3) En revanche, « ~12 ms par fichier en
+    SMB, c'est écrit dans `docs/MESURES-V1.md` » — **ce chiffre n'y est pas**. Il est repris comme
+    estimation, et dit comme telle dans l'ADR 0016 § 3 : la mesure réelle se fera au premier scan.
+  - **Le cache de scan de V1 n'est pas repris, et c'est le choix le plus discutable de la
+    session.** Ses 3 137 métadonnées déjà extraites auraient rendu le premier scan quasi
+    instantané. Écarté sur trois chiffres : **42 entrées sur 3 137 n'ont ni codec ni durée** (V1
+    n'a pas su les lire), et la passe de vérité du 2026-11-23 avait relevé **182 écarts sur 306
+    fichiers dont un seul donnait raison à V1** — reprendre ce cache, c'est importer 181 écarts
+    connus sur 91 % de la bibliothèque, contre INV-07. Le prix est un premier scan de quelques
+    minutes. **Contrepartie assumée : NAS éteint, la bibliothèque réseau n'apparaît pas** ; c'est
+    inscrit comme décision ouverte dans l'index des ADR plutôt que tranché en passant.
+  - **Lire l'en-tête d'un fichier distant est légitime pour trois formats et faux pour trois
+    autres.** FLAC (STREAMINFO), WAV (chunk `data`) et AIFF (COMM) portent leur durée dans
+    l'en-tête ; MP3 sans Xing la **déduit de la taille du fichier**, M4A peut avoir son `moov` à la
+    fin, et OGG Vorbis la lit sur la **dernière** page. Les lire partiellement donnerait une durée
+    *plausible et fausse* — le pire mode de défaut. Ils sont donc lus en entier : 82 MP3 + 19 M4A
+    sur 3 443 pistes, soit 3 %. Et ce n'est pas une affirmation : le test tronque **chaque fixture
+    du dépôt** et compare champ par champ, **plus une contre-épreuve** — au moins un format exclu
+    doit vraiment trahir sa durée, sinon la liste des autorisés serait une décoration.
+  - **`pavao::list_dirplus` rend taille et date par dossier**, là où V1 n'avait rien (ses 3 137
+    entrées de cache portent toutes `size: 0, modified: 0`). Le scan différentiel d'une source
+    distante devient donc réel, sans payer un `stat` par fichier — et quand le serveur ne répond
+    pas à `readdirplus`, le repli garde le comportement de V1 : une piste connue n'est pas relue.
+  - **Un identifiant de source ajoutée dans V2 est DÉRIVÉ de l'hôte, du partage et du chemin**, pas
+    tiré au hasard. Ajouter deux fois le même partage rend la **même** source. La raison a été
+    trouvée dans le trousseau de Thomas : il contient un mot de passe orphelin
+    (`1c420320-…`) pour une source qui n'existe plus — la trace d'une source recréée, donc d'une
+    bibliothèque qui avait perdu ses chemins.
+  - **Le mot de passe de Thomas est bien dans son trousseau, sous son identifiant actuel.**
+    Vérifié sans lire aucun mot de passe (`security find-generic-password` sans `-w`) : le service
+    `com.tdugue.noir.smb` porte deux comptes, dont `dcdd24af-…`. La cascade de lecture le trouvera
+    donc, et **il ne retape rien**. En revanche un dialogue macOS d'autorisation est attendu une
+    fois, parce que l'ACL d'une entrée est liée à la signature du binaire : c'est dit dans le
+    protocole ci-dessous, parce qu'un dialogue de mot de passe inattendu ressemble à de
+    l'hameçonnage.
+  - **Le glob `src-tauri/src/keychain*` de `tools/zones-interdites.txt` ne couvrait rien** le jour
+    où le premier vrai appel au trousseau est arrivé : il s'appelle `network/identifiants.rs`, en
+    français comme le reste du code. Une liste de chemins écrite avant le code qu'elle protège vise
+    le nom qu'on imaginait. Corrigée, dans les deux fichiers que `check-zones.sh` apparie.
+  - **`brew install samba` devient nécessaire pour compiler** — le `build.rs` de `pavao-sys`
+    panique sinon — donc une étape de CI, et la dette INV-18 / PLAT-6 est désormais **réelle** :
+    le binaire se lie à `/opt/homebrew/opt/samba/lib/libsmbclient…`, et sans `dylibbundler` suivi
+    du retrait des `LC_RPATH` dupliqués, l'app crashera au lancement chez tous les testeurs. C'est
+    exactement le piège que V1 a payé ; il est écrit, daté phase 6, et il n'est pas nouveau.
+  - **Deux fichiers ont atteint leur limite et le découpage existait déjà.** `repository.rs`
+    (398/400) a cédé ses réglages à `library/reglages.rs` — les trois tables qui ne sont pas des
+    pistes — et l'application d'un inventaire à `lignes.rs`, qui était déjà le seul autre fichier
+    autorisé à écrire une ligne de piste. **Aucune dérogation n'a été ajoutée au détecteur
+    d'INV-06** : vérifié, et pas supposé.
+  - **Vérification sur les données réelles de Thomas, deux fois.**
+    `tools/verifier-migration-reelle.sh` passe toujours (2 443 fichiers, original intact) et montre
+    la nouvelle ligne `sources réseau de V1 reprises : sources: 1, incompletes: 0`. Et sur une
+    **copie de son `hean/` actuel** — base en schéma 2, 305 pistes — la séquence de démarrage
+    applique la migration 3, reprend `dugstation` avec son identifiant `dcdd24af-…`, laisse ses
+    305 pistes intactes, et ne rejoue pas la reprise de `config.json` (`deja_faite: true`).
+  - **Ce qui n'est pas fait, et qui n'est pas un oubli** : la lecture audio depuis le NAS (le
+    backend CoreAudio n'existe pas — du streaming ne serait démontrable par rien), les pochettes
+    SMB, la découverte mDNS. V009, W005 et W007 restent *à porter*, chacun pour une raison écrite
+    en tête de `tests/ux/reseau.test.ts` — W007 en particulier, parce que ce qui est prouvé est
+    qu'une bibliothèque entièrement distante se charge et se regroupe, pas qu'elle « s'affiche sur
+    la home » : la home n'existe pas.
+
+### Protocole de test — la part réseau (2026-11-25)
+
+À suivre sans moi. **Le NAS doit être allumé** (vérifié joignable ce soir : `dugstation.local:445`
+répond).
+
+```bash
+cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
+```
+
+1. **Au lancement**, la fenêtre affiche une section **« NAS et sources réseau »** avec une ligne
+   `dugstation — smb://dugstation.local/music/LOSSLESS/complete · utilisateur admin`. Elle vient de
+   ta configuration V1, reprise automatiquement. En bas, la bibliothèque annonce **305 pistes**.
+   → *Échec* : aucune source listée. Alors la reprise n'a pas eu lieu — regarde le journal pour une
+   ligne `network_sources.json de V1 illisible`.
+2. **Clique « Scanner cette source »** sur la ligne `dugstation`. N'écris rien dans le champ « Mot de
+   passe » : ton mot de passe est déjà dans le trousseau macOS et Hean va le relire.
+3. **macOS va demander une autorisation**, une fois : « Hean souhaite utiliser des informations
+   confidentielles stockées dans *com.tdugue.noir.smb* ». C'est attendu, et c'est bien Hean qui
+   demande — clique **« Toujours autoriser »**. (Pourquoi : l'autorisation d'une entrée du trousseau
+   est liée à la signature de l'application, et cette build de développement n'est pas signée comme
+   la V1 installée. Détail dans l'ADR 0015.)
+4. **Attends.** Le premier scan lit l'en-tête de chaque fichier sur le NAS : compte **environ deux
+   minutes** pour 3 000 pistes. La fenêtre dit « Scan en cours… » et reste utilisable — la liste des
+   pistes continue de répondre pendant ce temps.
+5. **Quand c'est fini**, la ligne « Scan réseau terminé : N pistes ajoutées… » apparaît, et le compte
+   en bas de fenêtre passe de 305 à **un nombre proche de 3 442**.
+   → *Ce qui signalerait un échec* : un compte qui reste à 305 ; un compte qui **descend** sous 305
+   (ce serait INV-27 cassé — dis-le-moi tout de suite) ; un message d'erreur rouge en haut de la
+   fenêtre, qu'il faut me recopier tel quel.
+   → *Ce qui est normal* : quelques dizaines de « fichiers illisibles ». V1 en avait **42** qu'elle
+   n'a jamais su lire.
+6. **Reclique « Scanner cette source ».** Le second scan doit durer **quelques secondes** et annoncer
+   « 0 piste ajoutée, 0 modifiée, 0 disparue » : il ne relit aucun fichier.
+   → *Échec* : un second scan aussi long que le premier. Le scan différentiel ne marche pas.
+7. **Facultatif, si tu veux éprouver le filet** : éteins le NAS, et relance « Scanner cette source ».
+   Tu dois obtenir une **erreur** — pas une bibliothèque qui retombe à 305 pistes. Rallume, rescanne,
+   tout revient.

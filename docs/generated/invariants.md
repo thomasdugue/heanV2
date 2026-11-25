@@ -2,7 +2,7 @@
 
 <!-- FICHIER GÉNÉRÉ — NE PAS ÉDITER. Source : .claude/skills/hean-invariants/SKILL.md. Régénérer : npm run gen -->
 
-26 règles : 6 rayées par construction, 18 devenues des tests, 2 irréductibles.
+27 règles : 6 rayées par construction, 19 devenues des tests, 2 irréductibles.
 En V1, **3 sur 20** étaient couvertes par un test.
 
 | # | Règle | Pile | Gravité | Ce qui la protège |
@@ -15,7 +15,7 @@ En V1, **3 sur 20** étaient couvertes par un test.
 | INV-17 | option_env!() pour TOUS les secrets compile-time | ✂️ rayé | 🔴 BLOQUANT | sans objet — `src-tauri/build.rs` + `compile_error!()`, et architecture |
 | INV-01 | Un album = une seule entrée | 🧪 test | 🔴 BLOQUANT | test `cle.rs` — type `AlbumKey` à constructeur unique + proptests, et |
 | INV-02 | Pas de duplication visuelle sur la home | 🧪 test | 🟡 AVERTISSEMENT | planifiée (phase 3) — test de comportement sur « Recently Played » |
-| INV-03 | SMB : connexion périmée = retry automatique | 🧪 test | 🔴 BLOQUANT | planifiée (phase 5) — conteneur Samba + proxy à injection de panne |
+| INV-03 | SMB : connexion périmée = retry automatique | 🧪 test | 🔴 BLOQUANT | test client.rs |
 | INV-04 | SMB : un échec Keychain remonte une erreur, jamais un mot de passe vide | 🧪 test | 🔴 BLOQUANT | architecture `backend.test.ts` |
 | INV-05 | SMB : l'erreur du thread de download remonte à l'utilisateur | 🧪 test | 🟡 AVERTISSEMENT | planifiée (phase 5) — conteneur Samba |
 | INV-07 | Une métadonnée éditée est écrite dans le fichier audio | 🧪 test | 🔴 BLOQUANT | test `edition.rs` — écriture lofty, puis relecture du fichier |
@@ -31,5 +31,6 @@ En V1, **3 sur 20** étaient couvertes par un test.
 | INV-24 | Rien n'est créé dans le dossier de données avant que la migration ait rendu son verdict | 🧪 test | 🔴 BLOQUANT | test `echec_rattrapable.rs` (cible `demarrage`) — la séquence réelle de `run()`, rejouée en entier |
 | INV-25 | La copie d'une migration est sur le disque avant que le témoin ne la certifie | 🧪 test | 🔴 BLOQUANT | architecture `migration-durable.test.ts` — l'ordre des quatre étapes irréversibles |
 | INV-26 | La migration ne supprime pas le dossier de V1, sauf son cache de téléchargement | 🧪 test | 🔴 BLOQUANT | architecture `migration-durable.test.ts` — l'appel de suppression ne doit pas reparaître |
+| INV-27 | Un scan ne conclut la disparition d'une piste que dans son périmètre | 🧪 test | 🔴 BLOQUANT | test perimetre.rs |
 | INV-13 | Mosaïque 28×28 : positionnement absolu, jamais CSS Grid | 🪨 irréductible | 🟡 AVERTISSEMENT | manuelle — piège PLAT-5, détecté a posteriori par la régression visuelle |
 | INV-18 | dylibbundler doit être suivi du fix des LC_RPATH dupliqués | 🪨 irréductible | 🔴 BLOQUANT | manuelle — piège PLAT-6, vérifiable dans le pipeline de release (phase 6) |

@@ -138,12 +138,16 @@ describe('INV-17 — les secrets ont un seul point de lecture', () => {
   });
 });
 
-// ⚠️ CE DÉTECTEUR EST MUET AUJOURD'HUI, ET C'EST NORMAL : il n'y a pas une ligne de
-// Keychain dans le projet avant la phase 5 (NAS/SMB). Lui demander de « trouver au moins N
-// choses réelles » voudrait dire écrire la faute qu'il cherche. Ce qui le tient d'ici là :
-// son corpus est garanti non vide par le lecteur partagé, et son auto-test rejoue la ligne
-// exacte de V1. La phase 5 le rendra bavard — et c'est à ce moment-là qu'il faudra lui
-// ajouter une assertion sur la matière réelle, c'est-à-dire sur le vrai appel au Keychain.
+// LE DÉTECTEUR EST DEVENU BAVARD LE 2026-11-25. Il était muet jusque-là — aucune ligne de
+// Keychain dans le projet — et son commentaire disait : « la phase 5 le rendra bavard, et
+// c'est à ce moment-là qu'il faudra lui ajouter une assertion sur la matière réelle,
+// c'est-à-dire sur le vrai appel au Keychain ». La condition écrite est remplie ; les trois
+// assertions ci-dessous sont ce qu'elle réclamait.
+//
+// Le mécanisme a donc servi pour de vrai, et c'est ce qu'on lui demandait : un détecteur
+// muet dit **quelle phase** le rendra bavard, et cette phase vient avec la dette écrite.
+const MODULE_DU_TROUSSEAU = 'src-tauri/src/network/identifiants.rs';
+
 describe('INV-04 — un échec Keychain ne se dégrade jamais en mot de passe vide', () => {
   it('aucun unwrap_or_default() sur un identifiant', () => {
     const fautes = RUST().flatMap(([f, c]) =>
@@ -155,5 +159,32 @@ describe('INV-04 — un échec Keychain ne se dégrade jamais en mot de passe vi
   it('le détecteur repère le cas de V1', () => {
     expect(defautsSilencieuxSurIdentifiants('let password = retrieve_password().unwrap_or_default();'))
       .toEqual(['let password = retrieve_password().unwrap_or_default();']);
+  });
+
+  it('il y a bien un vrai appel au trousseau à surveiller', () => {
+    // La PREMIÈRE question d'un détecteur d'interdiction : y a-t-il quelque chose à
+    // interdire ? Zéro trouvaille est l'état sain de la règle, donc le test principal ne
+    // peut pas distinguer « le code est propre » de « le code n'existe plus ». Si cette
+    // ligne rougit, c'est que la lecture du trousseau a changé de place ou de forme — et
+    // que la règle 🔴 ne surveille plus rien.
+    const trousseau = lire(MODULE_DU_TROUSSEAU);
+    expect(trousseau, 'la lecture réelle du Keychain vit ici (ADR 0015)').toContain(
+      'get_generic_password',
+    );
+  });
+
+  it('et le détecteur voit la faute injectée dans le VRAI fichier', () => {
+    // La seconde question : le détecteur reconnaît-il la **matière réelle** ? Un auto-test
+    // sur une ligne inventée ne prouve que ce qu'on a inventé — c'est ce qui a laissé INV-06
+    // désarmé pendant toute la phase 1, auto-test vert à l'appui. Ici la faute de V1 est
+    // injectée dans le texte du fichier réel, à l'endroit exact où elle se produirait.
+    const propre = lire(MODULE_DU_TROUSSEAU);
+    expect(defautsSilencieuxSurIdentifiants(propre)).toEqual([]);
+    const abime = propre.replace(
+      'security_framework::passwords::get_generic_password(service, compte)',
+      'security_framework::passwords::get_generic_password(service, compte).unwrap_or_default()',
+    );
+    expect(abime, "l'injection doit vraiment modifier le fichier").not.toEqual(propre);
+    expect(defautsSilencieuxSurIdentifiants(abime).length).toBeGreaterThan(0);
   });
 });

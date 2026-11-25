@@ -30,6 +30,37 @@ export const commands = {
 	bulkEdit: (paths: string[], edition: Edition_Deserialize, options?: InvokeOptions) => __TAURI_INVOKE<Track_Serialize[]>("bulk_edit", { paths, edition }, options),
 	/**  Exclut une piste de la bibliothèque, **définitivement** (INV-06, B09). */
 	excludeTrack: (path: string, options?: InvokeOptions) => __TAURI_INVOKE<null>("exclude_track", { path }, options),
+	/**
+	 *  Les sources réseau enregistrées. Pas de mot de passe dedans : il n'y en a pas dans
+	 *  `SourceReseau`.
+	 */
+	networkSources: (options?: InvokeOptions) => __TAURI_INVOKE<SourceReseau_Serialize[]>("network_sources", undefined, options),
+	/**
+	 *  Ajoute une source réseau, ou met à jour celle qui porte déjà le même identifiant.
+	 * 
+	 *  **L'identifiant est dérivé de l'hôte, du partage et du chemin** — il n'est pas tiré au
+	 *  hasard. Conséquence voulue : ajouter deux fois le même partage rend la **même** source,
+	 *  donc les pistes déjà scannées ne deviennent pas orphelines. Un UUID aurait l'effet
+	 *  inverse, et c'est un geste qu'on fait par erreur plus souvent qu'à son tour.
+	 */
+	addNetworkSource: (nom: string, hote: string, partage: string, cheminDistant: string, utilisateur: string, options?: InvokeOptions) => __TAURI_INVOKE<SourceReseau_Serialize[]>("add_network_source", { nom, hote, partage, cheminDistant, utilisateur }, options),
+	/**
+	 *  Enregistre le mot de passe d'une source dans le trousseau macOS.
+	 * 
+	 *  Il descend ici et ne remonte jamais. Un mot de passe vide est **refusé** et non enregistré
+	 *  (INV-04) : stocker une chaîne vide ferait tenter au NAS une connexion anonyme, donc
+	 *  risquerait le verrouillage du compte.
+	 */
+	saveNetworkPassword: (sourceId: string, motDePasse: string, options?: InvokeOptions) => __TAURI_INVOKE<null>("save_network_password", { sourceId, motDePasse }, options),
+	/**
+	 *  Scanne une source réseau et rend ce qui a changé.
+	 * 
+	 *  ⚠️ **Cette commande dure des minutes** au premier scan d'une grande source : elle lit
+	 *  l'en-tête de chaque fichier sur le NAS (ADR 0016 §3). Elle ne tient pas le verrou de la
+	 *  bibliothèque pendant ce temps — `network::scanner_une_source` le prend deux fois, court
+	 *  — donc l'affichage de la bibliothèque continue de répondre.
+	 */
+	scanNetworkSource: (sourceId: string, options?: InvokeOptions) => __TAURI_INVOKE<RapportDeScan>("scan_network_source", { sourceId }, options),
 };
 
 /* Types */
@@ -86,6 +117,82 @@ export type RapportDeScan = {
 	 *  interrompre le scan. Le détail part dans le journal, via `tracing` (INV-21).
 	 */
 	illisibles: number,
+};
+
+/**
+ *  Une source réseau : un partage SMB dont les pistes rejoignent la bibliothèque (ADR 0016).
+ * 
+ *  Elle est **dans les types de la bibliothèque** et non dans `network/`, et la direction
+ *  compte : une source réseau est une donnée que la base garde et que l'interface affiche ;
+ *  ce qu'on en fait avec `libsmbclient` est l'affaire de `network/`, qui dépend d'ici et pas
+ *  l'inverse.
+ * 
+ *  **Aucun champ de mot de passe, et c'est voulu** : il vit dans le Keychain (ADR 0015).
+ *  Un champ ici traverserait l'IPC, donc le mot de passe du NAS de Thomas apparaîtrait dans
+ *  les outils de développement de la WebView.
+ * 
+ *  `id` vient de V1 quand la source en vient : c'est lui qui est écrit dans les 3 137 URI de
+ *  la bibliothèque de Thomas (`smb://{id}/{partage}/…`), donc le régénérer rendrait toutes
+ *  ses pistes orphelines.
+ */
+export type SourceReseau = SourceReseau_Serialize | SourceReseau_Deserialize;
+
+/**
+ *  Une source réseau : un partage SMB dont les pistes rejoignent la bibliothèque (ADR 0016).
+ * 
+ *  Elle est **dans les types de la bibliothèque** et non dans `network/`, et la direction
+ *  compte : une source réseau est une donnée que la base garde et que l'interface affiche ;
+ *  ce qu'on en fait avec `libsmbclient` est l'affaire de `network/`, qui dépend d'ici et pas
+ *  l'inverse.
+ * 
+ *  **Aucun champ de mot de passe, et c'est voulu** : il vit dans le Keychain (ADR 0015).
+ *  Un champ ici traverserait l'IPC, donc le mot de passe du NAS de Thomas apparaîtrait dans
+ *  les outils de développement de la WebView.
+ * 
+ *  `id` vient de V1 quand la source en vient : c'est lui qui est écrit dans les 3 137 URI de
+ *  la bibliothèque de Thomas (`smb://{id}/{partage}/…`), donc le régénérer rendrait toutes
+ *  ses pistes orphelines.
+ */
+export type SourceReseau_Deserialize = {
+	id: string,
+	nom: string,
+	hote: string,
+	partage: string,
+	/**  Le dossier à scanner **dans** le partage, slash initial compris (`/LOSSLESS/complete`). */
+	chemin_distant: string,
+	utilisateur: string,
+	domaine?: string | null,
+	invite: boolean,
+	active: boolean,
+};
+
+/**
+ *  Une source réseau : un partage SMB dont les pistes rejoignent la bibliothèque (ADR 0016).
+ * 
+ *  Elle est **dans les types de la bibliothèque** et non dans `network/`, et la direction
+ *  compte : une source réseau est une donnée que la base garde et que l'interface affiche ;
+ *  ce qu'on en fait avec `libsmbclient` est l'affaire de `network/`, qui dépend d'ici et pas
+ *  l'inverse.
+ * 
+ *  **Aucun champ de mot de passe, et c'est voulu** : il vit dans le Keychain (ADR 0015).
+ *  Un champ ici traverserait l'IPC, donc le mot de passe du NAS de Thomas apparaîtrait dans
+ *  les outils de développement de la WebView.
+ * 
+ *  `id` vient de V1 quand la source en vient : c'est lui qui est écrit dans les 3 137 URI de
+ *  la bibliothèque de Thomas (`smb://{id}/{partage}/…`), donc le régénérer rendrait toutes
+ *  ses pistes orphelines.
+ */
+export type SourceReseau_Serialize = {
+	id: string,
+	nom: string,
+	hote: string,
+	partage: string,
+	/**  Le dossier à scanner **dans** le partage, slash initial compris (`/LOSSLESS/complete`). */
+	chemin_distant: string,
+	utilisateur: string,
+	domaine: string | null,
+	invite: boolean,
+	active: boolean,
 };
 
 /**

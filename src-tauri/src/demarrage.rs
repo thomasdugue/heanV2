@@ -110,6 +110,7 @@ pub fn preparer(ancien: &Path, dossier_de_donnees: &Path) -> Result<Depot, Erreu
     })?;
 
     reprendre_la_configuration(&mut depot, dossier_de_donnees);
+    reprendre_les_sources_reseau(&mut depot, dossier_de_donnees);
     Ok(depot)
 }
 
@@ -174,5 +175,29 @@ fn reprendre_la_configuration(depot: &mut Depot, dossier_de_donnees: &Path) {
             tracing::debug!("pas de config.json de V1 : rien à reprendre");
         }
         Err(e) => tracing::error!(erreur = %e, "config.json de V1 illisible"),
+    }
+}
+
+/// Reprend les **sources réseau** de V1 (ADR 0016). **Jamais fatal** : l'application démarre,
+/// et l'erreur est journalisée.
+///
+/// Elle vient **après** la configuration et c'est voulu, même si les deux sont indépendantes :
+/// la configuration porte la liste d'exclusion, dont la perte violerait INV-06 (🔴), tandis
+/// qu'une source réseau non reprise se resaisit à la main. Quand deux reprises peuvent
+/// échouer l'une après l'autre, la plus grave passe d'abord — c'est le même raisonnement
+/// que l'ordre « exclusions avant racines » à l'intérieur de `reprise_v1`.
+///
+/// **Rien ici ne touche au trousseau** : V009 — aucun dialogue Keychain au lancement. Le mot
+/// de passe d'une source n'est lu qu'au premier scan.
+fn reprendre_les_sources_reseau(depot: &mut Depot, dossier_de_donnees: &Path) {
+    match std::fs::read_to_string(dossier_de_donnees.join("network_sources.json")) {
+        Ok(json) => match crate::network::reprise_v1::reprendre(depot, &json) {
+            Ok(reprise) => tracing::info!(?reprise, "reprise des sources réseau de V1"),
+            Err(e) => tracing::error!(erreur = %e, "la reprise des sources réseau de V1 a échoué"),
+        },
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            tracing::debug!("pas de network_sources.json de V1 : rien à reprendre");
+        }
+        Err(e) => tracing::error!(erreur = %e, "network_sources.json de V1 illisible"),
     }
 }

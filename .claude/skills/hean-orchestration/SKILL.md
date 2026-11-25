@@ -85,8 +85,12 @@ une liste périmée sans que personne le sache.
   qu'une copie ratée (ajouté en phase 2, quand le schéma versionné est arrivé).
 - **zone:pipeline-release** — `scripts/release*`, `.github/workflows/release*`,
   `src-tauri/build.rs`. Ça ne casse pas en CI, ça casse chez l'utilisateur.
-- **zone:secrets-et-keychain** — `src-tauri/src/secrets.rs`, `src-tauri/src/keychain*`. Une
-  erreur ne se voit pas, elle se découvre.
+- **zone:secrets-et-keychain** — `src-tauri/src/secrets.rs`, `src-tauri/src/keychain*`,
+  `src-tauri/src/network/identifiants.rs`. Une erreur ne se voit pas, elle se découvre.
+  ⚠️ Le glob `keychain*` ne couvrait **rien** le 2026-11-25, jour où le premier vrai appel au
+  trousseau est arrivé : il s'appelle `network/identifiants.rs`, en français comme le reste du
+  code. Une liste de chemins écrite avant le code qu'elle protège vise le nom qu'on imaginait,
+  pas celui qui arrive.
 - **zone:choix-produit** — `bootstrap/01-produit/**`, `docs/adr/**`. Ce n'est pas une tâche
   technique, c'est celle de Thomas.
 

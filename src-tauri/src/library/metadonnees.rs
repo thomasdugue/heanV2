@@ -25,6 +25,7 @@ use super::cle::AlbumKey;
 use super::types::{Edition, Track};
 
 /// Les métadonnées brutes lues dans un fichier, plus ce que le conteneur annonce.
+#[derive(Clone)]
 pub struct Lues {
     pub track: Track,
     /// La clé typée. Elle sort d'ici déjà construite pour que personne n'ait à se demander
@@ -103,7 +104,43 @@ pub fn lire(chemin: &Path) -> Result<Lues, Erreur> {
         chemin: chemin.display().to_string(),
         source,
     })?;
+    depuis_le_fichier_lu(fichier, chemin)
+}
 
+/// Lit les tags et les propriétés audio depuis des **octets déjà en mémoire**, et les
+/// attribue au chemin donné — qui n'a pas à être un fichier de ce Mac.
+///
+/// C'est ce que la part réseau utilise (ADR 0016) : une piste SMB n'a pas de chemin local,
+/// et `lofty::read_from_path` ne sait lire qu'un fichier du disque — c'est la raison exacte
+/// pour laquelle V1 n'avait **aucune pochette** pour 91 % de sa bibliothèque
+/// (`docs/MESURES-V1.md` §5). La même fonction de lecture sert donc les deux provenances :
+/// une seule interprétation des tags, donc aucune chance que le local et le réseau
+/// affichent deux choses différentes du même fichier.
+///
+/// ⚠️ **Les octets doivent couvrir ce dont le format a besoin pour sa durée.** Un en-tête
+/// tronqué donne un titre juste et une durée fausse pour MP3, M4A et OGG — voir
+/// `network::entete`, qui décide quels formats ont droit à une lecture partielle, et le test
+/// `src-tauri/tests/reseau/entete.rs`, qui le vérifie en tronquant les fixtures.
+pub fn lire_depuis(octets: &[u8], chemin_affiche: &str) -> Result<Lues, Erreur> {
+    let echec = |source| Erreur::Lecture {
+        chemin: chemin_affiche.to_string(),
+        source,
+    };
+    // `Probe::new` et non `lofty::read_from`, qui n'accepte qu'un `&mut File` : c'est le même
+    // chemin de code, un cran plus bas. `guess_file_type` renifle le CONTENU, donc le nom
+    // du fichier distant n'a pas à être crédible.
+    let fichier = lofty::probe::Probe::new(std::io::Cursor::new(octets))
+        .guess_file_type()
+        .map_err(|e| echec(lofty::error::LoftyError::from(e)))?
+        .read()
+        .map_err(echec)?;
+    depuis_le_fichier_lu(fichier, Path::new(chemin_affiche))
+}
+
+/// Le corps commun aux deux lectures. Il prend le fichier lofty déjà ouvert et le chemin à
+/// afficher : tout ce qui suit — le repli de titre, la table de formats, la clé d'album —
+/// est identique, et doit le rester.
+fn depuis_le_fichier_lu(fichier: lofty::file::TaggedFile, chemin: &Path) -> Result<Lues, Erreur> {
     let proprietes = fichier.properties();
     let tag = fichier.primary_tag().or_else(|| fichier.first_tag());
     let bits = proprietes.bit_depth();
