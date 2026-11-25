@@ -1019,3 +1019,14 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
       WebKit. Le RSS cumulé (201 Mo chargée, 180 Mo vide) surcompte les pages partagées et ne
       doit pas être comparé au budget. **V1 n'a pas été mesurée dans la même passe** : il
       faudra le faire avant de conclure quoi que ce soit sur « V2 fait mieux ».
+- **2026-11-23** (soir, session d'orchestration) : **ADR 0013 — une session, un périmètre.** Cinq
+  sessions tournaient en parallèle, dont trois nées d'elles-mêmes : `passe-verite` avait démarré
+  `champ-format-mpeg`, qui avait démarré `check-sizes-ne-voit-pas`, laquelle s'est mise à modifier
+  `tools/check-sizes.sh` pendant que `harnais-detecteurs` y écrivait. L'écrasement a été évité
+  parce qu'un humain lisait les rapports — le mode de récupération le plus fragile qui soit. Même
+  forme que la collision de numéros d'ADR de la veille (ADR 0008), mais sur un fichier que rien ne
+  surveillait. Trois règles posées (aucune session n'en démarre une autre · un périmètre nommé dans
+  le brief · jamais deux sessions dans le même fichier, hors journaux en ajout seul) et **le
+  détecteur de chevauchement entre branches spécifié mais pas écrit** — il appartient à la session
+  qui tient `tools/`. Tant qu'il n'existe pas, les trois règles sont réclamées, pas mesurées, et
+  l'ADR le dit. Aucun code applicatif touché.
