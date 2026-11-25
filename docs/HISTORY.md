@@ -1480,7 +1480,8 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   - **`brew install samba` devient nécessaire pour compiler** — le `build.rs` de `pavao-sys`
     panique sinon — donc une étape de CI, et la dette INV-18 / PLAT-6 est désormais **réelle** :
     le binaire se lie à `/opt/homebrew/opt/samba/lib/libsmbclient…`, et sans `dylibbundler` suivi
-    du retrait des `LC_RPATH` dupliqués, l'app crashera au lancement chez tous les testeurs. C'est
+    du retrait des `LC_RPATH` dupliqués, l'app crashera au lancement sur **tout Mac sans
+    Homebrew** — c'est-à-dire partout ailleurs que sur la machine de développement. C'est
     exactement le piège que V1 a payé ; il est écrit, daté phase 6, et il n'est pas nouveau.
   - **Deux fichiers ont atteint leur limite et le découpage existait déjà.** `repository.rs`
     (398/400) a cédé ses réglages à `library/reglages.rs` — les trois tables qui ne sont pas des

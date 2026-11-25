@@ -10,6 +10,26 @@
   [`docs/adr/README.md`](README.md), ouvert par l'[ADR 0003](0003-dossier-de-donnees.md) §
   « ce que la migration ne déplace pas ».
 
+> ### ⚠️ Corrigé le 2026-11-25, avant toute réponse : une prémisse était fausse
+>
+> La première version de cet ADR chiffrait le coût de l'option B à « Thomas **et les ~50
+> bêta-testeurs** retapent leur mot de passe ». **Ce chiffre ne correspond à rien : la bêta de
+> V1 n'a jamais été lancée, et il n'y a aucun utilisateur.** Thomas l'a dit explicitement ce
+> soir-là, et les « ~50 testeurs » qu'annoncent `CLAUDE.md`, `bootstrap/` et plusieurs briefs
+> sont faux depuis le début.
+>
+> **Conséquence directe sur cette décision, et elle est lourde** : le coût de l'option B est
+> **une personne, une source, une fois**. Ce n'est plus un geste imposé à cinquante
+> inconnus, c'est dix secondes pour Thomas. La recommandation de la session a donc changé —
+> elle est passée de C à **B** — et c'est écrit ici plutôt que lissé : un document qui
+> prétend avoir toujours su ce qu'il sait est un document qu'on ne peut plus relire.
+>
+> Plus généralement : **aucune contrainte de compatibilité avec une base installée ne pèse
+> sur V2.** Partout où un arbitrage de ce dépôt oppose « propre » à « compatible », le coût
+> de « propre » est presque nul. La remise à plat des documents qui portent le chiffre faux
+> ne se fait pas ici (elle est à part) ; ce qui est corrigé ci-dessous est le seul endroit où
+> ce chiffre servait à **trancher**.
+
 ## Le contexte, en trois faits mesurés
 
 1. **V1 range les mots de passe SMB dans le Keychain macOS**, sous le nom de service
@@ -49,17 +69,24 @@ sans qu'il l'ait demandé est exactement ce que cet ADR refuse de décider seul.
 
 > Les mots de passe de tes sources NAS sont rangés dans le Keychain macOS sous un nom qui dit
 > encore « noir ». V2 doit-elle les relire là, ou prendre un nom propre — quitte à ce que tu
-> retapes ton mot de passe une fois, et les ~50 testeurs aussi le jour de la bascule ?
+> retapes ton mot de passe de NAS **une fois** ?
 
 | Option | Ce que ça coûte, pour de vrai |
 |---|---|
 | **A — reprendre le nom de V1** (`com.tdugue.noir.smb`) | Personne ne retape rien, jamais. En échange, V2 porte pour toujours une constante qui dit « noir » : la prochaine personne — ou le prochain modèle — qui la lit se demande si le projet s'appelle encore comme ça, et l'ADR 0003 a déjà payé ce raisonnement pour le dossier de données. |
-| **B — un nom propre à V2** (`com.tdugue.hean.smb`) | Cohérent avec le reste, et le nom cesse de mentir. En échange : **Thomas retape son mot de passe une fois** (une source), et chaque testeur une fois par source réseau configurée. La doc beta de V1 classe « il faut ressaisir son mot de passe NAS » comme un **bug sérieux à signaler** — c'est donc exactement le symptôme qu'on provoquerait, sans l'expliquer à personne. |
+| **B — un nom propre à V2** (`com.tdugue.hean.smb`) — **recommandée** | Cohérent avec le reste, le nom cesse de mentir, et rien n'est écrit dans le trousseau à l'insu de personne. Le coût, en entier : **Thomas retape son mot de passe une fois, pour une source.** Il n'y a personne d'autre. La doc beta de V1 classe « il faut ressaisir son mot de passe NAS » comme un **bug sérieux à signaler** — ça reste un indice de ce que V1 jugeait grave, mais ça ne décrit plus une gêne subie par quiconque, puisque la beta n'a jamais été distribuée. |
 | **C — migrer l'entrée Keychain** : lire sous A, réécrire sous B, supprimer A | Personne ne retape rien **et** le nom cesse de mentir. En échange, V2 écrit dans le trousseau de l'utilisateur au premier lancement, et une suppression ratée laisse deux entrées pour un mot de passe — donc une source de confusion durable, sur la donnée la moins observable du système (la zone `secrets-et-keychain` de `tools/zones-interdites.txt` existe pour ça : « une erreur ne se voit pas, elle se découvre »). |
 
-**La recommandation de la session est C, et la raison tient en une phrase** : c'est la seule qui
-ne demande rien à personne tout en laissant le dépôt propre. Mais elle écrit dans le trousseau,
-et ça ne se fait pas sans que Thomas l'ait dit.
+**La recommandation de la session est B**, et elle tient en une phrase : avec un seul
+utilisateur, « propre » ne coûte plus qu'une saisie de mot de passe, et c'est moins cher que
+d'écrire dans le trousseau de quelqu'un (option C) ou de garder pour toujours une constante qui
+dit « noir » (option A).
+
+**C'était C jusqu'à ce que le chiffre soit corrigé**, et le raisonnement d'alors mérite d'être
+gardé : C était la seule option qui ne demandait rien à **cinquante** personnes tout en laissant
+le dépôt propre. Le prix de C — écrire et supprimer dans le trousseau de l'utilisateur, sur la
+donnée la moins observable du système — se justifiait par ce nombre. À une personne, il ne se
+justifie plus.
 
 ## En attendant — ce qui est implémenté, et qui n'est pas une décision
 
@@ -70,9 +97,12 @@ suppression.**
 mot_de_passe(source) :  cache de session → com.tdugue.hean.smb → com.tdugue.noir.smb → erreur
 ```
 
-- C'est le sous-ensemble **strictement non destructif** des trois options : il débloque
-  l'option A *et* l'option C sans en présumer, et ne ferme que l'option B — qui est celle que
-  personne ne souhaite imposer sans l'avoir dit.
+- C'est le sous-ensemble **strictement non destructif** des trois options : il ne ferme
+  aucune des trois. A, c'est cette cascade telle quelle. C, c'est elle plus une
+  réécriture-suppression. **B, c'est elle moins une ligne** — retirer `com.tdugue.noir.smb`
+  de `SERVICES`, et Thomas ressaisit son mot de passe au scan suivant.
+  Ce qui est provisoire n'est donc pas le code mais le **fait de ne pas avoir choisi** : la
+  cascade débloque le scan ce soir sans présumer de la réponse.
 - Un mot de passe **enregistré** depuis V2 part sous le nom de V2. C'est la moitié de
   l'option C ; il manque la relecture-réécriture et la suppression, qui sont la partie que
   Thomas doit autoriser.
@@ -110,13 +140,13 @@ mesurer sur une build signée.
 |---|---|
 | **Garder le mot de passe dans `network_sources.json`** | Un mot de passe NAS en clair dans un JSON lisible par tout processus de la session. V1 ne l'a jamais fait, et ce serait une régression de sécurité pour un gain nul. |
 | **Demander le mot de passe à chaque scan, sans le stocker** | Zéro décision à prendre, zéro trousseau. Écartée : un scan de 3 137 pistes dure des minutes et peut être relancé par n'importe quelle vue ; réclamer une saisie à chaque fois rendrait la fonction pénible, et un scan automatique au démarrage deviendrait impossible. |
-| **Un seul nom de service, choisi par la session** | C'est précisément ce que cet ADR refuse de faire : l'option B impose un geste aux ~50 testeurs, et l'option C écrit dans leur trousseau. Les deux sont des décisions de produit. |
+| **Un seul nom de service, choisi par la session** | C'est ce que cet ADR refuse de faire, et la raison a changé de nature sans disparaître. Elle était « B impose un geste à cinquante inconnus, C écrit dans leur trousseau » ; elle est maintenant plus simple : **B demande un geste à Thomas et C modifie son trousseau**, donc les deux sont des décisions qui lui appartiennent. Ce que la session peut faire seule est le choix non destructif qui ne ferme aucune porte — c'est la section « en attendant ». |
 
 ## Conséquences acceptées
 
 - Tant que Thomas n'a pas tranché, **deux noms de service** sont consultés en lecture. Le coût
   est un appel Keychain supplémentaire par source et par session, uniquement quand le premier
-  échoue — c'est-à-dire exactement une fois, chez quelqu'un qui vient de V1.
+  échoue — c'est-à-dire exactement une fois, sur la seule machine concernée.
 - Un mot de passe enregistré depuis V2 n'est **pas** relu par V1. Si Thomas repasse à V1 après
   avoir saisi un mot de passe dans V2, V1 ne le trouvera pas et le redemandera. Le retour
   arrière de l'[ADR 0014](0014-la-migration-conserve-le-dossier-de-v1.md) reste donc entier

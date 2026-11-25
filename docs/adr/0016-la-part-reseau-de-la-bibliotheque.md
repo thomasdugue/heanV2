@@ -160,9 +160,10 @@ s'éprouve **par injection de panne**, sans NAS et sans conteneur
   de Thomas l'a déjà, depuis V1.
 - **Le binaire se lie à une dylib de Homebrew** (`/opt/homebrew/opt/samba/lib/libsmbclient…`).
   C'est exactement ce que INV-18 / PLAT-6 décrivent : sans `dylibbundler` **suivi du retrait des
-  LC_RPATH dupliqués** et d'une re-signature, l'app crashera au lancement sur tout Mac sans
-  Homebrew — donc chez tous les testeurs. La dette est à la phase 6, elle est écrite, et elle
-  n'était pas nouvelle : c'est le même piège que V1 a payé.
+  LC_RPATH dupliqués** et d'une re-signature, l'app crashera au lancement **sur tout Mac sans
+  Homebrew** — c'est-à-dire sur toute machine qui n'est pas celle de développement. La dette
+  est à la phase 6, elle est écrite, et elle n'était pas nouvelle : c'est le même piège que V1
+  a payé.
 - **Un premier scan dure des minutes**, et la fenêtre le dit avant de commencer.
 - **Un mot de passe de NAS est demandé une fois par session**, au premier scan. Il n'est jamais
   lu au démarrage (V009).
