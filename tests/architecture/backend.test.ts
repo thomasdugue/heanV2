@@ -55,12 +55,12 @@ const HORS_SCAN: readonly { motif: string; pourquoi: string; muet?: string }[] =
       "un exemple se lance à la main en ligne de commande : sans sortie sur stdout il n'a aucun " +
       "intérêt, et il n'est pas dans le binaire livré, donc il ne peut pas rendre l'app aveugle " +
       'chez un testeur — ce que la règle protège. Même forme que build.rs',
-    // Ce dossier n'existe pas sur cette branche : `examples/migrer.rs` arrive avec la
-    // migration noir → hean. La dérogation est écrite d'avance, et la note ci-dessous se
-    // périme d'elle-même — le jour où le dossier arrive, le second test ci-dessous rougit et
-    // demande de la retirer. C'est voulu : une dérogation doit être confirmée quand elle
-    // entre réellement en vigueur, pas héritée en silence.
-    muet: "le dossier n'existe pas encore sur cette branche (migration noir → hean)",
+    // **EN VIGUEUR depuis le 2026-11-23**, avec l'arrivée de `examples/migrer.rs` et de la
+    // migration noir → hean. La dérogation avait été écrite d'avance, portant une note
+    // « muet » qui s'est périmée d'elle-même : à la fusion, le second test ci-dessous a
+    // rougi et demandé de la retirer — ce que fait ce commit. Le mécanisme a donc servi
+    // pour de vrai, et c'est ce qu'on lui demandait : une dérogation se confirme au moment
+    // où elle entre en vigueur, elle ne s'hérite pas en silence.
   },
 ];
 

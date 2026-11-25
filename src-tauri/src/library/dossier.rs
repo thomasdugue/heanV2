@@ -34,6 +34,18 @@ pub fn depuis_home(home: Option<OsString>) -> Option<PathBuf> {
     Some(home.join("Library").join("Application Support").join("hean"))
 }
 
+/// `~/Library/Application Support/noir/` — le dossier de V1, source de la migration
+/// one-shot (ADR 0003). Il n'est nommé qu'ici : le module de migration reçoit des chemins,
+/// il ne les devine pas.
+pub fn ancien_dossier_de_donnees() -> Option<PathBuf> {
+    ancien_depuis_home(std::env::var_os("HOME"))
+}
+
+/// Idem, variable d'environnement passée en paramètre, pour être testable.
+pub fn ancien_depuis_home(home: Option<OsString>) -> Option<PathBuf> {
+    depuis_home(home).map(|d| d.with_file_name("noir"))
+}
+
 /// Le fichier de la bibliothèque.
 pub fn base_de_bibliotheque() -> Option<PathBuf> {
     dossier_de_donnees().map(|d| d.join("library.db"))
@@ -70,6 +82,18 @@ mod tests {
         assert_eq!(super::depuis_home(None), None);
         assert_eq!(super::depuis_home(Some(OsString::new())), None);
         assert_eq!(super::depuis_home(Some(OsString::from("relatif/maison"))), None);
+    }
+
+    #[test]
+    fn lancien_dossier_est_le_voisin_du_nouveau() {
+        // Les deux dossiers sont côte à côte dans Application Support : c'est ce qui rend
+        // l'échange final de la migration atomique, puisqu'ils sont sur le même volume.
+        let home = Some(OsString::from("/maison-dessai"));
+        let nouveau = super::depuis_home(home.clone()).expect("hean");
+        let ancien = super::ancien_depuis_home(home).expect("noir");
+        assert_eq!(ancien.parent(), nouveau.parent());
+        assert_eq!(ancien.file_name().unwrap(), "noir");
+        assert_eq!(nouveau.file_name().unwrap(), "hean");
     }
 
     #[test]

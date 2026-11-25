@@ -25,7 +25,7 @@ D'où les trois piles :
 | Pile | Ce que ça veut dire | Combien |
 |---|---|---|
 | **rayé** | L'architecture de V2 rend la faute inexprimable. Plus de règle à retenir. | 6 |
-| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 15 |
+| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 17 |
 | **irréductible** | Comportement de CoreAudio, de WebKit ou de Gatekeeper. Aucun test ne le prouve. | 2 + 7 pièges |
 
 **La mesure du succès : la pile « irréductible » ne grossit pas, et la pile « test » se
@@ -297,6 +297,61 @@ dette **visible**, que `./check` recompte à chaque passage.
   compilation ou le test au lieu de changer ce que Thomas lit à l'écran.
   Et la règle vaut au-delà du champ `format` : `{:?}` est fait pour un journal, pas pour un
   œil. Tout libellé que l'interface montre se décide ici, explicitement.
+
+### INV-24 — Rien n'est créé dans le dossier de données avant que la migration ait rendu son verdict
+- pile : test
+- gravité : 🔴 BLOQUANT
+- couverture : test `demarrage.rs` — la séquence réelle de `run()`, rejouée en entier
+- pourquoi : **règle née le 2026-11-23 d'une relecture, et mesurée.** `run()` ouvrait la
+  bibliothèque **quoi qu'il arrive**, y compris juste après un échec de migration — et ouvrir
+  la bibliothèque crée le dossier de données. Donc un seul fichier de pochette illisible, ou
+  un disque momentanément plein, et le lancement suivant trouvait un dossier « déjà peuplé »
+  par la base vide que V2 venait de créer lui-même : il renonçait **définitivement**. Les
+  572 Mo du dossier de V1 restaient en place, invisibles, et la reprise n'ayant jamais lieu,
+  les pistes supprimées revenaient au premier scan — **INV-06 violé à travers la migration,
+  de façon permanente, chez ~50 testeurs**.
+  **Ce qui rend la règle générale** : ce n'est pas « attention à l'ordre dans `run()` », c'est
+  qu'un échec doit rester rattrapable, donc qu'on n'écrit rien tant qu'on ne sait pas. Ne pas
+  démarrer est réparable — les données sont intactes, relancer réessaie ; démarrer ne l'est
+  pas. L'ADR 0010 avait accepté l'inverse (« un échec n'empêche pas de démarrer ») sur un
+  raisonnement juste et une propriété fausse ; l'ADR 0012 le remplace.
+  **Et la raison pour laquelle une PR entière ne l'a pas vu** : le test censé prouver la
+  propriété appelait la migration deux fois de suite, sans l'ouverture de la base que `run()`
+  fait entre les deux. Il concluait « le lancement suivant peut retenter » au sujet d'un
+  programme qui n'existe pas. D'où la forme de la couverture : la séquence est une fonction
+  (`demarrage::preparer`) et le test l'appelle **en entier**. Un test qui saute une étape de
+  la séquence réelle n'éprouve pas le produit. C'est la leçon fondatrice du projet — une
+  phrase dans un document ne peut pas échouer — retrouvée dans le code le plus sensible qu'il
+  contienne.
+  **« Créé » et non « écrit », et la nuance est mesurée** : juger si une base existante est
+  vierge demande de l'ouvrir, donc d'appliquer les migrations de schéma qui lui manquent —
+  une écriture, avant la migration du dossier. La conséquence est nulle (une base non vierge
+  arrête la migration de toute façon, et une base vierge est effacée juste après), mais
+  l'énoncé devait coller au code plutôt que l'inverse. Relevé en relecture du 2026-11-23.
+
+### INV-25 — La copie d'une migration est forcée sur le disque avant que l'original soit supprimé
+- pile : test
+- gravité : 🔴 BLOQUANT
+- couverture : architecture `migration-durable.test.ts` — l'ordre des quatre étapes irréversibles
+- pourquoi : **règle née le 2026-11-25 de la relecture de la PR #8, et mesurée.** La migration
+  copiait, vérifiait, échangeait, puis supprimait `noir/` — dans le bon ordre, et sans jamais
+  rien forcer sur le disque. Or `std::fs::copy` et `std::fs::rename` rendent la main dès que le
+  **cache du système** est à jour, pas le disque ; entre les deux il y a quelques secondes, sans
+  borne garantie. Une extinction brutale dans cette fenêtre — panique noyau, coupure de courant,
+  batterie à plat — laissait au redémarrage un `hean/` avec son témoin, des fichiers vides
+  dedans, et plus de `noir/` du tout : **playlists, historique d'écoute et sources NAS perdus,
+  et plus aucun code pour savoir qu'ils avaient existé.**
+  **Ce qui rend la règle sérieuse n'est pas sa probabilité, c'est son exposition** : ce chemin
+  ne s'exécute qu'une seule fois par testeur, juste après une mise à jour — c'est-à-dire
+  précisément au moment où l'on redémarre sa machine — et il n'y a pas de deuxième chance,
+  puisque l'original a disparu. C'est la même famille qu'INV-22 : un défaut qui ne se voit pas
+  ne se signale pas.
+  **Et le coût est mesuré, pour qu'il ne serve pas de prétexte** : 90 ms sur le dossier réel de
+  Thomas (2 444 fichiers, 283 Mo, le 2026-11-25). La règle ne porte donc pas sur « combien de
+  fichiers synchroniser » — ça se négocie — mais sur l'**ordre** : durable, puis irréversible.
+  D'où la forme de la couverture, un test de forme : la propriété ne s'observe qu'en coupant le
+  courant au bon millième de seconde, mais l'ordre des appels, lui, se lit. (Gravité 🔴 par
+  défaut, comme INV-24, en attendant que Thomas la classe — c'est une perte de données.)
 
 ---
 

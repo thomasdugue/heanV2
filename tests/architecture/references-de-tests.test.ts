@@ -13,10 +13,13 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { RACINE, sources } from './_lecture';
 
+// `src-tauri/examples` y est depuis le 2026-11-25 : l'en-tête de `migrer.rs` cite
+// `tools/verifier-migration-reelle.sh` et des fichiers de tests, donc il pouvait porter un renvoi
+// mort comme n'importe quel autre texte du dépôt.
 // `src-tauri/tests` y est depuis le 2026-11-23 (même angle mort que `check-sizes.sh`). `tests/`
 // n'y est pas : ce fichier cite exprès des chemins morts pour éprouver son détecteur, et se
 // signalerait lui-même — il faudrait une exception par chemin exact.
-const ZONES = ['src', 'src-tauri/src', 'src-tauri/tests', 'tools', '.claude/skills', 'docs/adr'] as const;
+const ZONES = ['src', 'src-tauri/src', 'src-tauri/tests', 'src-tauri/examples', 'tools', '.claude/skills', 'docs/adr'] as const;
 const EXTS = ['.ts', '.svelte', '.css', '.rs', '.mjs', '.md'] as const;
 
 /**

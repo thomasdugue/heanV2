@@ -471,6 +471,69 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   - **Prochaine étape, choisie par Thomas : la migration `noir/` → `hean/` avant les vues.**
     Sécuriser la bibliothèque des ~50 testeurs d'abord. Zone jamais déléguée, fixtures à tirer
     d'une copie réelle d'un dossier `noir/`, sa propre session.
+- **2026-11-22** (migration des données de V1) : **Thomas a tranché la priorité** — sécuriser la
+  bibliothèque des ~50 beta-testeurs avant les écrans. `~/Library/Application Support/noir/` passe à
+  `hean/` par une migration one-shot vérifiée. ADR 0010. `./check` vert (19 vérifications),
+  113 tests Rust, 55 tests frontend.
+  - **La forme : copier à côté, vérifier, échanger, puis supprimer.** Quatre temps, chacun fermant un
+    mode de défaut. Le premier est le moins évident et le plus important : la copie va dans
+    `hean.en-cours-de-migration/` et **pas** directement dans `hean/`, donc une interruption laisse un
+    dossier provisoire et **aucun `hean/`** — le lancement suivant repart proprement. En copiant
+    directement à destination, une interruption laisserait une bibliothèque à moitié présente,
+    **indistinguable d'une bibliothèque complète**. L'échange final est un `rename` sur le même
+    volume, donc atomique. La suppression de l'original vient en dernier, après la vérification.
+  - **Le défaut le plus grave de la phase, trouvé en écrivant les tests** : déplacer les fichiers ne
+    suffit pas, parce que **V2 ne lit aucun JSON de V1**. Sans reprise, le testeur migré trouvait au
+    premier lancement une bibliothèque **vide** — ses dossiers de musique sont dans `config.json`,
+    que rien ne relisait — et **ses pistes supprimées de retour** au premier scan, la liste
+    d'exclusion vivant dans ce même fichier. C'est **INV-06 (🔴) violé à travers la migration** :
+    « une piste supprimée ne revient jamais » ne vaut pas que dans une version. `reprise_v1.rs`
+    reprend les deux listes, une seule fois, garanti par une table `reprises` — rejouer la reprise
+    ressusciterait les réglages changés depuis dans V2.
+  - Et ce module ne contient **aucun SQL** : il passe par `ajouter_racine` et `exclure`. Contrainte
+    d'INV-06, pas élégance — un seul fichier nomme la table des chemins exclus. Les tests composent
+    même leur `config.json` à partir des constantes du dépôt plutôt que d'écrire le nom de la clé en
+    clair, parce qu'un détecteur qui signale des données de test finit désarmé.
+  - **Le détecteur d'INV-06 a mordu deux fois dans cette session**, sur des commentaires :
+    `scan.rs` puis `reprise_v1.rs` citaient le nom de la table en prose. C'est voulu — il cherche à
+    la lettre, commentaires compris, et c'est ce qui lui donne ses dents.
+  - **Ce que le dossier réel a appris** (mesuré, 572 Mo / 2 446 fichiers) : **la moitié est un cache
+    jetable.** `smb_buffer/` pesait 289 Mo en trois fichiers, dont un de 147 Mo, datés de la veille —
+    V1 devait les nettoyer à chaque lancement (W008, correctif au commit `eaee676`) et ne l'a pas
+    fait. Ils ne se migrent pas : les copier aurait été transporter le bug de V1 avec ses données.
+    Au passage, `logs/` garde des fichiers de juillet alors que la rotation est annoncée à 7 jours,
+    et **`dap_sync.db` n'existe pas** là où l'ADR 0003 le décrit comme « laissé en place
+    volontairement ». Les deux sont signalés, aucun n'est corrigé ici.
+  - **Pas de pré-contrôle de place disque, et c'est un choix** : une estimation peut être fausse, un
+    `ENOSPC` ne peut pas. Un disque plein fait échouer la copie, le provisoire est effacé, l'original
+    n'a pas bougé, le lancement suivant retentera.
+  - **Mesure contre l'attente, qui vaut au-delà de la migration** : sur **APFS, un nom de fichier en
+    NFD et le même en NFC désignent UN SEUL fichier** — le système compare les noms après
+    normalisation tout en conservant les octets donnés. Mon premier test posait les deux écritures de
+    « Café Noir » en attendant deux fichiers ; la seconde avait écrasé la première. Conséquence pour
+    le projet : la normalisation NFC d'INV-01 porte sur les **clés d'album**, que nous comparons dans
+    SQLite, et **non sur les chemins**, que le système compare pour nous. Deux problèmes qui se
+    ressemblent, un seul des deux est le nôtre.
+  - **La vérification sur données réelles existe, et elle est hors de `./check`** :
+    `tools/verifier-migration-reelle.sh` travaille sur une **copie**, refuse de désigner le vrai
+    `hean/` comme cible, et ne touche jamais l'original. Hors CI délibérément — la CI n'a pas de
+    dossier `noir/`, et une vérification qui ne peut pas tourner là où elle est lancée ne vérifie
+    rien. Lancée le 2026-11-22 sur les données de Thomas : **2 443 fichiers migrés sur 2 446**
+    (291 Mo), 3 ignorés, `playlists.json` / `listening_history.json` / `network_sources.json` /
+    `config.json` **identiques à l'original**, reprise de **1 dossier de bibliothèque / 0 exclusion**,
+    original intact. Les tests sur arbres fabriqués, eux, apportent ce que les données réelles
+    n'apportent pas : les **cas de défaut** — fichier illisible, cible déjà peuplée, provisoire qui
+    traîne, lien symbolique, dossier ne contenant que du cache.
+  - **Les entrées Keychain ne sont pas touchées** : le nom de service de V2 est un point ouvert daté
+    de la phase 3 (ADR 0003). Ne rien faire laisse les mots de passe en place ; s'y prendre à moitié
+    les perdrait.
+  - `repository.rs` a dépassé 400 lignes en route et a été découpé : `lignes.rs` (comment une piste
+    s'écrit et se relit) et `reprise_v1.rs`. Une duplication a disparu dans l'opération —
+    l'empreinte d'un fichier (taille + date) était calculée à deux endroits, elle est maintenant
+    dans `scan::empreinte`.
+  - **Prochaine étape** : les vues (phase 3). Ce qui attend encore un arbitrage de Thomas est dans la
+    PR : le pipeline de pochettes, `store.rs` devenu sans appelant, et la convention d'attribution
+    des ADR quand une session décide à l'intérieur d'un brief approuvé.
 
 - **2026-11-23** (revue des détecteurs) : **les détecteurs du harnais répondent maintenant à deux
   questions, pas une.** Née du défaut le plus instructif du 2026-11-22 : le détecteur d'INV-06
@@ -552,7 +615,7 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   - **Le numéro 0011 et non 0010, et c'est le défaut du 2026-11-22 évité de justesse.**
     `tools/check-adr.mjs` ne lit que les fichiers suivis par git **sur la branche courante** :
     il ne peut donc pas voir une collision avec une branche vivante. Le 0010 est pris par la PR
-    de migration, encore ouverte — deux branches auraient passé `./check` chacune de leur côté
+    de migration, alors ouverte — deux branches auraient passé `./check` chacune de leur côté
     et la collision n'aurait éclaté qu'au merge. La règle de numérotation de
     [`docs/adr/README.md`](adr/README.md) dit maintenant « ce tableau **et** les PR ouvertes »,
     et le trou à 0010 y est expliqué pour que personne ne le reprenne. Un trou ne coûte rien ;
@@ -1030,3 +1093,162 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
   détecteur de chevauchement entre branches spécifié mais pas écrit** — il appartient à la session
   qui tient `tools/`. Tant qu'il n'existe pas, les trois règles sont réclamées, pas mesurées, et
   l'ADR le dit. Aucun code applicatif touché.
+
+
+- **2026-11-23** (relecture de la migration, puis correction) : **la relecture d'invariants que
+  la PR #8 laissait à faire a trouvé quatre défauts 🔴, et Thomas a demandé qu'ils soient
+  corrigés avant la fusion.** Aucun ne mettait les octets en danger — l'ordre copier →
+  vérifier → échanger → supprimer tient dans tous les chemins d'échec, vérifié un par un.
+  Tous les quatre faisaient perdre **la liste des pistes supprimées**, c'est-à-dire exactement
+  ce que `reprise_v1.rs` existe pour sauver. ADR 0012, INV-24. `./check` vert (19
+  vérifications), 23 invariants dont 6 actifs.
+  - **Le défaut principal, et il n'avait pas été vu par la PR : un échec de migration devenait
+    définitif.** `run()` ouvrait la bibliothèque **quoi qu'il arrive**, y compris juste après
+    un échec — et ouvrir la bibliothèque crée le dossier de données. Donc un seul fichier de
+    pochette illisible, et le lancement suivant trouvait un dossier « déjà peuplé » par la
+    base vide que V2 venait de créer lui-même : il renonçait **pour toujours**. Les 572 Mo du
+    dossier de V1 restaient invisibles, et les pistes supprimées revenaient au premier scan.
+  - **Pourquoi une PR entière ne l'a pas vu**, et c'est la leçon qui dépasse la migration : le
+    test censé prouver la propriété appelait `migrer_si_necessaire` **deux fois de suite**,
+    sans l'ouverture de base que `run()` fait entre les deux. Il concluait « le lancement
+    suivant peut retenter » au sujet d'un programme qui n'existe pas. La propriété vivait dans
+    `run()`, qui lance Tauri et n'est pas testable — donc c'était une phrase dans un document,
+    et une phrase dans un document ne peut pas échouer. D'où `demarrage.rs` : la séquence est
+    une **fonction**, et `tests/demarrage.rs` la rejoue en entier.
+  - **Les trois autres, tous mesurés avant d'être corrigés** : la table `reprises` avait été
+    ajoutée dans la migration **version 1 déjà livrée**, que le mécanisme ne rejoue jamais —
+    donc « no such table » à chaque démarrage sur toute machine ayant déjà lancé V2 (elle est
+    maintenant la version 2) · un `config.json` **illisible** posait le marqueur de reprise
+    quand même, ce qui perdait les exclusions **définitivement**, même après réparation du
+    fichier — V1 écrivait ses JSON sans écriture atomique, donc un fichier tronqué est le cas
+    réel · la reprise posait les **racines avant les exclusions**, chacune dans sa propre
+    transaction, si bien qu'un échec au milieu laissait « des dossiers de musique et aucune
+    exclusion » : le pire état possible est maintenant « des exclusions et aucune racine »,
+    rien à scanner donc rien à ressusciter.
+  - **Un test porté verrouille autant un bug qu'une règle.** Le test
+    `un_config_v1_illisible_ne_bloque_rien` affirmait le défaut n° 3 **avec sa justification**
+    (« on ne retentera pas éternellement de lire un fichier abîmé ») : l'échange troquait un
+    journal bruyant contre une violation silencieuse d'INV-06, et le prochain lecteur l'aurait
+    respecté. Le corriger demandait de défaire une assertion qui se présentait comme un choix
+    raisonné.
+  - **Deux mesures sur un volume APFS de 8 Mo, dont une bonne nouvelle.** Le disque plein se
+    comporte comme annoncé — `ENOSPC` nommé avec le fichier, aucun dossier d'arrivée, aucun
+    provisoire, source intacte au contenu. Et **la copie est un clone** : 5 Mo migrés avec
+    2 Mo libres, espace occupé inchangé. Donc le « pic transitoire de ~283 Mo » que l'ADR 0010
+    accepte comme conséquence **n'existe pas** — mais la vérification au contenu ne prouve pas
+    ce que son commentaire dit, puisque sur un clone les deux fichiers **sont** les mêmes
+    secteurs. Elle garde sa valeur contre une copie tronquée, qui est le cas réel visé.
+  - **Le harnais a réclamé le reste tout seul**, et c'est la démonstration de l'ADR 0005 :
+    `check-invariants` a exigé qu'un test cite INV-24, `check-comptes` a exigé les quatre
+    nombres de `CLAUDE.md` et du `README`, et la dérogation d'INV-21 pour `examples/` — écrite
+    d'avance par la session du harnais avec une note « muette » — a rougi à l'arrivée du
+    dossier pour réclamer sa confirmation. Rien de tout cela n'a demandé de s'en souvenir.
+  - **Mesuré, et ça nuance une phrase écrite plus haut dans ce journal** : l'entrée de la PR #13
+    dit qu'« aucun garde-fou ne peut oublier `src-tauri/examples/` tant qu'il n'est pas créé, et
+    `backend.test.ts` refuse déjà tout `.rs` hors des dossiers scannés ». Le filet existe mais il
+    ne couvre qu'INV-21, et **pour un seul passage** : c'est la note « muet » de la dérogation qui
+    rougit à l'apparition du dossier, pas la faute qu'il contient — et une fois la note retirée,
+    plus rien. `une-seule-source-de-pistes.test.ts` ne scanne que `src-tauri/src` et
+    `src-tauri/tests`, donc du SQL sur la liste d'exclusion écrit dans un `examples/` passerait
+    **en silence**, et c'est une règle 🔴. Vérifié : `examples/migrer.rs` n'en contient pas. La
+    phrase de la PR #13 n'est pas corrigée ici — elle n'est pas de cette session — mais son
+    « ces deux listes de zones sont à relire » est le bon réflexe, et c'est maintenant mesuré.
+  - **Prochaine étape** : la fusion est la décision de Thomas. Restent 🟡, non corrigés ici et
+    documentés dans la PR : aucun `fsync` avant la suppression de l'original (une coupure de
+    courant dans les secondes qui suivent) · `CLE_V1_EXCLUSIONS` est une constante publique
+    dont la valeur est le mot que cherche le détecteur d'INV-06, donc un `DELETE FROM
+    {CLE_V1_EXCLUSIONS}` lui échappe — démontré · `inserer` passé en `pub(super)` élargit la
+    surface d'écriture de `tracks` à tout le module.
+  - **Une dette de taille, mesurée et laissée à dessein — Thomas a dit « plus tard ».**
+    `library/repository.rs` est à **397 lignes** pour une limite de 400. Ce qui compte pour
+    celui qui verra le rouge : ce n'est **pas** cette session qui a mangé la marge — sur `main`
+    le même fichier est à **398**, et cette PR y a absorbé une migration de schéma, deux
+    constantes publiques et `est_vierge` **en le raccourcissant d'une ligne**, parce qu'elle
+    apporte le découpage `lignes.rs`. La dette est donc antérieure, et le mécanisme qui la
+    rappellera existe déjà : `./check` rougira au premier ajout. **Où couper, pour ne pas
+    refaire l'analyse ce jour-là** : `repository.rs` décide ce qui entre et sort, `lignes.rs`
+    sait comment une piste s'écrit et se relit, et ce qui reste à sortir est un troisième
+    thème — les **marqueurs de reprise** et les **racines**, qui ne nomment ni les pistes ni la
+    table des chemins exclus, donc peuvent déménager sans rouvrir INV-06. Le schéma, lui, ne
+    peut pas bouger. Signe que la marge est trop mince : **écrire ces lignes-ci dans le
+    fichier l'aurait fait dépasser**, d'où leur place ici.
+  - Au passage, la ligne précédente de cette entrée disait que `src-tauri/tests/bibliotheque.rs`
+    dépassait 400 lignes hors du périmètre du détecteur. **Les deux moitiés sont devenues
+    fausses le même soir** : la PR #13 a découpé le fichier, la PR #15 fait entrer le dossier
+    dans la règle. Corrigée plutôt que laissée, parce qu'une affirmation périmée dans ce
+    journal est précisément ce qu'il existe pour éviter.
+  - **2026-11-25 — les cinq 🟡, sur demande de Thomas (« Les 🟡 maintenant »). Quatre corrigés,
+    le cinquième reste le sien.**
+    - **Un seul des quatre pouvait faire disparaître des octets, et il est devenu INV-25.** La
+      migration ne forçait rien sur le disque : `fs::copy` et `fs::rename` rendent la main quand
+      le cache du système est à jour, pas le disque. Une extinction brutale dans les secondes qui
+      suivaient laissait un `hean/` avec son témoin, des fichiers vides dedans, et plus de `noir/`
+      — playlists, historique d'écoute et sources NAS perdus, sans trace. L'exposition est ce qui
+      compte : ce chemin tourne **une seule fois par testeur**, juste après une mise à jour, donc
+      au moment où l'on redémarre. Nouveau module `migration/durabilite.rs`, et l'ordre
+      « durable, puis irréversible » est tenu par un test de forme (`migration-durable.test.ts`),
+      **éprouvé par injection de la vraie faute sur le vrai fichier**. Deux inconnues de la
+      documentation d'Apple ont été mesurées plutôt que pariées — un dossier s'ouvre bien avec
+      `File::open` et `F_FULLFSYNC` l'accepte — parce qu'une erreur là aurait fait échouer
+      **toutes** les migrations. **Coût mesuré : 90 ms** sur le dossier réel de Thomas (2 444
+      fichiers, 283 Mo), consigné dans le code pour qu'il ne serve pas de prétexte à l'enlever.
+    - **Le détecteur d'INV-06 était contournable, et c'est le compilateur qui le ferme
+      maintenant.** `CLE_V1_EXCLUSIONS` était `pub` et sa valeur *est* le mot que le détecteur
+      cherche à la lettre : n'importe quel fichier pouvait écrire `DELETE FROM
+      {CLE_V1_EXCLUSIONS}` sans qu'un seul caractère de ce nom apparaisse dans le dépôt. Les deux
+      clés sont redevenues `pub(crate)` — un `pub use` d'un item `pub(crate)` ne compile pas — et
+      ce qui sort du crate est `reprise_v1::config_de_v1`, qui sait seulement **fabriquer** un
+      `config.json` de V1. Effet de bord heureux : les **trois** fichiers de tests qui recopiaient
+      la même fabrique n'en ont plus qu'une, et « n'oublie pas d'utiliser la constante partout »
+      était exactement la forme de règle qu'INV-06 existe pour ne plus écrire. Deux tests de
+      forme en seconde ligne, tous deux éprouvés par injection : les clés doivent être déclarées
+      `pub(crate)`, et aucun fichier ne peut nommer la clé **et** parler à SQLite.
+    - **La surface d'écriture de `tracks`** s'était élargie à tout le module `library` le jour où
+      `inserer` est passé en `pub(super)` pour tenir sous 400 lignes. Un deuxième écrivain ne
+      violerait pas INV-06 par lui-même, mais contournerait les décisions que `repository.rs`
+      prend avant d'écrire — dont le filtre. Un appel hors du dépôt est désormais refusé.
+    - **Une justification fausse, mesurée telle.** « Un secteur abîmé ne change pas la longueur
+      d'un fichier » justifiait la comparaison de contenu. Faux ici : sur APFS, `std::fs::copy`
+      **clone** — mesuré le 2026-11-25, copier 400 Mo n'a consommé **aucun** espace disque — donc
+      les deux lectures portent sur les mêmes blocs. La vérification garde sa valeur (une copie
+      interrompue se voit à la taille ; le jour où la copie n'est plus un clone, la comparaison
+      redevient une vraie comparaison), mais ce qu'elle ne prouvera jamais est maintenant écrit :
+      **cette migration n'est pas une sauvegarde.** Un clone d'un bloc abîmé est le même bloc.
+      Pas de test : la propriété dépend du système de fichiers, et la CI n'est pas sur APFS.
+    - **Et la même mesure a périmé une conséquence acceptée de l'ADR 0010.** Elle annonçait « un
+      pic transitoire de ~283 Mo », et écartait « garder l'original au cas où » parce que ce
+      serait « 283 Mo dupliqués ». Les deux reposent sur une copie d'octets qui n'a pas lieu : un
+      `noir/` conservé et jamais modifié ne coûterait presque rien. Ce n'est pas une décision
+      d'implémentation, donc elle n'est pas prise ici — **une ligne a été ajoutée au tableau des
+      décisions ouvertes** de `docs/adr/README.md`, avec la mesure et le contre-argument (ce que
+      le Finder affichera, et V1 qui resterait utilisable).
+    - **L'outil qui vérifie la migration sur les vraies données était aveugle** à ce qu'il
+      vérifiait : `examples/migrer.rs` n'installait aucun abonné `tracing`, donc tous les
+      avertissements de la migration — fichier caché non déplaçable, ancien dossier non supprimé
+      — partaient dans le vide. C'est le mode de défaut d'INV-21 dans l'outil chargé de voir.
+      Corrigé, et c'est ce qui a permis de lire les 90 ms ci-dessus.
+    - **Ce qui reste, et s'est resserré d'une ligne** : `library/repository.rs` passe de 397 à
+      **398** sur 400, parce que la documentation de la clé devenue `pub(crate)` dit maintenant
+      pourquoi. Le découpage est toujours reporté par Thomas (« Non, plus tard ») et le point de
+      coupe reste celui écrit plus haut. Il reste **deux lignes** de marge : le prochain ajout
+      dans ce fichier déclenchera le découpage, que ce soit prévu ou non.
+    - **`src-tauri/examples/` entre dans les garde-fous, et les listes de zones étaient quatre.**
+      La condition était écrite d'avance en tête de `check` : « ce dossier n'existe pas sur main,
+      il arrive avec la migration (PR #8), et c'est à ce moment-là qu'il faut l'ajouter ». Fait.
+      Le commentaire disait « ces deux listes de zones sont à relire » ; le tour en a trouvé
+      **quatre** — `check-sizes.sh`, le volet Rust d'INV-06, `aucun-chemin-machine` et
+      `references-de-tests`. Toutes élargies, `./check` reste vert (114 fichiers mesurés).
+    - **Et la première tentative n'a pas suffi — c'est la leçon la plus utile de la soirée.**
+      Élargir le corpus du détecteur d'INV-06 a bien couvert trois de ses quatre règles Rust,
+      mais la quatrième — celle qui cherche le nom de la table en clair, donc la **seule** qui
+      s'applique à un exemple, puisqu'un exemple est un autre crate et n'atteint ni `pub(crate)`
+      ni `pub(super)` — gardait **sa propre liste de zones**, écrite à la main trois lignes plus
+      bas. Une faute injectée dans `examples/migrer.rs` est restée **invisible**, et rien ne
+      l'aurait dit sans l'injection : les tests étaient verts, le corpus avait l'air élargi, et
+      la règle 🔴 restait ouverte. Deux listes pour un même périmètre dont une seule élargie,
+      c'est-à-dire le défaut qu'INV-06 décrit, reparu **dans son propre détecteur**. Les quatre
+      règles lisent maintenant un seul corpus. Rangé en tête de `check` avec le reste.
+    - **CLAUDE.md était à 150/150** après le merge de la PR #14 — zéro marge, donc `./check`
+      rouge au prochain ajout. Une des lignes venait de cette session : elle a été récupérée en
+      resserrant une phrase (149/150). Ce n'est pas une solution, c'est un sursis d'une ligne ;
+      le fichier annonce lui-même qu'au-delà de ~150 il faut déplacer quelque chose dans un skill.

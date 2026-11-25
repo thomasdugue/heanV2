@@ -35,8 +35,10 @@ limit=400
 # du dossier à 274 lignes, ce qui a rendu l'ajout gratuit — mais c'est l'ordre inverse qui
 # aurait dû se produire : la règle aurait dû crier, et c'est le découpage qui aurait dû suivre.
 #
-# ⚠️ `src-tauri/examples/` MANQUE ENCORE, et c'est écrit dans la liste « reste à brancher » en
-# tête de `check` : ce dossier n'existe pas sur main, il arrive avec la migration (PR #8).
+# `src-tauri/examples/` est entré le 2026-11-25, avec la PR #8 qui crée le dossier — c'était la
+# condition écrite dans la liste « reste à brancher » en tête de `check`. Son seul fichier,
+# `migrer.rs`, fait 62 lignes : l'ajout est gratuit aujourd'hui, et c'est justement pourquoi il se
+# fait maintenant plutôt que le jour où un exemple aura grossi.
 #
 # ⚠️ QUI VA ROUGIR LE PREMIER, écrit d'avance pour que ce rouge ne soit pas pris pour un faux
 # positif. Les deux fichiers les plus tendus du dépôt, mesurés le 2026-11-23 :
@@ -68,7 +70,7 @@ limit=400
 # qui a corrigé une première version de ce commentaire : elle annonçait `demarrage.rs` comme le
 # prochain à rougir, alors que c'est `repository.rs`. Un avertissement qui nomme le mauvais
 # fichier envoie chercher au mauvais endroit — le même défaut qu'une référence de test morte.
-ZONES=(src src-tauri/src tests src-tauri/tests tools check)
+ZONES=(src src-tauri/src tests src-tauri/tests src-tauri/examples tools check)
 
 # Ce qui n'est pas du code à lire d'un bout à l'autre. Chaque exception a sa raison :
 #   - les binaires : `wc -l` n'y veut rien dire, et le compte serait du bruit ;

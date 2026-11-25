@@ -5,7 +5,9 @@
 
 pub mod audio;
 pub mod commands;
+pub mod demarrage;
 pub mod library;
+pub mod migration;
 pub mod observability;
 pub mod secrets;
 pub mod store;
@@ -39,9 +41,25 @@ pub fn run() {
     // l'utilisateur croirait avoir tout perdu.
     let dossier = library::dossier::dossier_de_donnees()
         .expect("HOME absent ou relatif : impossible de localiser le dossier de données (ADR 0003)");
+
+    // Migration du dossier de V1, ouverture de la base, reprise de la configuration : la
+    // séquence est dans `demarrage`, pas ici, parce que son ORDRE est un invariant et qu'un
+    // invariant écrit dans `run()` n'est pas testable (ADR 0012). Elle échoue si et seulement
+    // si démarrer causerait une perte — un échec de migration en est un, parce qu'ouvrir la
+    // base rendrait cet échec définitif.
+    let ancien = library::dossier::ancien_dossier_de_donnees()
+        .expect("HOME absent : vérifié juste au-dessus");
     let base = library::dossier::base_dans(&dossier);
-    let depot = library::Depot::ouvrir(&base)
-        .unwrap_or_else(|e| panic!("ouverture de la bibliothèque {} : {e}", base.display()));
+    let depot = match demarrage::preparer(&ancien, &dossier) {
+        Ok(depot) => depot,
+        Err(e) => {
+            // Journalisé AVANT de paniquer : un panic part sur stderr, que l'app installée
+            // ne capture pas (INV-21). Ce message-ci doit se retrouver dans le journal que
+            // « Attach recent logs » envoie.
+            tracing::error!(erreur = %e, "Hean ne démarre pas");
+            panic!("{e}");
+        }
+    };
 
     tauri::Builder::default()
         .manage(Mutex::new(depot) as commands::bibliotheque::Bibliotheque)

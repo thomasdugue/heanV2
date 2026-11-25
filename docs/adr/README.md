@@ -19,11 +19,13 @@ qui doit désigner exactement un fichier — ce qu'aucun vérificateur de liens 
 
 ⚠️ **Mais `check-adr.mjs` ne voit que la branche courante** : il lit les fichiers suivis par git,
 donc il ne peut pas détecter une collision avec une branche vivante tant qu'elle n'a pas fusionné.
-**Le numéro se prend donc en regardant ce tableau ET les PR ouvertes.** Le trou à 0010 en est la
-trace : ce numéro a été pris le 2026-11-23 par la PR de migration des données de V1, encore
-ouverte, et la décision suivante a donc pris 0011 plutôt que de rejouer la collision du 2026-11-22.
-Un trou dans la numérotation ne coûte rien ; deux décisions sous le même numéro ont coûté une
-heure et huit renvois à corriger.
+**Le numéro se prend donc en regardant ce tableau ET les PR ouvertes.** C'est arrivé une seconde
+fois le 2026-11-23, et cette fois sans dégât : 0010 était déjà pris par la PR de migration des
+données de V1, encore ouverte et donc invisible pour `check-adr.mjs`. Les deux branches auraient
+passé `./check` chacune de son côté, et la collision n'aurait éclaté qu'au merge. La décision
+suivante a donc pris **0011**, et les deux numéros sont arrivés intacts — c'est l'état qu'on lit
+aujourd'hui dans le tableau. Un trou temporaire dans la numérotation ne coûte rien ; deux
+décisions sous le même numéro ont coûté une heure et huit renvois à corriger.
 
 | # | Décision | État |
 |---|---|---|
@@ -36,7 +38,9 @@ heure et huit renvois à corriger.
 | [0007](0007-format-interne-audio-et-preuve-du-bit-perfect.md) | Format interne audio `i32` à l'échelle 32 bits ; le bit-perfect devient une assertion | Acceptée |
 | [0008](0008-epingler-la-chaine-doutils.md) | La chaîne d'outils Rust est épinglée — `./check` est vraiment identique partout | Acceptée |
 | [0009](0009-bibliotheque-cle-dalbum-et-source-de-verite.md) | La bibliothèque : schéma SQLite strict et versionné, clé d'album typée, le fichier audio comme source de vérité | Acceptée |
+| [0010](0010-methode-de-migration-des-donnees-v1.md) | La méthode de migration des données de V1 : copier à côté, vérifier, échanger, puis supprimer | Acceptée |
 | [0011](0011-derogation-inv-21-pour-les-exemples.md) | Les exemples en ligne de commande écrivent sur stdout : dérogation à INV-21 | Acceptée |
+| [0012](0012-un-echec-de-migration-doit-rester-rattrapable.md) | Un échec de migration doit rester rattrapable : rien n'est créé dans le dossier de données avant son verdict | Acceptée |
 | [0013](0013-une-session-un-perimetre.md) | Une session, un périmètre ; et aucune session n'en démarre une autre | Acceptée |
 
 **Décisions encore ouvertes**, à transformer en ADR dès qu'elles sont prises :
@@ -45,6 +49,7 @@ heure et huit renvois à corriger.
 |---|---|---|
 | **Nouvelle cible de parité** après la passe « davantage de DM Sans » que Thomas fait côté design | phase 4 | Remplacera [`0004`](0004-cible-de-parite.md). Vérifié le 2026-11-21 : DM Sans **se charge** et le redesign v3 l'applique déjà aux grands titres ; la direction est d'élargir sa part. Méthode de réextraction : [`../../bootstrap/02-design/ECARTS-DESIGN.md`](../../bootstrap/02-design/ECARTS-DESIGN.md) §2. |
 | Identité d'une piste : par chemin de fichier, ou morceau logique avec N fichiers ? | phase 3 | 21 % de la bibliothèque est en double — [`../MESURES-V1.md`](../MESURES-V1.md) §10 |
+| **Garder `noir/` après la migration, au lieu de le supprimer ?** La raison de l'avoir écarté était « 283 Mo dupliqués sur le disque » — et cette prémisse est fausse : **mesuré le 2026-11-25, copier 400 Mo sur APFS ne consomme aucun espace**, parce que `std::fs::copy` clone. Un `noir/` conservé et jamais modifié ne coûterait donc presque rien, et offrirait un retour arrière aux ~50 testeurs. À mettre en face : ce que le Finder affichera comme place occupée, et le fait que V1 resterait utilisable. | rien | Remplacerait une conséquence acceptée de [`0010`](0010-methode-de-migration-des-donnees-v1.md) ; la mesure est en tête de `src-tauri/src/migration/verification.rs` |
 | Régime de V1 pendant la reconstruction (gel / hotfix seulement / évolution) | rien | [`0004`](0004-cible-de-parite.md) — la cible, elle, est tranchée |
 | WiFi Sync dans le périmètre de V2, et à quelle phase | rien | [`../../bootstrap/05-postmortem/chantier-wifi-sync/README.md`](../../bootstrap/05-postmortem/chantier-wifi-sync/README.md) |
 | V2 = mise à jour de V1 (même bundle identifier) ou app distincte | phase 7 | [`0003`](0003-dossier-de-donnees.md) |
