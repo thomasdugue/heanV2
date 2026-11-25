@@ -8,8 +8,8 @@
 //!
 //! ## La forme, et pourquoi c'est celle-là
 //!
-//! **Copier dans un dossier provisoire, vérifier, puis échanger, puis supprimer l'original.**
-//! Quatre temps, et chacun ferme un mode de défaut :
+//! **Copier dans un dossier provisoire, vérifier, forcer sur le disque, échanger, supprimer
+//! l'original.** Cinq temps, et chacun ferme un mode de défaut :
 //!
 //! 1. **Copier à côté** (`hean.en-cours-de-migration/`) plutôt que directement dans `hean/`.
 //!    Une copie interrompue — l'application tuée, la machine qui s'endort — laisse alors un
@@ -18,9 +18,13 @@
 //!    une bibliothèque à moitié présente, indistinguable d'une bibliothèque complète.
 //! 2. **Vérifier** (`verification.rs`) : chaque fichier par sa taille, les irremplaçables
 //!    par leur contenu. C'est ce qui autorise l'étape suivante.
-//! 3. **Échanger** : un `rename` du provisoire vers `hean/`. Sur le même volume, c'est
+//! 3. **Forcer sur le disque** (`durabilite.rs`) : `fs::copy` rend la main quand le cache du
+//!    système est à jour, pas quand le disque l'est. Sans ce temps-là, une coupure de courant
+//!    juste après la migration laissait un `hean/` d'apparence complète, des fichiers vides
+//!    dedans et plus de `noir/` du tout. C'est INV-25, née de la relecture de cette PR.
+//! 4. **Échanger** : un `rename` du provisoire vers `hean/`. Sur le même volume, c'est
 //!    atomique — il n'existe aucun instant où `hean/` est à moitié là.
-//! 4. **Supprimer l'original**, et seulement là. L'ADR 0003 l'écrit : « copie puis
+//! 5. **Supprimer l'original**, et seulement là. L'ADR 0003 l'écrit : « copie puis
 //!    vérification puis suppression de l'ancien, pas un `mv` sec ».
 //!
 //! ## Ce qui n'est pas ici
@@ -34,6 +38,7 @@
 //!   tous les autres — le provisoire est effacé, l'original n'a pas bougé. Un pré-contrôle
 //!   ajouterait du code et une façon de se tromper, sans rien garantir de plus.
 
+mod durabilite;
 pub mod inventaire;
 pub mod verification;
 
@@ -80,6 +85,15 @@ pub enum Erreur {
     /// données a besoin de leur étendue, pas d'un symptôme.
     #[error("la copie ne correspond pas à l'original, rien n'a été supprimé — {}", lister(ecarts))]
     Verification { ecarts: Vec<Ecart> },
+    /// Un échec de synchronisation **arrête la migration**, et c'est voulu : l'étape suivante
+    /// est la suppression de `noir/`, qu'on ne fait pas sur une copie dont on ne sait pas si
+    /// elle a atteint le disque (INV-25, et `durabilite` pour le mode de défaut).
+    #[error("la copie n'a pas pu être forcée sur le disque ({dossier}) : {source}")]
+    Durabilite {
+        dossier: String,
+        #[source]
+        source: std::io::Error,
+    },
     #[error("échange du dossier provisoire vers {cible} : {source}")]
     Echange {
         cible: String,
@@ -137,6 +151,21 @@ pub fn migrer_si_necessaire(source: &Path, cible: &Path) -> Result<Rapport, Erre
             // non migrée — et qui refuserait de démarrer en la trouvant « déjà peuplée ».
             ecrire_le_temoin(&provisoire, source, relatifs.len(), octets, ignores)?;
 
+            // **La copie est forcée sur le disque avant toute chose irréversible** (INV-25).
+            // `fs::copy` rend la main quand le cache du système est à jour, pas le disque : une
+            // coupure de courant dans les secondes qui suivaient laissait un `hean/` avec son
+            // témoin et des fichiers vides, `noir/` déjà supprimé. Un échec ici arrête la
+            // migration — rien n'est échangé, rien n'est supprimé, le lancement suivant repart.
+            // (`erreur` et non `source` : dans cette fonction, `source` est le dossier de V1,
+            // et une liaison qui l'éclipserait sur plusieurs lignes est un piège.)
+            if let Err(erreur) = durabilite::rendre_durable(&provisoire) {
+                let _ = std::fs::remove_dir_all(&provisoire);
+                return Err(Erreur::Durabilite {
+                    dossier: provisoire.display().to_string(),
+                    source: erreur,
+                });
+            }
+
             // L'échange est un `rename`, et un `rename` exige une cible vide. Un dossier
             // d'arrivée qui ne contient qu'un `.DS_Store` est vide au sens où nous
             // l'entendons (voir `contient_des_donnees`) mais pas au sens du système : sans
@@ -156,14 +185,29 @@ pub fn migrer_si_necessaire(source: &Path, cible: &Path) -> Result<Rapport, Erre
                 source,
             })?;
 
-            // L'original, enfin. Un échec ici n'est pas fatal : les données sont en
-            // sécurité à l'arrivée, et le témoin empêchera de recommencer.
-            if let Err(e) = std::fs::remove_dir_all(source) {
-                tracing::warn!(
-                    source = %source.display(),
+            // L'original, enfin — **et seulement si le renommage lui-même est durable**
+            // (INV-25) : c'est l'entrée du dossier parent qui porte le nouveau nom, et elle
+            // peut n'être pas encore sur le disque. Sinon on garde `noir/` : 572 Mo occupés
+            // pour rien valent mieux qu'un dossier de données qui n'existe plus sous aucun des
+            // deux noms. Le témoin étant dans `hean/`, le lancement suivant ne recommencera
+            // pas — ce qui est correct, puisque les données, elles, sont bien arrivées.
+            match durabilite::rendre_durable_le_renommage(cible) {
+                // Un échec de suppression n'est pas fatal : les données sont en sécurité à
+                // l'arrivée, et le témoin empêchera de recommencer.
+                Ok(()) => {
+                    if let Err(e) = std::fs::remove_dir_all(source) {
+                        tracing::warn!(
+                            source = %source.display(),
+                            erreur = %e,
+                            "l'ancien dossier n'a pas pu être supprimé — les données sont pourtant bien migrées"
+                        );
+                    }
+                }
+                Err(e) => tracing::error!(
+                    cible = %cible.display(),
                     erreur = %e,
-                    "l'ancien dossier n'a pas pu être supprimé — les données sont pourtant bien migrées"
-                );
+                    "le renommage n'a pas pu être forcé sur le disque : l'ancien dossier est conservé"
+                ),
             }
             tracing::info!(
                 fichiers = relatifs.len(),

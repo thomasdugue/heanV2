@@ -12,15 +12,8 @@
 
 use std::path::{Path, PathBuf};
 
-use hean_lib::library::repository::{CLE_V1_EXCLUSIONS, CLE_V1_RACINES};
+use hean_lib::library::reprise_v1::config_de_v1;
 use hean_lib::migration::{self, Etat};
-
-/// Un `config.json` de V1, composé sans écrire les noms de clés en clair.
-fn config_v1(racines: &str, exclusions: &str) -> String {
-    format!(
-        "{{\"{CLE_V1_RACINES}\":{racines},\"{CLE_V1_EXCLUSIONS}\":{exclusions},\"sentry_enabled\":null}}"
-    )
-}
 
 /// Un bac avec `noir/` dedans, prêt à migrer vers `hean/`.
 struct Bac {
@@ -57,7 +50,7 @@ impl Bac {
         // de clés en clair : INV-06 veut qu'un seul fichier du backend nomme la liste
         // d'exclusion, et un détecteur qui se mettrait à signaler des données de test
         // finirait désarmé (voir `library/repository.rs`).
-        self.poser("config.json", config_v1("[\"/Musique\"]", "[]").as_bytes());
+        self.poser("config.json", config_de_v1(&["/Musique"], &[]).as_bytes());
         self.poser("tracks_cache.json", b"[les pistes]");
         self.poser("metadata_cache.json", b"{les metadonnees}");
         self.poser("playlists.json", br#"[{"nom":"Jazz"}]"#);

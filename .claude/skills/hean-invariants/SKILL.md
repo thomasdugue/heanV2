@@ -25,7 +25,7 @@ D'où les trois piles :
 | Pile | Ce que ça veut dire | Combien |
 |---|---|---|
 | **rayé** | L'architecture de V2 rend la faute inexprimable. Plus de règle à retenir. | 6 |
-| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 16 |
+| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 17 |
 | **irréductible** | Comportement de CoreAudio, de WebKit ou de Gatekeeper. Aucun test ne le prouve. | 2 + 7 pièges |
 
 **La mesure du succès : la pile « irréductible » ne grossit pas, et la pile « test » se
@@ -328,6 +328,30 @@ dette **visible**, que `./check` recompte à chaque passage.
   une écriture, avant la migration du dossier. La conséquence est nulle (une base non vierge
   arrête la migration de toute façon, et une base vierge est effacée juste après), mais
   l'énoncé devait coller au code plutôt que l'inverse. Relevé en relecture du 2026-11-23.
+
+### INV-25 — La copie d'une migration est forcée sur le disque avant que l'original soit supprimé
+- pile : test
+- gravité : 🔴 BLOQUANT
+- couverture : architecture `migration-durable.test.ts` — l'ordre des quatre étapes irréversibles
+- pourquoi : **règle née le 2026-11-25 de la relecture de la PR #8, et mesurée.** La migration
+  copiait, vérifiait, échangeait, puis supprimait `noir/` — dans le bon ordre, et sans jamais
+  rien forcer sur le disque. Or `std::fs::copy` et `std::fs::rename` rendent la main dès que le
+  **cache du système** est à jour, pas le disque ; entre les deux il y a quelques secondes, sans
+  borne garantie. Une extinction brutale dans cette fenêtre — panique noyau, coupure de courant,
+  batterie à plat — laissait au redémarrage un `hean/` avec son témoin, des fichiers vides
+  dedans, et plus de `noir/` du tout : **playlists, historique d'écoute et sources NAS perdus,
+  et plus aucun code pour savoir qu'ils avaient existé.**
+  **Ce qui rend la règle sérieuse n'est pas sa probabilité, c'est son exposition** : ce chemin
+  ne s'exécute qu'une seule fois par testeur, juste après une mise à jour — c'est-à-dire
+  précisément au moment où l'on redémarre sa machine — et il n'y a pas de deuxième chance,
+  puisque l'original a disparu. C'est la même famille qu'INV-22 : un défaut qui ne se voit pas
+  ne se signale pas.
+  **Et le coût est mesuré, pour qu'il ne serve pas de prétexte** : 90 ms sur le dossier réel de
+  Thomas (2 444 fichiers, 283 Mo, le 2026-11-25). La règle ne porte donc pas sur « combien de
+  fichiers synchroniser » — ça se négocie — mais sur l'**ordre** : durable, puis irréversible.
+  D'où la forme de la couverture, un test de forme : la propriété ne s'observe qu'en coupant le
+  courant au bon millième de seconde, mais l'ordre des appels, lui, se lit. (Gravité 🔴 par
+  défaut, comme INV-24, en attendant que Thomas la classe — c'est une perte de données.)
 
 ---
 

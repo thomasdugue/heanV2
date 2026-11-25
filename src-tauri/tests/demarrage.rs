@@ -19,7 +19,8 @@
 use std::path::{Path, PathBuf};
 
 use hean_lib::demarrage;
-use hean_lib::library::repository::{CLE_V1_EXCLUSIONS, CLE_V1_RACINES, MIGRATIONS};
+use hean_lib::library::repository::MIGRATIONS;
+use hean_lib::library::reprise_v1::config_de_v1;
 use hean_lib::library::Depot;
 
 /// Un bac avec `noir/` et `hean/` côte à côte, comme dans `Application Support`.
@@ -56,7 +57,7 @@ impl Bac {
         self.poser("covers/pochette.jpg", b"des octets de pochette");
         self.poser(
             "config.json",
-            config_v1("[\"/Musique\"]", &format!("[\"{exclusion}\"]")).as_bytes(),
+            config_de_v1(&["/Musique"], &[exclusion]).as_bytes(),
         );
     }
 
@@ -69,13 +70,6 @@ impl Drop for Bac {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.base);
     }
-}
-
-/// Un `config.json` de V1, composé sans écrire les noms de clés en clair (INV-06).
-fn config_v1(racines: &str, exclusions: &str) -> String {
-    format!(
-        "{{\"{CLE_V1_RACINES}\":{racines},\"{CLE_V1_EXCLUSIONS}\":{exclusions},\"sentry_enabled\":null}}"
-    )
 }
 
 fn interdire_la_lecture(fichier: &Path) {
@@ -282,7 +276,13 @@ fn un_config_illisible_ne_marque_pas_la_reprise_comme_faite() {
     // tué pendant une sauvegarde. Composé avec la constante du dépôt, pas en clair.
     let config = bac.poser(
         "config.json",
-        format!("{{\"{CLE_V1_RACINES}\":[\"/Mus").as_bytes(),
+        // Un vrai `config.json` coupé en son milieu, et non une forme inventée : c'est
+        // `reprise_v1` qui sait ce que V1 écrivait, et le test se contente de le tronquer.
+        {
+            let entier = config_de_v1(&["/Musique"], &["/Musique/supprimee.flac"]);
+            entier[..entier.len() / 2].to_string()
+        }
+        .as_bytes(),
     );
 
     // Le démarrage réussit — un config abîmé n'empêche pas d'utiliser l'application — mais
@@ -299,7 +299,7 @@ fn un_config_illisible_ne_marque_pas_la_reprise_comme_faite() {
     assert!(!config.exists(), "le dossier de V1 a été migré puis supprimé");
     std::fs::write(
         bac.nouveau().join("config.json"),
-        config_v1("[\"/Musique\"]", "[\"/Musique/supprimee.flac\"]"),
+        config_de_v1(&["/Musique"], &["/Musique/supprimee.flac"]),
     )
     .expect("réparation");
     let depot = bac.preparer().expect("second démarrage");
@@ -332,7 +332,10 @@ fn une_reprise_reussie_ne_se_rejoue_pas_au_demarrage_suivant() {
     // Le `config.json` migré est modifié après coup : une exclusion et une racine de plus.
     std::fs::write(
         bac.nouveau().join("config.json"),
-        config_v1("[\"/Musique\",\"/Ajoute/apres\"]", "[\"/Musique/supprimee.flac\",\"/Ajoute/apres.flac\"]"),
+        config_de_v1(
+            &["/Musique", "/Ajoute/apres"],
+            &["/Musique/supprimee.flac", "/Ajoute/apres.flac"],
+        ),
     )
     .expect("config modifié");
 

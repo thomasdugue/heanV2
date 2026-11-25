@@ -1166,3 +1166,58 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     fausses le même soir** : la PR #13 a découpé le fichier, la PR #15 fait entrer le dossier
     dans la règle. Corrigée plutôt que laissée, parce qu'une affirmation périmée dans ce
     journal est précisément ce qu'il existe pour éviter.
+  - **2026-11-25 — les cinq 🟡, sur demande de Thomas (« Les 🟡 maintenant »). Quatre corrigés,
+    le cinquième reste le sien.**
+    - **Un seul des quatre pouvait faire disparaître des octets, et il est devenu INV-25.** La
+      migration ne forçait rien sur le disque : `fs::copy` et `fs::rename` rendent la main quand
+      le cache du système est à jour, pas le disque. Une extinction brutale dans les secondes qui
+      suivaient laissait un `hean/` avec son témoin, des fichiers vides dedans, et plus de `noir/`
+      — playlists, historique d'écoute et sources NAS perdus, sans trace. L'exposition est ce qui
+      compte : ce chemin tourne **une seule fois par testeur**, juste après une mise à jour, donc
+      au moment où l'on redémarre. Nouveau module `migration/durabilite.rs`, et l'ordre
+      « durable, puis irréversible » est tenu par un test de forme (`migration-durable.test.ts`),
+      **éprouvé par injection de la vraie faute sur le vrai fichier**. Deux inconnues de la
+      documentation d'Apple ont été mesurées plutôt que pariées — un dossier s'ouvre bien avec
+      `File::open` et `F_FULLFSYNC` l'accepte — parce qu'une erreur là aurait fait échouer
+      **toutes** les migrations. **Coût mesuré : 90 ms** sur le dossier réel de Thomas (2 444
+      fichiers, 283 Mo), consigné dans le code pour qu'il ne serve pas de prétexte à l'enlever.
+    - **Le détecteur d'INV-06 était contournable, et c'est le compilateur qui le ferme
+      maintenant.** `CLE_V1_EXCLUSIONS` était `pub` et sa valeur *est* le mot que le détecteur
+      cherche à la lettre : n'importe quel fichier pouvait écrire `DELETE FROM
+      {CLE_V1_EXCLUSIONS}` sans qu'un seul caractère de ce nom apparaisse dans le dépôt. Les deux
+      clés sont redevenues `pub(crate)` — un `pub use` d'un item `pub(crate)` ne compile pas — et
+      ce qui sort du crate est `reprise_v1::config_de_v1`, qui sait seulement **fabriquer** un
+      `config.json` de V1. Effet de bord heureux : les **trois** fichiers de tests qui recopiaient
+      la même fabrique n'en ont plus qu'une, et « n'oublie pas d'utiliser la constante partout »
+      était exactement la forme de règle qu'INV-06 existe pour ne plus écrire. Deux tests de
+      forme en seconde ligne, tous deux éprouvés par injection : les clés doivent être déclarées
+      `pub(crate)`, et aucun fichier ne peut nommer la clé **et** parler à SQLite.
+    - **La surface d'écriture de `tracks`** s'était élargie à tout le module `library` le jour où
+      `inserer` est passé en `pub(super)` pour tenir sous 400 lignes. Un deuxième écrivain ne
+      violerait pas INV-06 par lui-même, mais contournerait les décisions que `repository.rs`
+      prend avant d'écrire — dont le filtre. Un appel hors du dépôt est désormais refusé.
+    - **Une justification fausse, mesurée telle.** « Un secteur abîmé ne change pas la longueur
+      d'un fichier » justifiait la comparaison de contenu. Faux ici : sur APFS, `std::fs::copy`
+      **clone** — mesuré le 2026-11-25, copier 400 Mo n'a consommé **aucun** espace disque — donc
+      les deux lectures portent sur les mêmes blocs. La vérification garde sa valeur (une copie
+      interrompue se voit à la taille ; le jour où la copie n'est plus un clone, la comparaison
+      redevient une vraie comparaison), mais ce qu'elle ne prouvera jamais est maintenant écrit :
+      **cette migration n'est pas une sauvegarde.** Un clone d'un bloc abîmé est le même bloc.
+      Pas de test : la propriété dépend du système de fichiers, et la CI n'est pas sur APFS.
+    - **Et la même mesure a périmé une conséquence acceptée de l'ADR 0010.** Elle annonçait « un
+      pic transitoire de ~283 Mo », et écartait « garder l'original au cas où » parce que ce
+      serait « 283 Mo dupliqués ». Les deux reposent sur une copie d'octets qui n'a pas lieu : un
+      `noir/` conservé et jamais modifié ne coûterait presque rien. Ce n'est pas une décision
+      d'implémentation, donc elle n'est pas prise ici — **une ligne a été ajoutée au tableau des
+      décisions ouvertes** de `docs/adr/README.md`, avec la mesure et le contre-argument (ce que
+      le Finder affichera, et V1 qui resterait utilisable).
+    - **L'outil qui vérifie la migration sur les vraies données était aveugle** à ce qu'il
+      vérifiait : `examples/migrer.rs` n'installait aucun abonné `tracing`, donc tous les
+      avertissements de la migration — fichier caché non déplaçable, ancien dossier non supprimé
+      — partaient dans le vide. C'est le mode de défaut d'INV-21 dans l'outil chargé de voir.
+      Corrigé, et c'est ce qui a permis de lire les 90 ms ci-dessus.
+    - **Ce qui reste, et s'est resserré d'une ligne** : `library/repository.rs` passe de 397 à
+      **398** sur 400, parce que la documentation de la clé devenue `pub(crate)` dit maintenant
+      pourquoi. Le découpage est toujours reporté par Thomas (« Non, plus tard ») et le point de
+      coupe reste celui écrit plus haut. Il reste **deux lignes** de marge : le prochain ajout
+      dans ce fichier déclenchera le découpage, que ce soit prévu ou non.

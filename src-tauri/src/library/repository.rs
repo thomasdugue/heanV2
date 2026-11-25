@@ -93,14 +93,15 @@ pub const MIGRATIONS: &[Migration] = &[Migration {
 /// La clé de la liste d'exclusion dans le `config.json` de V1.
 ///
 /// Elle est ici, et nulle part ailleurs, parce que c'est la règle d'INV-06 : un seul fichier
-/// nomme cette liste. Les tests qui ont besoin de fabriquer un `config.json` de V1 composent
-/// leur JSON avec cette constante au lieu d'écrire le nom en clair — sinon le détecteur
-/// d'architecture, qui cherche ce nom à la lettre dans tout le backend, se mettrait à
-/// signaler des données de test, et un détecteur qui lève des faux positifs finit désarmé.
-pub const CLE_V1_EXCLUSIONS: &str = "excluded_paths";
+/// nomme cette liste. **`pub(crate)` et non `pub`, depuis le 2026-11-25** : sa valeur *est* le
+/// nom de la table que le détecteur cherche à la lettre, donc l'exporter laissait écrire
+/// `DELETE FROM {CLE_V1_EXCLUSIONS}` n'importe où sans que rien ne le voie. Ce qui sort du
+/// crate est `reprise_v1::config_de_v1` — voir là-bas pour le reste du raisonnement.
+pub(crate) const CLE_V1_EXCLUSIONS: &str = "excluded_paths";
 
-/// La clé des dossiers de bibliothèque dans le `config.json` de V1.
-pub const CLE_V1_RACINES: &str = "library_paths";
+/// La clé des dossiers de bibliothèque dans le `config.json` de V1. `pub(crate)` pour la même
+/// raison que sa voisine : les deux se fabriquent ensemble, elles sortent ensemble ou pas.
+pub(crate) const CLE_V1_RACINES: &str = "library_paths";
 
 /// Les colonnes d'une piste telle que l'IPC la rend. Écrites une fois, lues une fois.
 const COLONNES: &str = "path, titre, artiste, album, album_artiste, cle_album, annee, piste, \

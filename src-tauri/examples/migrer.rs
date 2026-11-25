@@ -14,6 +14,17 @@
 //! pas ce que l'utilisateur exécute ne vérifie que son propre scénario.
 
 fn main() {
+    // **Un abonné `tracing`, sinon l'outil est aveugle à ce qu'il vérifie.** La migration dit
+    // beaucoup de choses par ce canal — fichier caché non déplaçable, ancien dossier non
+    // supprimé, temps passé à forcer la copie sur le disque — et sans abonné elles partent
+    // toutes dans le vide, y compris pendant la seule vérification qui touche de vraies
+    // données. C'est le mode de défaut d'INV-21 dans l'outil chargé de voir.
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .with_target(false)
+        .without_time()
+        .init();
+
     let args: Vec<String> = std::env::args().skip(1).collect();
     let [source, cible] = [args.first(), args.get(1)].map(|a| a.cloned().unwrap_or_default());
     if source.is_empty() || cible.is_empty() {

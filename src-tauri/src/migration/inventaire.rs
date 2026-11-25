@@ -53,6 +53,11 @@ pub fn a_migrer(relatif: &Path) -> bool {
 /// pochette perdue se retélécharge ; une playlist perdue ne revient pas. Vérifier les
 /// 275 Mo de `covers/` par leur contenu coûterait quelques secondes de lecture
 /// supplémentaires au premier lancement pour protéger des données **régénérables**.
+///
+/// Ce que cette vérification prouve est plus étroit qu'il n'y paraît, parce que la copie est
+/// un clone sur APFS : `verification.rs` le mesure et le dit en tête de module. L'arbitrage
+/// ci-dessus ne change pas pour autant — il ne coûte rien de garder ces quatre fichiers sous
+/// la forme la plus stricte le jour où la copie ne sera plus un clone.
 pub fn a_verifier_au_contenu(relatif: &Path) -> bool {
     relatif
         .extension()

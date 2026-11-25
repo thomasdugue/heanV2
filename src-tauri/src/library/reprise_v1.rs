@@ -125,6 +125,33 @@ pub fn analyser(config_json: &str) -> Result<Config, Erreur> {
     })
 }
 
+/// Fabrique un `config.json` de V1, pour les deux clés qui nous concernent. L'inverse
+/// d'`analyser`, et le seul moyen d'en écrire un depuis l'extérieur du crate.
+///
+/// **Pourquoi une fonction de production plutôt que trois lignes dans chaque test.** Les
+/// trois fichiers de tests d'intégration qui fabriquaient un `config.json` de V1 recopiaient
+/// chacun le même `format!` sur les deux constantes du dépôt. Pour cela, la clé d'exclusion
+/// devait être exportée hors du crate — or **sa valeur est exactement le nom de la table que
+/// le détecteur d'INV-06 cherche dans tout le backend**. Exportée, elle rendait le détecteur
+/// contournable : `conn.execute(&format!("DELETE FROM {CLE_V1_EXCLUSIONS}"), [])` dans
+/// n'importe quel fichier, et plus un seul test ne rougit. Démontré pendant la relecture de
+/// la PR #8, puis fermé ici : les constantes sont redevenues `pub(crate)`, ce qui sort du
+/// crate est cette fonction, et elle ne sait que **fabriquer** du JSON.
+///
+/// Trois endroits qui répétaient la même chose n'en font plus qu'un, ce qui est le vrai
+/// correctif : « n'oublie pas d'utiliser la constante partout » est la forme de règle qu'INV-06
+/// existe pour ne plus écrire.
+pub fn config_de_v1(racines: &[&str], exclusions: &[&str]) -> String {
+    let mut objet = serde_json::Map::new();
+    objet.insert(CLE_V1_RACINES.to_string(), serde_json::json!(racines));
+    objet.insert(CLE_V1_EXCLUSIONS.to_string(), serde_json::json!(exclusions));
+    // V1 écrivait `"sentry_enabled": null`, et c'est ce qui a appris qu'un `config.json` réel
+    // n'a pas la forme qu'on croit. Le garder ici fait que les tests travaillent sur la forme
+    // rencontrée et non sur une forme idéale.
+    objet.insert("sentry_enabled".to_string(), serde_json::Value::Null);
+    serde_json::Value::Object(objet).to_string()
+}
+
 /// Les chaînes d'un tableau du JSON lu, ou rien si la clé manque ou n'est pas un tableau de
 /// chaînes. V1 écrivait `"sentry_enabled": null` : un JSON de V1 n'a pas la forme qu'on
 /// croit, et une clé qui ne concerne pas la reprise ne doit pas la faire échouer.
@@ -173,6 +200,30 @@ mod tests {
             assert!(matches!(e, Erreur::ConfigIllisible { .. }), "{c:?} : {e}");
             assert!(e.to_string().contains("retentera"), "l'erreur doit dire la suite : {e}");
         }
+    }
+
+    /// `config_de_v1` et `analyser` sont l'un l'inverse de l'autre, et ce test est ce qui
+    /// autorise les tests d'intégration à s'en servir : si la fabrication dérivait de ce que
+    /// V1 écrivait vraiment, ils éprouveraient une forme que personne n'a jamais rencontrée.
+    #[test]
+    fn ce_qui_est_fabrique_se_relit() {
+        let lu = analyser(&super::config_de_v1(
+            &["/Musique", "/NAS"],
+            &["/Musique/supprimee.flac"],
+        ))
+        .expect("du JSON fabriqué par nous doit se lire");
+        assert_eq!(lu.racines, vec!["/Musique", "/NAS"]);
+        assert_eq!(lu.exclusions, vec!["/Musique/supprimee.flac"]);
+    }
+
+    /// Et une liste vide reste une liste vide, pas une clé absente : un testeur sans piste
+    /// supprimée — le cas de Thomas, mesuré le 2026-11-25 — ne doit pas ressembler à un
+    /// `config.json` dont la clé manque.
+    #[test]
+    fn des_listes_vides_se_fabriquent_et_se_relisent() {
+        let json = super::config_de_v1(&[], &[]);
+        assert!(json.contains(super::CLE_V1_RACINES), "la clé est écrite même vide : {json}");
+        assert_eq!(analyser(&json).expect("lu"), super::Config::default());
     }
 
     #[test]

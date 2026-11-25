@@ -9,6 +9,38 @@
 //! Ce qui est vérifié, et ce qui ne l'est pas, est un arbitrage assumé (`inventaire.rs`) :
 //! chaque fichier par sa **taille**, et les fichiers irremplaçables par leur **contenu**.
 //! Une pochette perdue se retélécharge ; une playlist perdue ne revient pas.
+//!
+//! ## Ce que cette vérification prouve, et ce qu'elle ne prouve pas
+//!
+//! **Mesuré le 2026-11-25** : sur APFS, `std::fs::copy` ne recopie pas les octets, il
+//! **clone**. Copier un fichier de 400 Mo n'a consommé aucun espace disque, et `du` annonce
+//! 400 Mo pour chacun des deux — ils partagent les mêmes blocs. Les deux dossiers étant tous
+//! deux sous `Application Support`, donc sur le même volume, c'est toujours ce qui se passe.
+//!
+//! La conséquence est désagréable et il faut l'écrire : **la comparaison de contenu relit
+//! deux fois les mêmes blocs physiques.** Le commentaire d'origine justifiait cette
+//! comparaison par « un secteur abîmé ne change pas la longueur d'un fichier » — c'est vrai
+//! d'une copie d'octets, et faux d'un clone, où il n'existe qu'un seul exemplaire des octets.
+//! Un *pourquoi* faux ne protège pas moins : il fait renoncer à autre chose.
+//!
+//! Ce qu'elle prouve donc réellement :
+//!
+//! - le fichier d'arrivée **existe** et a la bonne longueur — c'est la taille qui le dit, et
+//!   c'est ce qui attrape le cas réel : une copie interrompue, un disque plein ;
+//! - le jour où la copie **n'est plus un clone** — un dossier de données déplacé sur un autre
+//!   volume, un système de fichiers sans clonage, ou `fcopyfile` qui change de comportement —
+//!   la comparaison redevient une vraie comparaison, sans que personne ait à y penser.
+//!
+//! Ce qu'elle ne prouve pas, et ne prouvera jamais sur un clone : que les octets sont
+//! **intacts**. Un clone d'un bloc abîmé est le même bloc abîmé. **Cette migration n'est donc
+//! pas une sauvegarde** : si un fichier de `noir/` était déjà corrompu, `hean/` reçoit la même
+//! corruption et la vérification dit « identique ». Ce que la migration garantit est qu'elle
+//! n'a rien perdu en route, pas que ce qu'elle a transporté était sain.
+//!
+//! Forcer une copie d'octets pour obtenir un vrai second exemplaire serait possible — c'est
+//! 283 Mo et quelques secondes de plus. Ce n'est **pas** fait : ce serait tenir une sauvegarde,
+//! et une sauvegarde ne se fait pas à l'insu de quelqu'un dans son dossier de données. Si ce
+//! choix doit changer un jour, il se tranche dans un ADR, pas ici.
 
 use std::path::{Path, PathBuf};
 
@@ -72,9 +104,10 @@ pub fn verifier(source: &Path, copie: &Path, relatifs: &[PathBuf]) -> Vec<Ecart>
             });
             continue;
         }
-        // Le contenu, pour les seuls fichiers qu'on ne peut pas reconstruire. Une taille
-        // identique ne prouve pas un contenu identique : un secteur abîmé ne change pas la
-        // longueur d'un fichier.
+        // Le contenu, pour les seuls fichiers qu'on ne peut pas reconstruire. Sur APFS la
+        // copie est un clone, donc ces deux lectures portent sur les mêmes blocs : ce qu'elles
+        // attrapent est une copie qui n'est pas celle qu'on croit, pas un secteur abîmé (voir
+        // l'en-tête du module — la justification d'origine était fausse, et mesurée telle).
         if inventaire::a_verifier_au_contenu(relatif) {
             match (std::fs::read(&origine), std::fs::read(&arrivee)) {
                 (Ok(a), Ok(b)) if a != b => ecarts.push(Ecart::Contenu(relatif.clone())),
@@ -150,9 +183,11 @@ mod tests {
 
     #[test]
     fn un_contenu_different_a_taille_egale_est_vu_sur_un_fichier_irremplacable() {
-        // Un secteur abîmé ne change pas la longueur d'un fichier : seule la comparaison
-        // du contenu le voit. D'où la vérification au contenu pour ce qui ne se reconstruit
-        // pas — et son absence pour les pochettes, qui se retéléchargent.
+        // Deux fichiers de même longueur et de contenu différent : seule la comparaison du
+        // contenu le voit. D'où la vérification au contenu pour ce qui ne se reconstruit pas,
+        // et son absence pour les pochettes, qui se retéléchargent. (Ce que ce cas représente
+        // dans la vraie vie n'est pas un secteur abîmé — sur un clone il n'y a qu'un seul
+        // exemplaire des octets — mais une copie qui n'est pas celle qu'on croit.)
         let (s, c) = bac("contenu");
         ecrire(&s, "playlists.json", b"[{\"nom\":\"Jazz\"}]");
         ecrire(&c, "playlists.json", b"[{\"nom\":\"Rock\"}]");

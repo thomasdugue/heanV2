@@ -7,11 +7,53 @@
 // Le test se dérive du catalogue IPC généré, donc il couvrira automatiquement les commandes
 // qui n'existent pas encore.
 import { describe, expect, it } from 'vitest';
-import { lire, sources } from './_lecture';
+import { lire, sansCommentaires, sources } from './_lecture';
 
 const DEPOT_TS = 'src/lib/library/repository.ts';
 const DEPOT_RS = 'src-tauri/src/library/repository.rs';
 const REPRISE_RS = 'src-tauri/src/library/reprise_v1.rs';
+const LIGNES_RS = 'src-tauri/src/library/lignes.rs';
+
+/** Tout le Rust du projet : le backend ET ses tests d'intégration. */
+const RUST = (): [string, string][] => [
+  ...sources('src-tauri/src', ['.rs']),
+  ...sources('src-tauri/tests', ['.rs']),
+];
+
+/** Les façons de parler à SQLite. Si rusqlite en ajoutait une, elle manquerait ici. */
+const SQL =
+  /\.(execute|execute_batch|prepare|query_row|query_map|pragma_update|pragma_query)\s*\(/;
+
+/**
+ * Vrai si ce code sait à la fois **nommer** la clé d'exclusion de V1 et **parler** à SQLite.
+ *
+ * C'est le contournement trouvé en relecture de la PR #8, et il faut le dire en entier pour
+ * qu'on ne « simplifie » pas ce test : la valeur de `CLE_V1_EXCLUSIONS` *est* le nom de la
+ * table que le détecteur ci-dessous cherche à la lettre. Un fichier qui tient la constante et
+ * un `execute` peut donc écrire `DELETE FROM {CLE_V1_EXCLUSIONS}` — effacer la liste des
+ * pistes supprimées, donc violer INV-06 🔴 — **sans qu'un seul caractère de `excluded_paths`
+ * apparaisse** dans le dépôt.
+ *
+ * Le verrou principal est le compilateur : la constante est `pub(crate)`, donc elle ne sort
+ * plus du crate (test ci-dessous). Celui-ci est la seconde ligne, à l'intérieur du crate.
+ */
+export function nommeLaCleEtParleASqlite(code: string): boolean {
+  const propre = sansCommentaires(code);
+  return /\bCLE_V1_EXCLUSIONS\b/.test(propre) && SQL.test(propre);
+}
+
+/**
+ * Vrai si ce code appelle `lignes::inserer`, la seule écriture de la table des pistes.
+ *
+ * `inserer` a dû devenir `pub(super)` le jour où `repository.rs` a frôlé les 400 lignes et
+ * que les écritures de ligne sont parties dans `lignes.rs` : la surface d'écriture de
+ * `tracks` s'est élargie d'un fichier à tout le module `library`. Relevé en relecture. Un
+ * deuxième écrivain ne violerait pas INV-06 par lui-même — mais il contournerait les
+ * décisions que `repository.rs` prend AVANT d'écrire, dont le filtre d'exclusion.
+ */
+export function appelleInserer(code: string): boolean {
+  return /\binserer\s*\(/.test(sansCommentaires(code));
+}
 
 /**
  * Dans quel ordre la reprise de la configuration de V1 écrit ses deux listes.
@@ -84,6 +126,47 @@ describe('INV-06 — une seule construction de liste de pistes', () => {
       .filter(([f, c]) => f !== DEPOT_RS && c.includes('excluded_paths'))
       .map(([f]) => f);
     expect(fautes, `le filtre vit dans ${DEPOT_RS}, et nulle part ailleurs`).toEqual([]);
+  });
+
+  it('la clé d’exclusion de V1 ne sort pas du crate', () => {
+    // `pub` et non `pub(crate)` suffirait à rouvrir le contournement décrit plus haut, et
+    // c'est une modification d'un mot que personne ne relirait comme un danger.
+    const declarations = [...lire(DEPOT_RS).matchAll(/^(pub(?:\(crate\))?) const CLE_V1_\w+/gm)];
+    expect(declarations.length, 'les deux clés du config.json de V1 sont déclarées ici').toBe(2);
+    expect(
+      declarations.map((m) => m[1]),
+      'exportées hors du crate, ces clés rendent le détecteur d’INV-06 contournable',
+    ).toEqual(['pub(crate)', 'pub(crate)']);
+  });
+
+  it('aucun autre fichier ne nomme cette clé en parlant à SQLite', () => {
+    const fautes = RUST()
+      .filter(([f, c]) => f !== DEPOT_RS && nommeLaCleEtParleASqlite(c))
+      .map(([f]) => f);
+    expect(fautes, `nommer la clé ET exécuter du SQL, c’est nommer la table`).toEqual([]);
+  });
+
+  it('le détecteur voit le contournement, et pas la simple lecture de la clé', () => {
+    const faute = 'conn.execute(&format!("DELETE FROM {CLE_V1_EXCLUSIONS}"), []).ok();';
+    expect(nommeLaCleEtParleASqlite(faute)).toBe(true);
+    // `reprise_v1.rs` nomme la clé pour lire un JSON, et ne touche jamais à SQLite : c'est
+    // exactement ce que ce détecteur doit laisser passer.
+    expect(nommeLaCleEtParleASqlite('liste(&lu, CLE_V1_EXCLUSIONS)')).toBe(false);
+    expect(nommeLaCleEtParleASqlite('conn.execute("DELETE FROM racines", []).ok();')).toBe(false);
+  });
+
+  it('seul le dépôt écrit dans la table des pistes', () => {
+    const fautes = RUST()
+      .filter(([f]) => f !== DEPOT_RS && f !== LIGNES_RS)
+      .filter(([, c]) => appelleInserer(c))
+      .map(([f]) => f);
+    expect(fautes, `l’écriture d’une piste passe par ${DEPOT_RS}, qui applique ses règles d’abord`)
+      .toEqual([]);
+  });
+
+  it('le détecteur d’écriture voit un appel et pas une phrase', () => {
+    expect(appelleInserer('inserer(&tx, &lues.track, &lues.cle, t)?;')).toBe(true);
+    expect(appelleInserer('    // on pourrait inserer (ici) sans passer par le dépôt')).toBe(false);
   });
 
   it('la reprise de V1 pose les exclusions AVANT les racines', () => {

@@ -10,21 +10,9 @@
 //! de `../commun/` : mes tests avaient d'abord recopié ces huit lignes de bac, ce qui aurait
 //! fait deux dossiers temporaires à maintenir pour la même chose.
 
-use hean_lib::library::repository::{CLE_V1_EXCLUSIONS, CLE_V1_RACINES};
 use hean_lib::library::reprise_v1;
 
 use crate::commun::Bac;
-
-/// Un `config.json` de V1, composé sans écrire les noms de clés en clair (INV-06).
-fn config_v1(racines: &[&str], exclusions: &[&str]) -> String {
-    let tableau =
-        |v: &[&str]| format!("[{}]", v.iter().map(|x| format!("\"{x}\"")).collect::<Vec<_>>().join(","));
-    format!(
-        "{{\"{CLE_V1_RACINES}\":{},\"{CLE_V1_EXCLUSIONS}\":{},\"sentry_enabled\":null}}",
-        tableau(racines),
-        tableau(exclusions)
-    )
-}
 
 /// **Une piste supprimée dans V1 ne revient pas dans V2.**
 ///
@@ -40,7 +28,7 @@ fn une_piste_exclue_dans_v1_reste_exclue_apres_la_reprise() {
 
     let reprise = reprise_v1::reprendre(
         &mut depot,
-        &config_v1(&[&bac.dossier.display().to_string()], &[&exclue]),
+        &reprise_v1::config_de_v1(&[&bac.dossier.display().to_string()], &[&exclue]),
     )
     .expect("reprise");
     assert_eq!(reprise.racines, 1, "{reprise:?}");
@@ -63,7 +51,7 @@ fn une_piste_exclue_dans_v1_reste_exclue_apres_la_reprise() {
 fn la_reprise_ne_se_rejoue_pas() {
     let bac = Bac::avec("reprise-idempotence", &["tags-nfd.flac"]);
     let chemin = bac.chemin("tags-nfd.flac");
-    let config = config_v1(&[&bac.dossier.display().to_string()], &[&chemin]);
+    let config = reprise_v1::config_de_v1(&[&bac.dossier.display().to_string()], &[&chemin]);
     let mut depot = bac.depot();
 
     assert!(!reprise_v1::reprendre(&mut depot, &config).expect("1re").deja_faite);
@@ -100,7 +88,7 @@ fn un_config_v1_illisible_est_une_erreur_et_ne_marque_rien() {
     let chemin = bac.chemin("tags-nfd.flac");
     let reprise = reprise_v1::reprendre(
         &mut depot,
-        &config_v1(&[&bac.dossier.display().to_string()], &[&chemin]),
+        &reprise_v1::config_de_v1(&[&bac.dossier.display().to_string()], &[&chemin]),
     )
     .expect("après réparation");
     assert!(!reprise.deja_faite, "la reprise ne doit pas avoir été marquée : {reprise:?}");
