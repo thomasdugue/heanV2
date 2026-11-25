@@ -69,6 +69,32 @@ export function appelleInserer(code: string): boolean {
 }
 
 /**
+ * Vrai si ce code **nomme la table des pistes**.
+ *
+ * **La contrepartie du `pub(super)` posé sur `Depot::conn` le 2026-11-25.** Avant, `conn`
+ * était privé : seul `repository.rs` pouvait émettre du SQL, et `lignes.rs` recevait une
+ * transaction qu'il lui passait. Depuis, les onze fichiers de `library/` peuvent exécuter
+ * n'importe quelle requête — y compris sur `tracks` — et aucune des trois règles voisines ne
+ * le voyait : elles surveillent le littéral `excluded_paths`, la constante de V1, et l'appel
+ * à `lignes::inserer`. Un `SELECT … FROM tracks` écrit ailleurs **sans** la constante
+ * `NON_EXCLUE` passait donc en silence, et c'est le mode de défaut exact d'INV-06 : une
+ * piste supprimée reparaît.
+ *
+ * Relevé par `invariant-guardian` sur le diff qui a posé ce `pub(super)`. Il n'y avait pas
+ * de faute — `reglages.rs` ne touche que `racines`, `reprises` et `sources_reseau` — mais
+ * `DELETE FROM tracks` existe désormais dans **deux** fichiers et rien n'épinglait cette
+ * liste de deux. Le découpage reste bon ; c'est son garde-fou qui manquait.
+ *
+ * Le motif cherche le nom **dans une requête** (`FROM tracks`, `INTO tracks`,
+ * `UPDATE tracks`, `TABLE tracks`), et pas le mot seul : `library/types.rs` parle de pistes
+ * en prose, et un détecteur qui rougirait là-dessus serait désarmé par la première
+ * dérogation.
+ */
+export function nommeLaTableDesPistes(code: string): boolean {
+  return /\b(FROM|INTO|UPDATE|TABLE|JOIN)\s+tracks\b/i.test(sansCommentaires(code));
+}
+
+/**
  * Dans quel ordre la reprise de la configuration de V1 écrit ses deux listes.
  *
  * Cherche les appels, pas les commentaires : `exclure(` et `ajouter_racine(` suivis d'une
@@ -206,6 +232,36 @@ describe('INV-06 — une seule construction de liste de pistes', () => {
       `${DEPOT_RS} nomme la clé ET exécute du SQL : c’est le seul fichier autorisé à le faire, ` +
         `et c’est aussi le seul exemplaire réel sur lequel ce détecteur peut se prouver`,
     ).toBe(true);
+  });
+
+  it('seuls deux fichiers nomment la table des pistes dans une requête', () => {
+    const fautes = RUST()
+      .filter(([f]) => f !== DEPOT_RS && f !== LIGNES_RS)
+      .filter(([, c]) => nommeLaTableDesPistes(c))
+      .map(([f]) => f);
+    expect(
+      fautes,
+      `depuis que \`Depot::conn\` est \`pub(super)\`, tout \`library/\` peut écrire : la table ` +
+        `des pistes ne se nomme que dans ${DEPOT_RS} et ${LIGNES_RS}`,
+    ).toEqual([]);
+  });
+
+  it('ce détecteur voit une requête et pas une phrase', () => {
+    expect(nommeLaTableDesPistes('tx.execute("DELETE FROM tracks WHERE path = ?1", p)')).toBe(true);
+    expect(nommeLaTableDesPistes('INSERT INTO tracks (path, titre)')).toBe(true);
+    expect(nommeLaTableDesPistes('UPDATE tracks SET titre = ?1')).toBe(true);
+    // Parler de pistes en prose n'est pas nommer la table : `types.rs` le fait à longueur
+    // de doc, et un détecteur qui rougirait là-dessus serait désarmé par sa première
+    // dérogation.
+    expect(nommeLaTableDesPistes('/// La liste des tracks que la vue affiche')).toBe(false);
+    expect(nommeLaTableDesPistes('let tracks = depot.lister_pistes()?;')).toBe(false);
+  });
+
+  it('et il voit la matière réelle des deux fichiers autorisés', () => {
+    // Sans ces deux lignes, un renommage de la table en phase 3 laisserait la règle verte
+    // sur un ensemble vide — le défaut payé en phase 0 sur `\bTrack\b`.
+    expect(nommeLaTableDesPistes(lire(DEPOT_RS)), `${DEPOT_RS} interroge la table`).toBe(true);
+    expect(nommeLaTableDesPistes(lire(LIGNES_RS)), `${LIGNES_RS} écrit dans la table`).toBe(true);
   });
 
   it('la reprise de V1 pose les exclusions AVANT les racines', () => {

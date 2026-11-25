@@ -147,6 +147,8 @@ describe('INV-17 — les secrets ont un seul point de lecture', () => {
 // Le mécanisme a donc servi pour de vrai, et c'est ce qu'on lui demandait : un détecteur
 // muet dit **quelle phase** le rendra bavard, et cette phase vient avec la dette écrite.
 const MODULE_DU_TROUSSEAU = 'src-tauri/src/network/identifiants.rs';
+/** L'appelant : c'est LÀ que la faute de V1 se réécrirait, en remplaçant un `?`. */
+const APPELANT_DU_TROUSSEAU = 'src-tauri/src/network/mod.rs';
 
 describe('INV-04 — un échec Keychain ne se dégrade jamais en mot de passe vide', () => {
   it('aucun unwrap_or_default() sur un identifiant', () => {
@@ -161,6 +163,20 @@ describe('INV-04 — un échec Keychain ne se dégrade jamais en mot de passe vi
       .toEqual(['let password = retrieve_password().unwrap_or_default();']);
   });
 
+  it('et il repère la même faute écrite en français, comme tout le code de ce dépôt', () => {
+    // ⚠️ **Il ne la repérait PAS avant le 2026-11-25.** Le détecteur ne connaissait que des
+    // mots anglais (`password|keychain|credential|secret`) dans un projet dont le module du
+    // trousseau s'appelle `identifiants.rs` et sa fonction `mot_de_passe()`. Les deux lignes
+    // ci-dessous sont celles qu'on écrirait vraiment, et elles passaient en silence — une
+    // règle 🔴 désarmée par la langue. Relevé par invariant-guardian.
+    for (const faute of [
+      'let mot_de_passe = identifiants::mot_de_passe(&source.id).unwrap_or_default();',
+      'let mdp = lire_du_trousseau(service, compte).unwrap_or_default();',
+    ]) {
+      expect(defautsSilencieuxSurIdentifiants(faute), faute).toEqual([faute]);
+    }
+  });
+
   it('il y a bien un vrai appel au trousseau à surveiller', () => {
     // La PREMIÈRE question d'un détecteur d'interdiction : y a-t-il quelque chose à
     // interdire ? Zéro trouvaille est l'état sain de la règle, donc le test principal ne
@@ -173,18 +189,35 @@ describe('INV-04 — un échec Keychain ne se dégrade jamais en mot de passe vi
     );
   });
 
-  it('et le détecteur voit la faute injectée dans le VRAI fichier', () => {
+  it('et le détecteur voit la faute injectée chez L’APPELANT réel', () => {
     // La seconde question : le détecteur reconnaît-il la **matière réelle** ? Un auto-test
     // sur une ligne inventée ne prouve que ce qu'on a inventé — c'est ce qui a laissé INV-06
-    // désarmé pendant toute la phase 1, auto-test vert à l'appui. Ici la faute de V1 est
-    // injectée dans le texte du fichier réel, à l'endroit exact où elle se produirait.
-    const propre = lire(MODULE_DU_TROUSSEAU);
+    // désarmé pendant toute la phase 1, auto-test vert à l'appui.
+    //
+    // ⚠️ **ET LA PREMIÈRE VERSION DE CETTE ASSERTION ÉTAIT FAUSSE POUR UNE RAISON SUBTILE** :
+    // elle injectait la faute sur `security_framework::passwords::get_generic_password`, dont
+    // le nom **anglais** contient `password`. Elle passait donc, et prouvait seulement que le
+    // détecteur voit l'API tierce — pas qu'il voit les **appelants**, qui sont le site
+    // réaliste de la faute. Un auto-test peut donc être vert *et* viser à côté. Relevé par
+    // invariant-guardian ; l'injection porte maintenant sur l'appel de `network/mod.rs`, là
+    // où un `?` remplacé par `.unwrap_or_default()` ferait tenter au NAS une connexion
+    // anonyme.
+    const propre = lire(APPELANT_DU_TROUSSEAU);
     expect(defautsSilencieuxSurIdentifiants(propre)).toEqual([]);
     const abime = propre.replace(
-      'security_framework::passwords::get_generic_password(service, compte)',
-      'security_framework::passwords::get_generic_password(service, compte).unwrap_or_default()',
+      'identifiants::mot_de_passe(&source.id)?',
+      'identifiants::mot_de_passe(&source.id).unwrap_or_default()',
     );
     expect(abime, "l'injection doit vraiment modifier le fichier").not.toEqual(propre);
     expect(defautsSilencieuxSurIdentifiants(abime).length).toBeGreaterThan(0);
+
+    // Et l'autre bout de la chaîne, dans le module du trousseau lui-même.
+    const trousseau = lire(MODULE_DU_TROUSSEAU);
+    const abime2 = trousseau.replace(
+      'security_framework::passwords::get_generic_password(service, compte)',
+      'security_framework::passwords::get_generic_password(service, compte).unwrap_or_default()',
+    );
+    expect(abime2).not.toEqual(trousseau);
+    expect(defautsSilencieuxSurIdentifiants(abime2).length).toBeGreaterThan(0);
   });
 });

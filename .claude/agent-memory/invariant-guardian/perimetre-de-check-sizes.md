@@ -1,24 +1,31 @@
 ---
 name: perimetre-de-check-sizes
-description: La limite de 400 lignes n'est appliquée que sur src, src-tauri/src, tests et tools — src-tauri/tests est hors scan, et bibliotheque.rs y dépasse déjà la limite
+description: Périmètre réel de la limite de 400 lignes depuis l'inversion du 2026-11-23 — six zones, toutes extensions sauf exceptions écrites, corpus git ; et les deux fichiers qui rougiront les premiers
 metadata:
   type: reference
 ---
 
-`tools/check-sizes.sh` boucle sur quatre dossiers : `src`, `src-tauri/src`, `tests`, `tools`.
-**`src-tauri/tests/` n'y est pas** — donc la règle « aucun fichier ne dépasse ~400 lignes »
-n'y est pas tenue, et `./check` reste vert.
+`tools/check-sizes.sh`, **vérifié le 2026-11-25** (136 fichiers mesurés, verdict OK) :
 
-Au 2026-11-23 : `src-tauri/tests/bibliotheque.rs` = 487 lignes (416 avant cette branche),
-`decodage.rs` 274, `bit_perfect.rs` 166. Le dépassement est donc **déjà réel** et il grossit à
-chaque phase, puisque c'est le fichier où atterrissent les tests d'intégration de la bibliothèque.
+- `ZONES=(src src-tauri/src tests src-tauri/tests src-tauri/examples tools check)` — les deux
+  trous que je signalais (`src-tauri/tests` depuis le 2026-11-23, `src-tauri/examples` depuis
+  le 2026-11-25) sont **fermés**.
+- La liste d'extensions a été **inversée** le 2026-11-23 : on mesure tout, sauf une liste
+  d'exceptions écrite (binaires, tables de données). Donc `.py` et `.sh` sont couverts — le
+  `wc -l` manuel que je recommandais n'est plus nécessaire, le verdict du script suffit.
+- Corpus = `git ls-files`, donc identique en local et en CI.
 
-Donc, à chaque diff qui ajoute des tests Rust d'intégration :
-`wc -l src-tauri/tests/*.rs` — ne pas se contenter de `bash tools/check-sizes.sh`.
+**Ce qui reste à savoir, et que le script ne dit pas tout seul** : il écrit d'avance qui
+rougira le premier. Au 2026-11-25 : `src-tauri/src/migration/mod.rs` = **400/400, zéro
+marge** (zone jamais déléguée), et `src-tauri/src/library/repository.rs` était à 398 avant
+d'être redescendu à 368 par l'extraction de `reglages.rs` et `lignes.rs`. Un diff qui ajoute
+dix lignes à `migration/mod.rs` est donc rouge par construction : ce n'est pas un faux
+positif, c'est la règle qui réclame un découpage.
 
-**Why:** même nature que [[verifier-inv-21-completement]] — `src-tauri/tests/` était aussi
-l'angle mort d'INV-21 jusqu'au 2026-11-22. Un dossier oublié par un garde-fou le reste pour
-tous les garde-fous écrits sur le même modèle.
-**How to apply:** vérifier le périmètre du script, pas seulement son verdict. Et si le diff
-ajoute `src-tauri/tests/` au scan, s'attendre à un rouge immédiat sur `bibliotheque.rs` : il
-faudra découper avant, pas après.
+**Why:** la leçon de V1 porte sur la taille, pas sur l'extension ni sur le dossier — et
+`./check` ne dit « OK » que sur ce qu'il regarde. Le périmètre a changé deux fois en trois
+jours : il se relit, il ne se suppose pas.
+**How to apply:** faire confiance au verdict du script pour la limite elle-même ; garder
+l'œil sur les deux fichiers tendus ci-dessus et sur `src-tauri/src/library/repository.rs`,
+dont le découpage est contraint par INV-06 (lui seul peut nommer la table des exclusions).
+Voir [[verifier-inv-21-completement]] pour la même méthode appliquée aux autres garde-fous.

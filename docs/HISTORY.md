@@ -1538,3 +1538,61 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
 7. **Facultatif, si tu veux éprouver le filet** : éteins le NAS, et relance « Scanner cette source ».
    Tu dois obtenir une **erreur** — pas une bibliothèque qui retombe à 305 pistes. Rallume, rescanne,
    tout revient.
+- **2026-11-25** (fin de soirée) : **relecture du NAS par `invariant-guardian`, et ses cinq
+  suites.** Verdict : AVERTISSEMENT — aucune règle cassée, mais **trois mécanismes 🔴 plus
+  faibles que ce que leur texte annonçait**, plus un chemin mort. C'est exactement ce qu'un test
+  ne voit pas, et les trois sont du même genre : le code était juste, les garde-fous ne
+  l'étaient pas. `./check` vert : 189 tests Rust, 97 tests d'architecture et unitaires.
+  - **Le détecteur d'INV-04 (🔴) ne parlait pas la langue du code, et son auto-test le cachait.**
+    Il ne retenait une ligne que si elle portait `password|keychain|credential|secret` — **que de
+    l'anglais** — dans un projet dont le module du trousseau s'appelle `identifiants.rs` et sa
+    fonction `mot_de_passe()`. La faute de V1 réécrite en français passait donc au vert.
+    **Et l'assertion « il voit la matière réelle », ajoutée le matin même, passait aussi** : elle
+    injectait la faute sur `security_framework::passwords::get_generic_password`, dont le nom
+    d'API tierce contient `password`. Elle prouvait que le détecteur voit la bibliothèque, pas
+    qu'il voit **les appelants** — qui sont le site réaliste de la faute, et où un `?` remplacé
+    par `.unwrap_or_default()` ferait tenter au NAS une connexion anonyme. Corrigé des deux
+    côtés : la liste de mots porte les deux langues, et l'injection porte sur l'appel de
+    `network/mod.rs`. La leçon est entrée dans le skill : **un détecteur de mots doit parler la
+    langue du code qu'il lit, et une injection se fait chez l'appelant.**
+  - **`pub(super) conn` avait élargi la surface d'écriture de `tracks` sans que rien ne le voie.**
+    Trois règles Rust surveillaient le littéral `excluded_paths`, la clé de V1 et l'appel à
+    `lignes::inserer` ; aucune ne voyait un `DELETE FROM tracks` écrit via `self.conn` dans un
+    autre fichier de `library/`. Il n'y avait pas de faute — vérifié — mais la liste de deux
+    fichiers autorisés n'était épinglée par rien. **Quatrième règle Rust ajoutée** : le nom de
+    table ne se nomme que dans `repository.rs` et `lignes.rs`, avec son auto-test (une requête,
+    pas une phrase) et son assertion de matière réelle. Le découpage reste bon ; c'est sa
+    contrepartie qui manquait.
+  - **INV-27 était éprouvée, son CÂBLAGE ne l'était pas** — et c'est la leçon d'INV-24, reparue
+    dans le test qui venait de faire naître INV-27. `scanner_le_nas` réassemblait les trois temps
+    à la main, parce que `scanner_une_source` fabriquait son client et lisait le trousseau en
+    interne. Donc `Perimetre::Source(uri::prefixe(…))` et `Conclusion::depuis(…)` n'étaient
+    couverts par rien : écrire le préfixe **sans son slash final**, ou `Conclusion::Complete` en
+    dur, faisait disparaître des pistes et **les huit tests restaient verts**. `scanner_avec`
+    prend maintenant la fabrique du partage, et les tests appellent **la** fonction. Vérifié par
+    injection, pas par raisonnement : le préfixe sans slash fait rougir **cinq** tests, et
+    `Conclusion::Complete` en dur fait rougir celui du dossier refusé.
+  - **Une source en accès invité ne pouvait jamais être scannée.** Le mot de passe était lu
+    inconditionnellement, alors que `client.rs` ignore utilisateur et mot de passe quand
+    `invite` est vrai : la source échouait sur « aucun mot de passe pour la source … — l'ouvrir
+    dans Hean et le saisir à nouveau », un message qui envoie chercher au mauvais endroit pour
+    une donnée dont personne n'avait besoin. `mot_de_passe_si_necessaire` est une fonction et non
+    deux lignes dans une fermeture **pour qu'elle s'éprouve** : la fermeture, elle, fabrique un
+    vrai client SMB.
+  - **Et le trou de `tests/ux/` : cinq tests tournaient sans que personne ne lise leur verdict.**
+    `check-comportements.mjs` ne lisait l'état que des titres citant un `Vxxx`/`Wxxx`, et
+    `vitest.config.ts` n'inclut de `tests/ux/` que `contrat-complet.test.ts`. Les cinq tests de
+    `reseau.test.ts` — le mot de passe qui descend sans remonter, la condition V004 partagée
+    entre les deux chemins de scan, l'identifiant dérivé — pouvaient donc **tous rougir sans
+    faire bouger `./check`**. C'est le trou qui a fait naître ce script, reparu **dans ce
+    script**. Troisième moitié de sa règle : un test de `tests/ux/` qui ne cite aucun
+    comportement est un test ordinaire, il doit passer. Éprouvé par injection.
+  - **Ce que la relecture a confirmé sans rien à signaler** : PLAT-2 (un seul verrou de process,
+    `pavao` importé dans un seul fichier, l'ancien client relâché avant d'en créer un neuf),
+    INV-03, INV-21, INV-23, la règle de zone, les 400 lignes, et les comptes d'invariants.
+  - **Une note de contexte qui dépasse cette branche** : le *pourquoi* d'INV-21, INV-25 et INV-26
+    est en partie écrit sur « chez ~50 testeurs », un chiffre qui ne correspond à rien. Les
+    règles ne bougent pas — leur mode de défaut est le même pour un seul utilisateur — mais si
+    cette remise à plat se fait, **ces trois textes doivent la recevoir sans perdre leur
+    pourquoi** : c'est précisément comme ça qu'une règle finit par paraître arbitraire, puis
+    supprimée. Signalé, pas corrigé ici.
