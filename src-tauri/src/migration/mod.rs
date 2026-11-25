@@ -187,9 +187,13 @@ pub fn migrer_si_necessaire(source: &Path, cible: &Path) -> Result<Rapport, Erre
 
             // L'original, enfin — **et seulement si le renommage lui-même est durable**
             // (INV-25) : c'est l'entrée du dossier parent qui porte le nouveau nom, et elle
-            // peut n'être pas encore sur le disque. Sinon on garde `noir/` : 572 Mo occupés
-            // pour rien valent mieux qu'un dossier de données qui n'existe plus sous aucun des
-            // deux noms. Le témoin étant dans `hean/`, le lancement suivant ne recommencera
+            // peut n'être pas encore sur le disque. Sinon on garde `noir/`, et le coût de le
+            // garder est plus faible qu'il n'y paraît : les fichiers migrés sont des **clones**
+            // (voir `verification.rs`), donc ils partagent leurs blocs avec `hean/` et ne sont
+            // pas comptés deux fois. Ce que `noir/` occupe encore en propre est ce qui n'a PAS
+            // été migré — surtout les 289 Mo de `smb_buffer/` — c'est-à-dire environ la moitié
+            // de ses 572 Mo apparents. Dans tous les cas, moins qu'un dossier de données qui
+            // n'existerait plus sous aucun des deux noms. Le témoin étant dans `hean/`, le lancement suivant ne recommencera
             // pas — ce qui est correct, puisque les données, elles, sont bien arrivées.
             match durabilite::rendre_durable_le_renommage(cible) {
                 // Un échec de suppression n'est pas fatal : les données sont en sécurité à

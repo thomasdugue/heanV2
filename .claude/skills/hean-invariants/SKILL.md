@@ -347,7 +347,10 @@ dette **visible**, que `./check` recompte à chaque passage.
   puisque l'original a disparu. C'est la même famille qu'INV-22 : un défaut qui ne se voit pas
   ne se signale pas.
   **Et le coût est mesuré, pour qu'il ne serve pas de prétexte** : 90 ms sur le dossier réel de
-  Thomas (2 444 fichiers, 283 Mo, le 2026-11-25). La règle ne porte donc pas sur « combien de
+  Thomas (2 444 fichiers synchronisés — les 2 443 migrés plus le témoin, écrit juste avant —
+  283 Mo, le 2026-11-25). Il est si bas parce que la copie est un **clone** APFS : il n'y a
+  presque aucune page sale à pousser (voir `migration/durabilite.rs`, qui dit aussi ce que
+  `sync_data` et `sync_all` font vraiment sur Apple — les deux sont `F_FULLFSYNC`). La règle ne porte donc pas sur « combien de
   fichiers synchroniser » — ça se négocie — mais sur l'**ordre** : durable, puis irréversible.
   D'où la forme de la couverture, un test de forme : la propriété ne s'observe qu'en coupant le
   courant au bon millième de seconde, mais l'ordre des appels, lui, se lit. (Gravité 🔴 par

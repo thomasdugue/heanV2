@@ -1252,3 +1252,52 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
       rouge au prochain ajout. Une des lignes venait de cette session : elle a été récupérée en
       resserrant une phrase (149/150). Ce n'est pas une solution, c'est un sursis d'une ligne ;
       le fichier annonce lui-même qu'au-delà de ~150 il faut déplacer quelque chose dans un skill.
+    - **La relecture `invariant-guardian` du commit : AVERTISSEMENT, rien de 🔴.** Elle a retracé
+      elle-même l'ordre d'INV-25 sur **tous** les chemins d'échec, y compris celui où le nettoyage
+      du provisoire échoue à son tour (le témoin reste alors dans le dossier provisoire, donc
+      n'est pas lu : pas d'état pris pour normal), et rejoué le détecteur d'ordre sur le vrai
+      fichier du parent `e4156a0` pour vérifier qu'il y rougit. Trois de ses cinq 🟡 étaient des
+      **affirmations que le code ne tenait pas** — toujours la même famille, trois fois dans la
+      même soirée :
+      1. **mon propre *pourquoi* sur la double synchronisation était faux.** J'avais écrit que
+         `sync_data` serait le `fsync` ordinaire et `sync_all` le `F_FULLFSYNC`. Vérifié dans les
+         sources de la chaîne épinglée par l'ADR 0008 (`std/src/sys/fs/unix.rs`, Rust 1.93.1) :
+         sous `#[cfg(target_vendor = "apple")]`, `os_fsync` **et** `os_datasync` appellent tous
+         les deux `fcntl(fd, F_FULLFSYNC)`. Le code est donc **plus strict** que ce qu'il
+         annonçait — chaque fichier reçoit déjà une barrière disque complète, la sûreté n'était
+         pas en jeu — mais le *pourquoi* l'était, et c'est lui qu'on relit le jour où l'on veut
+         négocier le coût. Réécrit, sourcé, et la mesure cesse d'être un mystère : 90 ms pour
+         2 444 `F_FULLFSYNC` tient parce que la copie est un clone, donc presque aucune page sale.
+      2. **« 572 Mo occupés pour rien »**, à dix lignes d'un code dont le même commit établit que
+         la copie est un clone : les fichiers migrés partagent leurs blocs avec `hean/`, donc ce
+         que `noir/` occupe en propre est ce qui n'a PAS été migré — surtout les 289 Mo de
+         `smb_buffer/`, soit environ la moitié. Conclusion inchangée, prémisse corrigée.
+      3. **l'encadré « qui va rougir le premier » de `check-sizes.sh`** annonçait encore
+         « ramène à 397, rétablit de la marge » et « demarrage.rs 392, 8 de marge ». C'est 398 et
+         395 depuis ce soir. Cet encadré existe précisément pour qu'un rouge futur ne soit pas
+         pris pour un faux positif, et son propre texte dit qu'un avertissement nommant le
+         mauvais fichier envoie chercher au mauvais endroit.
+    - **Et un vrai défaut de harnais, le plus utile de son rapport** : `appelleInserer` n'avait
+      **aucune assertion de matière réelle**. Un renommage anodin de `lignes::inserer` en phase 3
+      et le motif ne matche plus rien : tests verts, surface d'écriture des pistes réouverte en
+      silence. C'est à l'identique le défaut payé en phase 0 — le détecteur de commandes
+      cherchait `\bTrack\b` là où specta émet `Track_Serialize[]`, zéro commande attrapée sur
+      huit, auto-tests verts pendant tout ce temps. Les deux détecteurs sont maintenant ancrés sur
+      le dépôt lui-même, et l'ancrage est éprouvé en injectant le renommage : il rougit.
+      **La leçon, pour le prochain détecteur** : un détecteur doit répondre par une assertion à
+      **deux** questions, pas une. « Est-ce que je regarde quelque chose ? » — la garde de
+      `_lecture` s'en charge depuis le 2026-11-23. « Est-ce que je reconnais quelque chose de
+      réel ? » — celle-là n'était tenue que par hasard, selon le détecteur.
+    - **Ce que la relecture a noté et que je n'ai pas corrigé**, parce que ce serait écrire plus
+      fort que ce n'est vrai dans l'autre sens : la chaîne rendue par `config_de_v1` contient le
+      nom de la table en clair, puisque la clé de V1 et la table de V2 portent le même mot. Qui
+      le veut peut l'en extraire et composer sa requête sans déclencher aucun détecteur. Ce qui
+      est fermé est la duplication **par inadvertance** — le mode de défaut réel d'INV-06 — pas un
+      chemin délibéré. Écrit dans `reprise_v1.rs`, à côté de la fonction.
+    - **Une règle candidate, pas écrite comme invariant : c'est à Thomas de dire si elle en est
+      un.** Chaque garde-fou porte sa propre liste de dossiers — cinq listes — donc un dossier de
+      code vivant qui naît entre dans trois sur cinq et l'oubli est invisible. Vu **trois fois**
+      en trois jours. Proposée par `invariant-guardian`, rangée dans la liste « reste à brancher »
+      en tête de `check` avec son mécanisme et le piège à éviter (le test doit nommer ce qu'il
+      exclut — `bootstrap/` est l'archive figée de V1 — sinon il retourne la liste au lieu de
+      l'unifier, et c'est la faute déjà écartée là-bas).

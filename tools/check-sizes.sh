@@ -43,7 +43,7 @@ limit=400
 # ⚠️ QUI VA ROUGIR LE PREMIER, écrit d'avance pour que ce rouge ne soit pas pris pour un faux
 # positif. Les deux fichiers les plus tendus du dépôt, mesurés le 2026-11-23 :
 #
-#   1. `src-tauri/src/library/repository.rs` — **398 lignes sur main, 2 de marge.** C'est LUI le
+#   1. `src-tauri/src/library/repository.rs` — **398 lignes, 2 de marge.** C'est LUI le
 #      prochain, et il n'a rien à voir avec l'élargissement ci-dessus : il est dans
 #      `src-tauri/src`, donc couvert depuis toujours. Deux raisons de le savoir avant d'ouvrir le
 #      fichier. D'abord la phase 3 y touchera forcément — playlists, favoris et historique
@@ -52,15 +52,20 @@ limit=400
 #      sait comment une piste s'écrit, et le schéma ne peut pas déménager sans rouvrir INV-06,
 #      puisque ce fichier est le seul autorisé à nommer la table des chemins exclus. Le découpage
 #      se prépare donc AVANT d'écrire, pas après avoir vu le rouge.
-#      ⚠️ Et ce point chaud est sur `main` AUJOURD'HUI : il n'est pas apporté par la migration.
-#      La PR #8 fait même l'inverse — vérifié : elle sort quatre fonctions de ce fichier vers un
-#      nouveau `lignes.rs` (109 lignes) et le ramène de 398 à **397**, alors qu'elle y ajoute une
-#      migration de schéma, deux constantes et une méthode. Elle RÉTABLIT de la marge à iso-taille.
+#      ⚠️ Et ce point chaud ne vient PAS de la migration : il était déjà là. La PR #8 a sorti
+#      quatre fonctions de ce fichier vers un nouveau `lignes.rs` (109 lignes) et l'a ramené de
+#      398 à 397 tout en y ajoutant une migration de schéma, deux constantes et une méthode —
+#      puis l'a **rendu à 398** le 2026-11-25, pour cinq lignes de documentation disant pourquoi
+#      la clé de V1 est devenue `pub(crate)`. Donc : à iso-taille, et deux lignes de marge.
+#      Chiffre corrigé le 2026-11-25 — il annonçait encore « ramène à 397, rétablit de la
+#      marge », ce qui était vrai une heure et faux ensuite. C'est le défaut même que cet
+#      encadré existe pour éviter : un avertissement qui dit un chiffre périmé.
 #      La prochaine coupe est d'ailleurs déjà visible : `repository.rs` décide ce qui entre et
 #      sort, `lignes.rs` sait comment une piste s'écrit, et ce qui reste à sortir est un troisième
 #      thème — marqueurs de reprise et racines, qui ne nomment ni la table des chemins exclus ni
 #      les pistes, donc peuvent déménager sans rouvrir INV-06. Question posée à Thomas, pas faite.
-#   2. `src-tauri/tests/demarrage.rs` — 392 lignes, 8 de marge, arrive avec la migration (PR #8).
+#   2. `src-tauri/tests/demarrage.rs` — **395 lignes, 5 de marge**, arrive avec la migration
+#      (PR #8 ; 392 à son premier passage, 395 depuis le 2026-11-25).
 #      Celui-là est bien dans la zone ajoutée ci-dessus, et c'est là qu'atterrira chaque test
 #      futur de la séquence de démarrage.
 #
