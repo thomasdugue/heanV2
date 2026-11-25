@@ -75,12 +75,23 @@ servir aurait rendu le premier scan quasi instantané. **Écarté**, pour trois 
 - la source de vérité d'une métadonnée est **le fichier audio** (INV-07). Un cache d'une autre
   application n'en est pas une.
 
-Le coût est donc assumé, et **estimé** : un en-tête de 1 Mio par fichier, soit ~29 ms de
-transfert à 36 Mo/s plus ~12 ms d'ouverture — **environ 2 minutes pour 3 137 pistes**, une seule
-fois. Les scans suivants ne relisent rien (§4). ⚠️ C'est une **estimation**, pas une mesure : les
-~12 ms par fichier viennent du relevé de V1 transmis à cette session, et
-`docs/MESURES-V1.md` ne porte pas ce chiffre. La mesure réelle se fera au premier scan de
-Thomas, et c'est elle qu'il faudra écrire ici.
+Le coût est assumé, et il est désormais **mesuré** — cette version remplace l'estimation que
+cet ADR portait, parce qu'il demandait lui-même « la mesure réelle se fera au premier scan de
+Thomas, et c'est elle qu'il faudra écrire ici ». Seul ce chiffre change ; la décision, elle, est
+intacte. Le relevé complet est dans [`../HISTORY.md`](../HISTORY.md), au 2026-11-25.
+
+| | estimé | **mesuré** |
+|---|---|---|
+| par fichier | ~41 ms | **~690 ms** |
+| 3 137 pistes | ~2 minutes | **36 minutes** |
+
+**Et l'estimation était fausse d'un facteur 17 pour une raison qui vaut d'être écrite** : elle
+comptait le **débit** (1 Mio à 36 Mo/s) là où le coût réel est la **latence**. Un en-tête de
+1 Mio n'est pas un transfert, c'est un aller-retour — ouvrir, lire, fermer — sur un lien où
+chaque aller-retour se paie, et une centaine de fichiers (MP3, M4A) sont lus en entier par
+dessus. Le raisonnement « combien d'octets ? » ne prédit rien ici ; c'est « combien
+d'allers-retours ? » qui compte. Les scans suivants ne relisent rien (§4), donc ces 36 minutes
+sont payées **une fois**.
 
 **Et l'en-tête ne suffit pas pour tous les formats.** Une durée se lit dans un bloc d'en-tête
 pour FLAC (STREAMINFO), WAV (taille du chunk `data`) et AIFF (COMM) — mais MP3 sans en-tête
