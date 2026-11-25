@@ -14,10 +14,19 @@ const DEPOT_RS = 'src-tauri/src/library/repository.rs';
 const REPRISE_RS = 'src-tauri/src/library/reprise_v1.rs';
 const LIGNES_RS = 'src-tauri/src/library/lignes.rs';
 
-/** Tout le Rust du projet : le backend ET ses tests d'intégration. */
+/**
+ * Tout le Rust du projet : le backend, ses tests d'intégration, et ses exemples.
+ *
+ * `src-tauri/examples/` est entré le 2026-11-25 et c'était un angle mort sur une règle 🔴 : ce
+ * détecteur ne lisait que `src/` et `tests/`, donc un `DELETE` sur la liste d'exclusion écrit
+ * dans un exemple passait **en silence**. Le filet qu'on croyait avoir — la note « muet » de la
+ * dérogation d'INV-21 dans `backend.test.ts` — ne rougit qu'une fois, à l'apparition du dossier,
+ * et signale le dossier et non la faute. Mesuré le 2026-11-23, consigné en tête de `check`.
+ */
 const RUST = (): [string, string][] => [
   ...sources('src-tauri/src', ['.rs']),
   ...sources('src-tauri/tests', ['.rs']),
+  ...sources('src-tauri/examples', ['.rs']),
 ];
 
 /** Les façons de parler à SQLite. Si rusqlite en ajoutait une, elle manquerait ici. */
@@ -122,7 +131,13 @@ describe('INV-06 — une seule construction de liste de pistes', () => {
     // trouvée sur INV-21 en phase 1 : un test d'intégration qui interrogerait la table
     // d'exclusion directement serait un deuxième endroit où le filtre vit — invisible tant
     // que personne n'aurait pensé à regarder là. Relevé par invariant-guardian, phase 2.
-    const fautes = [...sources('src-tauri/src', ['.rs']), ...sources('src-tauri/tests', ['.rs'])]
+    // **Et il passe par `RUST()`, pas par sa propre liste.** Le 2026-11-25, `src-tauri/examples`
+    // a été ajouté au corpus de ce fichier — mais cette règle-ci gardait la sienne, écrite à la
+    // main, et une faute injectée dans `examples/migrer.rs` est restée invisible. Deux listes
+    // pour un même périmètre, dont une seule élargie : c'est le défaut qu'INV-06 décrit, reparu
+    // dans son propre détecteur. Une seule liste, donc, et toute zone qui s'ajoute profite aux
+    // quatre règles d'un coup.
+    const fautes = RUST()
       .filter(([f, c]) => f !== DEPOT_RS && c.includes('excluded_paths'))
       .map(([f]) => f);
     expect(fautes, `le filtre vit dans ${DEPOT_RS}, et nulle part ailleurs`).toEqual([]);

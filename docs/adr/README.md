@@ -41,6 +41,7 @@ décisions sous le même numéro ont coûté une heure et huit renvois à corrig
 | [0010](0010-methode-de-migration-des-donnees-v1.md) | La méthode de migration des données de V1 : copier à côté, vérifier, échanger, puis supprimer | Acceptée |
 | [0011](0011-derogation-inv-21-pour-les-exemples.md) | Les exemples en ligne de commande écrivent sur stdout : dérogation à INV-21 | Acceptée |
 | [0012](0012-un-echec-de-migration-doit-rester-rattrapable.md) | Un échec de migration doit rester rattrapable : rien n'est créé dans le dossier de données avant son verdict | Acceptée |
+| [0013](0013-une-session-un-perimetre.md) | Une session, un périmètre ; et aucune session n'en démarre une autre | Acceptée |
 
 **Décisions encore ouvertes**, à transformer en ADR dès qu'elles sont prises :
 

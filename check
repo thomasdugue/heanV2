@@ -17,17 +17,22 @@
 #   [ ] appel réel sur l'endpoint updater   phase 6  (ENTRETIEN-DU-HARNAIS.md, audit)
 #   [ ] « une version plus récente de la chaîne Rust existe »  (audit hebdo — ADR 0008 :
 #       la contrepartie de l'épinglage, signalée en une ligne et non par un build rouge)
-#   [ ] ajouter src-tauri/tests et src-tauri/examples aux ZONES de check-sizes  (2026-11-23)
-#   [ ] le même angle mort sur INV-06 (🔴) — voir ci-dessous                     (2026-11-23)
+#   [x] ajouter src-tauri/tests et src-tauri/examples aux ZONES de check-sizes  — fait
+#   [x] le même angle mort sur INV-06 (🔴) — voir ci-dessous                     — fait
 #   [ ] « un fichier de docs/generated/ s'annonce-t-il généré ? »                (2026-11-23)
 #
-# Les trois dernières, nées le 2026-11-23 en fermant les trous d'extensions de check-sizes :
+# Les trois nées le 2026-11-23 en fermant les trous d'extensions de check-sizes. Les deux
+# premières sont closes le 2026-11-25, avec la PR #8 qui crée `src-tauri/examples/` : la
+# condition écrite était « c'est à ce moment-là qu'il faut l'ajouter ». Le tour a été fait en
+# entier, et les listes de zones étaient **quatre** et non deux — `check-sizes.sh`, le volet
+# Rust d'INV-06, `aucun-chemin-machine` et `references-de-tests`. Le raisonnement ci-dessous
+# reste écrit : c'est lui qui dira quoi faire à la prochaine zone qui naîtra.
 #
 #   - Les ZONES de `check-sizes.sh` sont, elles aussi, une LISTE. `src-tauri/tests` y est entré
 #     le 2026-11-23 sur décision de Thomas — voir le commentaire des ZONES dans
-#     `tools/check-sizes.sh`, qui dit ce que l'oubli avait coûté. **Il manque encore
-#     `src-tauri/examples/`**, qui n'existe pas sur main : il arrive avec la migration (PR #8),
-#     et c'est à ce moment-là qu'il faut l'ajouter.
+#     `tools/check-sizes.sh`, qui dit ce que l'oubli avait coûté. `src-tauri/examples/` y est
+#     entré le 2026-11-25 avec le dossier lui-même — `migrer.rs` fait 62 lignes, donc l'ajout
+#     était gratuit, et c'est exactement pourquoi il s'est fait ce jour-là.
 #     ⚠️ Le TITRE de la PR #13 annonçait « `src-tauri/tests` entre dans les garde-fous » sans la
 #     nuance : qui lit l'historique sans ouvrir les fichiers en conclut que la règle de taille
 #     les couvrait, ce qui est resté faux deux heures de plus. Son corps, lui, est exact et ne
@@ -44,9 +49,18 @@
 #   - **Le même angle mort sur une règle 🔴** : le volet Rust du détecteur d'INV-06
 #     (`tests/architecture/une-seule-source-de-pistes.test.ts`) ne scanne que `src-tauri/src` et
 #     `src-tauri/tests`. Du SQL sur la liste d'exclusion écrit dans `src-tauri/examples/`
-#     échapperait donc à INV-06. Vérifié le 2026-11-23 : rien de tel aujourd'hui (`migrer.rs`,
-#     51 lignes, zéro `excluded_paths`, sur la branche de migration). Relevé par
-#     invariant-guardian en relecture de la PR #8.
+#     échapperait donc à INV-06. **Fermé le 2026-11-25** : le détecteur lit maintenant
+#     `src-tauri/examples` aussi, et ses quatre règles Rust avec lui. Relevé par
+#     invariant-guardian en relecture de la PR #8 ; vérifié avant comme après qu'il n'y avait
+#     rien de tel dans `migrer.rs`.
+#     ⚠️ ET LA PREMIÈRE TENTATIVE N'A PAS SUFFI, ce qui est la leçon la plus utile de la série :
+#     élargir le corpus du fichier a bien couvert trois règles, mais la quatrième — celle qui
+#     cherche le nom de la table en clair, donc la seule qui s'applique à un exemple, puisqu'un
+#     exemple est un autre crate et n'atteint ni `pub(crate)` ni `pub(super)` — gardait **sa
+#     propre liste de zones**, écrite à la main juste à côté. Une faute injectée dans
+#     `examples/migrer.rs` est donc restée invisible, et seule l'injection l'a dit. Deux listes
+#     pour un même périmètre, dont une seule élargie : le défaut qu'INV-06 décrit, reparu dans
+#     son propre détecteur. Les quatre règles passent maintenant par un seul corpus.
 #     ⚠️ ET NE PAS SE FIER AU FILET QU'ON CROIT AVOIR. L'entrée d'historique de la PR #13 dit
 #     que « `backend.test.ts` refuse déjà tout `.rs` hors des dossiers scannés (ADR 0011) »,
 #     donc qu'aucun garde-fou ne peut oublier `examples/`. Mesuré en simulant son arrivée avec

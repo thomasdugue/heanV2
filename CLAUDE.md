@@ -101,6 +101,11 @@ de pistes — ce qui fait disparaître « n'oublie pas de répéter ce filtre pa
 
 - **Répondre toujours en français.**
 - **Un prompt = une tâche.** Ne pas toucher à ce qui est hors scope.
+- **Une session, un périmètre** — [ADR 0013](docs/adr/0013-une-session-un-perimetre.md). Le brief nomme
+  les fichiers tenus ; le reste se remonte. **Une session n'en démarre pas une autre** : un travail
+  trouvé en chemin devient une ligne dans « Bugs connus » ou une décision ouverte, et Thomas décide.
+  **Jamais deux sessions dans le même fichier** — celle qui le découvre s'arrête, elle n'écrase pas ;
+  exception nommée : les journaux en ajout seul (`docs/HISTORY.md`, l'index des ADR).
 
 Les règles qui ne valent que pour le code — zone audio/UI, 400 lignes par fichier, échappement de
 toute donnée affichée, et les trois règles de performance — sont dans le skill
@@ -113,8 +118,7 @@ Tableau à jour, **généré** : [`docs/generated/invariants.md`](docs/generated
 
 **25 règles** — les 20 de V1 (ses documents en annonçaient 19 : le compte était faux) plus
 cinq nées du postmortem, des mesures de phase 1, de la passe de vérité (INV-23) et de la
-relecture de la migration (INV-24, puis INV-25 : la copie est forcée sur le disque avant que
-l'original soit supprimé). Triées en trois piles :
+relecture de la migration (INV-24 et INV-25). Triées en trois piles :
 
 1. **Rayées (6)** — INV-06, 08, 09, 10, 14, 17 : inexprimables par construction (point d'entrée
    unique, SQLite transactionnel, Svelte réactif, `compile_error!` sur un secret manquant).

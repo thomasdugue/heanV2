@@ -1082,6 +1082,17 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
       WebKit. Le RSS cumulé (201 Mo chargée, 180 Mo vide) surcompte les pages partagées et ne
       doit pas être comparé au budget. **V1 n'a pas été mesurée dans la même passe** : il
       faudra le faire avant de conclure quoi que ce soit sur « V2 fait mieux ».
+- **2026-11-23** (soir, session d'orchestration) : **ADR 0013 — une session, un périmètre.** Cinq
+  sessions tournaient en parallèle, dont trois nées d'elles-mêmes : `passe-verite` avait démarré
+  `champ-format-mpeg`, qui avait démarré `check-sizes-ne-voit-pas`, laquelle s'est mise à modifier
+  `tools/check-sizes.sh` pendant que `harnais-detecteurs` y écrivait. L'écrasement a été évité
+  parce qu'un humain lisait les rapports — le mode de récupération le plus fragile qui soit. Même
+  forme que la collision de numéros d'ADR de la veille (ADR 0008), mais sur un fichier que rien ne
+  surveillait. Trois règles posées (aucune session n'en démarre une autre · un périmètre nommé dans
+  le brief · jamais deux sessions dans le même fichier, hors journaux en ajout seul) et **le
+  détecteur de chevauchement entre branches spécifié mais pas écrit** — il appartient à la session
+  qui tient `tools/`. Tant qu'il n'existe pas, les trois règles sont réclamées, pas mesurées, et
+  l'ADR le dit. Aucun code applicatif touché.
 
 
 - **2026-11-23** (relecture de la migration, puis correction) : **la relecture d'invariants que
@@ -1221,3 +1232,23 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
       pourquoi. Le découpage est toujours reporté par Thomas (« Non, plus tard ») et le point de
       coupe reste celui écrit plus haut. Il reste **deux lignes** de marge : le prochain ajout
       dans ce fichier déclenchera le découpage, que ce soit prévu ou non.
+    - **`src-tauri/examples/` entre dans les garde-fous, et les listes de zones étaient quatre.**
+      La condition était écrite d'avance en tête de `check` : « ce dossier n'existe pas sur main,
+      il arrive avec la migration (PR #8), et c'est à ce moment-là qu'il faut l'ajouter ». Fait.
+      Le commentaire disait « ces deux listes de zones sont à relire » ; le tour en a trouvé
+      **quatre** — `check-sizes.sh`, le volet Rust d'INV-06, `aucun-chemin-machine` et
+      `references-de-tests`. Toutes élargies, `./check` reste vert (114 fichiers mesurés).
+    - **Et la première tentative n'a pas suffi — c'est la leçon la plus utile de la soirée.**
+      Élargir le corpus du détecteur d'INV-06 a bien couvert trois de ses quatre règles Rust,
+      mais la quatrième — celle qui cherche le nom de la table en clair, donc la **seule** qui
+      s'applique à un exemple, puisqu'un exemple est un autre crate et n'atteint ni `pub(crate)`
+      ni `pub(super)` — gardait **sa propre liste de zones**, écrite à la main trois lignes plus
+      bas. Une faute injectée dans `examples/migrer.rs` est restée **invisible**, et rien ne
+      l'aurait dit sans l'injection : les tests étaient verts, le corpus avait l'air élargi, et
+      la règle 🔴 restait ouverte. Deux listes pour un même périmètre dont une seule élargie,
+      c'est-à-dire le défaut qu'INV-06 décrit, reparu **dans son propre détecteur**. Les quatre
+      règles lisent maintenant un seul corpus. Rangé en tête de `check` avec le reste.
+    - **CLAUDE.md était à 150/150** après le merge de la PR #14 — zéro marge, donc `./check`
+      rouge au prochain ajout. Une des lignes venait de cette session : elle a été récupérée en
+      resserrant une phrase (149/150). Ce n'est pas une solution, c'est un sursis d'une ligne ;
+      le fichier annonce lui-même qu'au-delà de ~150 il faut déplacer quelque chose dans un skill.
