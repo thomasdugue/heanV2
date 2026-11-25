@@ -107,8 +107,14 @@ fn un_dossier_v1_complet_se_migre_et_lancien_disparait() {
     // Le cache jetable n'a PAS suivi.
     assert!(!bac.nouveau().join("smb_buffer").exists(), "smb_buffer ne se migre pas");
 
-    // L'ancien dossier a disparu, et le provisoire aussi.
-    assert!(!bac.ancien().exists(), "l'ancien dossier doit être supprimé");
+    // **L'ancien dossier est TOUJOURS LÀ, et c'est la décision de Thomas** (ADR 0014,
+    // INV-26 : « Oui, garde-le »). Cette assertion disait l'inverse jusqu'au 2026-11-25.
+    // Le provisoire, lui, a bien disparu : c'est l'échange qui l'a consommé.
+    assert!(bac.ancien().exists(), "le dossier de V1 n'est jamais supprimé (INV-26)");
+    assert!(
+        bac.ancien().join("playlists.json").exists(),
+        "et il est intact, pas vidé : c'est tout l'objet du retour arrière"
+    );
     assert!(!bac.base.join("hean.en-cours-de-migration").exists());
 }
 
@@ -130,11 +136,19 @@ fn la_migration_est_idempotente() {
     bac.poser_un_dossier_realiste();
     assert_eq!(migrer(&bac).etat, Etat::Faite);
 
-    // Deuxième lancement de l'application : le témoin est là, rien ne se repasse. Et si un
-    // `noir/` réapparaissait (une sauvegarde restaurée), il ne serait pas fusionné de force.
-    std::fs::create_dir_all(bac.ancien()).expect("noir revenu");
+    // **Deuxième lancement, avec le dossier de V1 TOUJOURS LÀ** — et c'est la question que
+    // posait l'ADR 0014 : garder l'original ne doit pas faire remigrer 283 Mo à chaque
+    // démarrage. Ce test l'établit au lieu de le relire : le seul juge est le témoin écrit dans
+    // la cible, donc une source qui survit ne redéclenche rien. Avant le 2026-11-25 ce test
+    // devait recréer `noir/` à la main pour poser la question ; maintenant elle se pose d'elle-même.
+    assert!(bac.ancien().exists(), "la source a survécu au premier passage (INV-26)");
+    // Et son contenu change entre les deux : si la migration repassait, elle écraserait.
     bac.poser("playlists.json", b"[une autre playlist]");
-    assert_eq!(migrer(&bac).etat, Etat::DejaFaite);
+    assert_eq!(
+        migrer(&bac).etat,
+        Etat::DejaFaite,
+        "ni Faite (remigration) ni CibleDejaPeuplee (témoin ignoré) : le témoin seul décide"
+    );
     assert_eq!(
         std::fs::read(bac.nouveau().join("playlists.json")).expect("lecture"),
         br#"[{"nom":"Jazz"}]"#.to_vec(),
@@ -269,15 +283,17 @@ fn un_lien_symbolique_nest_pas_suivi() {
 
 #[test]
 fn un_dossier_v1_qui_ne_contient_que_du_cache_se_migre_quand_meme() {
-    // Rien à garder, mais l'ancien dossier doit disparaître et le témoin être écrit :
-    // sinon la migration serait retentée à chaque lancement, pour rien.
+    // Rien à garder, mais le témoin doit être écrit : sinon la migration serait retentée à
+    // chaque lancement, pour rien. Et depuis l'ADR 0014, c'est le témoin SEUL qui l'empêche,
+    // puisque l'ancien dossier reste là — d'où l'assertion ci-dessous, qui ne vérifie plus une
+    // disparition mais la survie.
     let bac = Bac::neuf("que-du-cache");
     bac.poser("smb_buffer/un.flac", b"temporaire");
     let rapport = migrer(&bac);
     assert_eq!(rapport.etat, Etat::Faite);
     assert_eq!(rapport.fichiers, 0);
     assert_eq!(rapport.ignores, 1);
-    assert!(!bac.ancien().exists());
+    assert!(bac.ancien().exists(), "le dossier de V1 reste, même vide de données (INV-26)");
     assert!(bac.nouveau().join("migration-depuis-noir.json").exists());
 }
 

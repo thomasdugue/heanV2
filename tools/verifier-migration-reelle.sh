@@ -54,7 +54,11 @@ echo "    avant  : $AVANT_FICHIERS fichiers, $AVANT_OCTETS octets (dont $IGNORES
 echo "    après  : $APRES_FICHIERS fichiers"
 fail=0
 [ "$APRES_FICHIERS" -eq "$((AVANT_FICHIERS - IGNORES))" ] || { echo "    ÉCART de compte"; fail=1; }
-[ -d "$BAC/noir" ] && { echo "    l'ancien dossier n'a pas été supprimé"; fail=1; }
+# INV-26 / ADR 0014 : la source DOIT survivre. Cette ligne vérifiait l'inverse jusqu'au
+# 2026-11-25 — « l'ancien dossier n'a pas été supprimé » était une faute, c'est devenu la règle,
+# sur décision de Thomas (« Oui, garde-le »). Et on vérifie qu'il est intact, pas seulement là.
+[ -d "$BAC/noir" ] || { echo "    l'ancien dossier a été supprimé : INV-26 est violé"; fail=1; }
+[ -f "$BAC/noir/playlists.json" ] || { echo "    l'ancien dossier a été vidé"; fail=1; }
 [ -f "$BAC/hean/migration-depuis-noir.json" ] || { echo "    témoin absent"; fail=1; }
 
 # La reprise a-t-elle ramené les dossiers de bibliothèque ? Sans eux, le testeur migré

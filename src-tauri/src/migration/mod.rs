@@ -8,8 +8,8 @@
 //!
 //! ## La forme, et pourquoi c'est celle-là
 //!
-//! **Copier dans un dossier provisoire, vérifier, forcer sur le disque, échanger, supprimer
-//! l'original.** Cinq temps, et chacun ferme un mode de défaut :
+//! **Copier dans un dossier provisoire, vérifier, forcer sur le disque, échanger. Et laisser
+//! l'original en place.** Quatre temps, et chacun ferme un mode de défaut :
 //!
 //! 1. **Copier à côté** (`hean.en-cours-de-migration/`) plutôt que directement dans `hean/`.
 //!    Une copie interrompue — l'application tuée, la machine qui s'endort — laisse alors un
@@ -20,12 +20,19 @@
 //!    par leur contenu. C'est ce qui autorise l'étape suivante.
 //! 3. **Forcer sur le disque** (`durabilite.rs`) : `fs::copy` rend la main quand le cache du
 //!    système est à jour, pas quand le disque l'est. Sans ce temps-là, une coupure de courant
-//!    juste après la migration laissait un `hean/` d'apparence complète, des fichiers vides
-//!    dedans et plus de `noir/` du tout. C'est INV-25, née de la relecture de cette PR.
+//!    juste après la migration laissait un `hean/` d'apparence complète et des fichiers vides
+//!    dedans — certifiés complets par le témoin, donc jamais remigrés. C'est INV-25.
 //! 4. **Échanger** : un `rename` du provisoire vers `hean/`. Sur le même volume, c'est
 //!    atomique — il n'existe aucun instant où `hean/` est à moitié là.
-//! 5. **Supprimer l'original**, et seulement là. L'ADR 0003 l'écrit : « copie puis
-//!    vérification puis suppression de l'ancien, pas un `mv` sec ».
+//!
+//! **Et un cinquième temps qui n'existe plus : supprimer l'original.** L'ADR 0003 puis l'ADR
+//! 0010 en faisaient le dernier geste (« copie puis vérification puis suppression de l'ancien,
+//! pas un `mv` sec »). Thomas a tranché l'inverse le 2026-11-25 — **« Oui, garde-le »** — et
+//! c'est l'ADR 0014 : le dossier de V1 reste en place, comme retour arrière vers la V1. C'est
+//! INV-26, et un test l'assure, parce qu'un « nettoyage » de phase 3 remettrait cette
+//! suppression sans que personne ne la relise comme une décision.
+//! Ce que garder coûte est mesuré, pas supposé — **289 Mio sur 572 Mio apparents**, parce que
+//! les fichiers migrés sont des clones APFS : le détail est dans l'ADR 0014.
 //!
 //! ## Ce qui n'est pas ici
 //!
@@ -185,34 +192,31 @@ pub fn migrer_si_necessaire(source: &Path, cible: &Path) -> Result<Rapport, Erre
                 source,
             })?;
 
-            // L'original, enfin — **et seulement si le renommage lui-même est durable**
-            // (INV-25) : c'est l'entrée du dossier parent qui porte le nouveau nom, et elle
-            // peut n'être pas encore sur le disque. Sinon on garde `noir/`, et le coût de le
-            // garder est plus faible qu'il n'y paraît : les fichiers migrés sont des **clones**
-            // (voir `verification.rs`), donc ils partagent leurs blocs avec `hean/` et ne sont
-            // pas comptés deux fois. Ce que `noir/` occupe encore en propre est ce qui n'a PAS
-            // été migré — surtout les 289 Mo de `smb_buffer/` — c'est-à-dire environ la moitié
-            // de ses 572 Mo apparents. Dans tous les cas, moins qu'un dossier de données qui
-            // n'existerait plus sous aucun des deux noms. Le témoin étant dans `hean/`, le lancement suivant ne recommencera
-            // pas — ce qui est correct, puisque les données, elles, sont bien arrivées.
-            match durabilite::rendre_durable_le_renommage(cible) {
-                // Un échec de suppression n'est pas fatal : les données sont en sécurité à
-                // l'arrivée, et le témoin empêchera de recommencer.
-                Ok(()) => {
-                    if let Err(e) = std::fs::remove_dir_all(source) {
-                        tracing::warn!(
-                            source = %source.display(),
-                            erreur = %e,
-                            "l'ancien dossier n'a pas pu être supprimé — les données sont pourtant bien migrées"
-                        );
-                    }
-                }
-                Err(e) => tracing::error!(
+            // Le renommage est rendu durable à son tour : c'est l'entrée du dossier parent
+            // qui porte le nouveau nom, et la bibliothèque doit être sur le disque avant que
+            // l'application commence à y écrire. **Un échec n'est plus fatal depuis que
+            // l'original survit** — le lancement suivant trouverait le provisoire, l'effacerait
+            // et remigrerait depuis `noir/`, toujours là — donc il est journalisé, et c'est
+            // tout. Il ne garde plus rien d'irréversible : c'est le `rendre_durable` plus haut
+            // qui le fait, et INV-25 porte désormais sur lui seul.
+            if let Err(e) = durabilite::rendre_durable_le_renommage(cible) {
+                tracing::error!(
                     cible = %cible.display(),
                     erreur = %e,
-                    "le renommage n'a pas pu être forcé sur le disque : l'ancien dossier est conservé"
-                ),
+                    "le renommage du dossier de données n'a pas pu être forcé sur le disque"
+                );
             }
+
+            // **Dire où les données d'origine sont restées** (INV-26). Sans cette ligne,
+            // personne ne sait que le filet existe ni où le trouver — et un filet dont on ignore
+            // l'existence n'en est pas un. C'est le raisonnement d'INV-21 appliqué à une bonne
+            // nouvelle : ce journal est le seul canal qui existe aujourd'hui.
+            tracing::info!(
+                ancien = %source.display(),
+                "les données de l'ancienne version sont CONSERVÉES à cet emplacement : la \
+                 migration ne les supprime pas, elles servent de retour arrière (ADR 0014)"
+            );
+
             tracing::info!(
                 fichiers = relatifs.len(),
                 octets,

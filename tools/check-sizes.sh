@@ -64,8 +64,13 @@ limit=400
 #      sort, `lignes.rs` sait comment une piste s'écrit, et ce qui reste à sortir est un troisième
 #      thème — marqueurs de reprise et racines, qui ne nomment ni la table des chemins exclus ni
 #      les pistes, donc peuvent déménager sans rouvrir INV-06. Question posée à Thomas, pas faite.
-#   2. `src-tauri/tests/demarrage.rs` — **395 lignes, 5 de marge**, arrive avec la migration
-#      (PR #8 ; 392 à son premier passage, 395 depuis le 2026-11-25).
+#   2. `src-tauri/tests/demarrage.rs` — **a franchi la limite le 2026-11-25, à 444 lignes**, en
+#      recevant le test d'INV-26. Prédiction tenue, et c'est la seule ligne de cet encadré qui ait
+#      jamais été vérifiée par les faits : il annonçait ce fichier comme le deuxième à rougir et
+#      disait « c'est là qu'atterrira chaque test futur de la séquence de démarrage ». Découpé le
+#      jour même en cinq modules par thème (`tests/demarrage/`), le plus gros à 126 lignes, le
+#      point d'entrée gardant son nom pour ne pas transformer les renvois de l'ADR 0012 en renvois
+#      morts. Donc : **plus de point chaud ici**, et le prochain test de démarrage a de la place.
 #      Celui-là est bien dans la zone ajoutée ci-dessus, et c'est là qu'atterrira chaque test
 #      futur de la séquence de démarrage.
 #

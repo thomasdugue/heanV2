@@ -1,14 +1,18 @@
-// INV-25 — « la copie est forcée sur le disque avant que l'original soit supprimé ».
+// INV-25 — « la copie est sur le disque avant que le témoin ne la certifie ».
+// INV-26 — « la migration ne supprime jamais le dossier de V1 ».
 //
-// Un test de FORME, parce que la propriété n'est pas observable à l'exécution : la prouver
-// demanderait de couper le courant d'un Mac au bon millième de seconde. Ce qui est
-// observable, en revanche, c'est l'ordre des quatre appels dans le code — et c'est tout ce
-// qui sépare « la migration a réussi » de « les données des cinquante testeurs ont disparu ».
+// Deux tests de FORME, parce qu'aucune des deux propriétés ne s'observe à l'exécution ici : la
+// première demanderait de couper le courant d'un Mac au bon millième de seconde, la seconde est
+// bien éprouvée par un test de comportement (`src-tauri/tests/demarrage/retour_arriere.rs`) mais ce qui doit
+// rougir est la **réapparition de l'appel**, pas seulement son effet.
 //
-// Ce que ce test empêche concrètement : que quelqu'un trouve ces synchronisations lentes et
-// les déplace après la suppression, ou les retire. Elles coûtent 90 ms sur le dossier réel
-// de Thomas (mesuré le 2026-11-25, 2 444 fichiers) — mais ce chiffre-là n'est écrit nulle
-// part dans le code qu'on relit quand on cherche à gagner du temps.
+// Ce que ces tests empêchent concrètement :
+//   - qu'on trouve ces synchronisations lentes et qu'on les déplace ou les retire. Elles coûtent
+//     90 ms sur le dossier réel de Thomas (mesuré le 2026-11-25, 2 444 fichiers) — un chiffre
+//     qui n'est pas sous les yeux de qui cherche à gagner du temps ;
+//   - qu'un « nettoyage » de phase 3 remette la suppression de `noir/`. Elle était là jusqu'au
+//     2026-11-25, elle rendait la main plus propre, et Thomas a décidé l'inverse (ADR 0014,
+//     « Oui, garde-le ») : son dossier de V1 est son retour arrière vers la V1.
 import { describe, expect, it } from 'vitest';
 import { lire, sansCommentaires } from './_lecture';
 
@@ -36,11 +40,22 @@ export function ordreDeLaFinDeMigration(source: string): string[] {
     .filter((n, i, tous) => tous.indexOf(n) === i);
 }
 
-const ATTENDU = ['copie-durable', 'echange', 'renommage-durable', 'suppression-de-loriginal'];
+// Plus de `suppression-de-loriginal` : c'est l'objet d'INV-26, et l'absence se vérifie plus bas.
+const ATTENDU = ['copie-durable', 'echange', 'renommage-durable'];
 
-describe('INV-25 — rien d’irréversible avant que la copie soit sur le disque', () => {
-  it('la migration synchronise, échange, synchronise le renommage, puis supprime', () => {
+describe('INV-25 — rien n’est certifié avant que la copie soit sur le disque', () => {
+  it('la migration synchronise, échange, puis synchronise le renommage', () => {
     expect(ordreDeLaFinDeMigration(lire(MIGRATION_RS))).toEqual(ATTENDU);
+  });
+
+  it('INV-26 — et elle ne supprime pas le dossier de V1', () => {
+    // L'étape qui manque à la liste ci-dessus, et qui doit continuer à manquer. Le détecteur
+    // sait la reconnaître — les deux tests suivants le prouvent sur la forme qu'elle avait —
+    // donc son absence ici est une mesure, pas un silence.
+    expect(
+      ordreDeLaFinDeMigration(lire(MIGRATION_RS)),
+      'le dossier de V1 est le retour arrière de Thomas (ADR 0014) : rien ne doit le supprimer',
+    ).not.toContain('suppression-de-loriginal');
   });
 
   it('le détecteur voit la forme qu’avait le code avant le 2026-11-25', () => {

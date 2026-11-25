@@ -14,6 +14,14 @@
 //! été supprimé. **Les playlists, l'historique d'écoute et les sources NAS sont perdus, et
 //! aucun code ne saura plus qu'ils ont existé.**
 //!
+//! ⚠️ **Ce scénario a changé de gravité le 2026-11-25, et il faut le dire ici** : Thomas a
+//! décidé que la migration ne supprime plus `noir/` (ADR 0014, INV-26). Les octets ne sont donc
+//! plus perdus — ils sont dans l'ancien dossier, toujours là. Ce qui reste, et qui justifie
+//! encore cette règle : le témoin certifierait une copie trouée, donc l'application démarrerait
+//! sur une bibliothèque incomplète **sans jamais remigrer**, et son propriétaire n'aurait aucune
+//! raison de soupçonner que ses données entières sont à côté. Réparable à la main par quelqu'un
+//! qui sait ; invisible pour tous les autres.
+//!
 //! La probabilité est faible. L'exposition, elle, est maximale : ce chemin ne s'exécute
 //! **qu'une seule fois** par testeur, juste après une mise à jour, c'est-à-dire précisément
 //! au moment où l'on redémarre souvent sa machine. Et il n'y a pas de deuxième chance :
@@ -50,7 +58,7 @@
 //! `docs/HISTORY.md`). Un `F_FULLFSYNC` par fichier serait ruineux sur des fichiers fraîchement
 //! écrits ; sur un **clone** APFS il n'y a presque aucune page sale à pousser. Si ce coût
 //! devenait un problème, ce qui se négocie est la liste des fichiers synchronisés — jamais
-//! l'ordre « durable, puis supprimer ».
+//! l'ordre « durable, puis certifié ».
 
 use std::fs::File;
 use std::io;
@@ -105,9 +113,12 @@ fn descendre(dossier: &Path) -> io::Result<u32> {
 /// Rend durable le `rename` qui a mis le dossier en place : c'est l'entrée du **parent** qui
 /// porte le nouveau nom, pas le dossier lui-même.
 ///
-/// Appelée après l'échange et avant la suppression de l'original. Sans elle, le dossier
-/// pourrait porter encore son nom provisoire sur le disque au moment où `noir/` disparaît —
-/// et le démarrage suivant ne trouverait ni l'un ni l'autre.
+/// Appelée après l'échange. Elle a d'abord existé pour tenir la suppression de l'original :
+/// sans elle, le dossier pouvait porter encore son nom provisoire sur le disque au moment où
+/// `noir/` disparaissait. **Depuis que l'original survit (ADR 0014), elle ne garde plus rien
+/// d'irréversible** — un renommage non durable fait seulement remigrer au lancement suivant,
+/// depuis un `noir/` toujours en place. Elle reste parce que la bibliothèque doit être sur le
+/// disque avant que l'application commence à y écrire, et parce qu'elle coûte un appel.
 pub fn rendre_durable_le_renommage(cible: &Path) -> io::Result<()> {
     let parent = cible.parent().ok_or_else(|| {
         io::Error::new(
@@ -154,8 +165,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&base);
     }
 
-    /// Et l'échec remonte : il doit empêcher la suppression de l'original, donc il ne peut pas
-    /// être avalé.
+    /// Et l'échec remonte : il doit arrêter la migration avant que le témoin ne certifie une
+    /// copie qui n'est pas sur le disque, donc il ne peut pas être avalé.
     #[test]
     fn un_dossier_absent_est_une_erreur() {
         let base = bac("absent");

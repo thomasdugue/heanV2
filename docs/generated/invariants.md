@@ -2,7 +2,7 @@
 
 <!-- FICHIER GÉNÉRÉ — NE PAS ÉDITER. Source : .claude/skills/hean-invariants/SKILL.md. Régénérer : npm run gen -->
 
-25 règles : 6 rayées par construction, 17 devenues des tests, 2 irréductibles.
+26 règles : 6 rayées par construction, 18 devenues des tests, 2 irréductibles.
 En V1, **3 sur 20** étaient couvertes par un test.
 
 | # | Règle | Pile | Gravité | Ce qui la protège |
@@ -28,7 +28,8 @@ En V1, **3 sur 20** étaient couvertes par un test.
 | INV-21 | Aucun `println!` / `eprintln!` dans le backend | 🧪 test | 🔴 BLOQUANT | architecture `backend.test.ts` |
 | INV-22 | L'intégrité d'un fichier audio ne se vérifie jamais avec le décodeur | 🧪 test | 🔴 BLOQUANT | planifiée (phase 5) — contrôle hors décodeur : durée annoncée par le conteneur contre trames réellement rendues |
 | INV-23 | Un libellé destiné à l'affichage ne vient jamais d'un `{:?}` | 🧪 test | 🟡 AVERTISSEMENT | test `format.rs` (cible `bibliotheque`) — table `FileType` → libellé, une assertion par fixture audio |
-| INV-24 | Rien n'est créé dans le dossier de données avant que la migration ait rendu son verdict | 🧪 test | 🔴 BLOQUANT | test `demarrage.rs` — la séquence réelle de `run()`, rejouée en entier |
-| INV-25 | La copie d'une migration est forcée sur le disque avant que l'original soit supprimé | 🧪 test | 🔴 BLOQUANT | architecture `migration-durable.test.ts` — l'ordre des quatre étapes irréversibles |
+| INV-24 | Rien n'est créé dans le dossier de données avant que la migration ait rendu son verdict | 🧪 test | 🔴 BLOQUANT | test `echec_rattrapable.rs` (cible `demarrage`) — la séquence réelle de `run()`, rejouée en entier |
+| INV-25 | La copie d'une migration est sur le disque avant que le témoin ne la certifie | 🧪 test | 🔴 BLOQUANT | architecture `migration-durable.test.ts` — l'ordre des quatre étapes irréversibles |
+| INV-26 | La migration ne supprime jamais le dossier de V1 | 🧪 test | 🔴 BLOQUANT | architecture `migration-durable.test.ts` — l'appel de suppression ne doit pas reparaître |
 | INV-13 | Mosaïque 28×28 : positionnement absolu, jamais CSS Grid | 🪨 irréductible | 🟡 AVERTISSEMENT | manuelle — piège PLAT-5, détecté a posteriori par la régression visuelle |
 | INV-18 | dylibbundler doit être suivi du fix des LC_RPATH dupliqués | 🪨 irréductible | 🔴 BLOQUANT | manuelle — piège PLAT-6, vérifiable dans le pipeline de release (phase 6) |

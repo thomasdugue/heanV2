@@ -1301,3 +1301,61 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
       en tête de `check` avec son mécanisme et le piège à éviter (le test doit nommer ce qu'il
       exclut — `bootstrap/` est l'archive figée de V1 — sinon il retourne la liste au lieu de
       l'unifier, et c'est la faute déjà écartée là-bas).
+
+- **2026-11-25** (décision de Thomas, après la fusion de la PR #8) : **la migration ne supprime
+  plus le dossier de V1 — « Oui, garde-le ».** ADR [0014](adr/0014-la-migration-conserve-le-dossier-de-v1.md),
+  INV-26, PR #17.
+  - **La question ne se posait que parce qu'une prémisse de l'ADR 0010 était fausse.** Il avait
+    écarté « garder l'original au cas où » parce que ce serait « 283 Mo dupliqués ». Mesuré :
+    sur APFS, `std::fs::copy` **clone** — copier 400 Mo ne consomme aucun espace. Donc les
+    2 443 fichiers migrés partagent leurs blocs avec `hean/`, et ce que `noir/` occupe encore en
+    propre est **289 Mio, entièrement son `smb_buffer/`** (3 fichiers FLAC, mesuré sur le dossier
+    réel). Le retour arrière vers la V1 coûte donc la moitié de ce que l'ADR 0010 croyait, et
+    rien du tout en données dupliquées. Thomas a tranché sur ce chiffre-là.
+  - **Ce qui est tenu par un mécanisme, et pas par cette entrée** : un test de forme refuse que
+    l'appel de suppression reparaisse dans `migration/mod.rs` (il était là la veille, il rendait
+    la main plus propre, et un « nettoyage » de phase 3 le remettrait sans le relire comme une
+    décision) ; un test de comportement rejoue la séquence de démarrage **deux fois** et établit
+    que la source survit intacte et que le second démarrage ne retouche à rien.
+  - **La crainte à écarter était la bonne** : un original qui survit pourrait faire remigrer
+    283 Mo à chaque lancement. Établi par test plutôt que par relecture — le témoin écrit dans la
+    cible est le seul juge, donc le second passage rend `DejaFaite`, ni `Faite` ni
+    `CibleDejaPeuplee`. Le test d'idempotence devait auparavant **recréer `noir/` à la main** pour
+    poser cette question ; elle se pose maintenant d'elle-même.
+  - **Neuf affirmations à retourner, et c'est le vrai coût du changement.** Une décision d'un mot
+    a invalidé : l'en-tête de `migration/mod.rs` (« cinq temps »), celui de `verification.rs`
+    (« la pièce qui autorise la suppression »), deux commentaires de `durabilite.rs`, quatre
+    assertions de tests qui vérifiaient la disparition, et **une ligne de
+    `tools/verifier-migration-reelle.sh` qui échouait si l'ancien dossier survivait** — devenue
+    celle qui échoue s'il disparaît. C'est la leçon de la soirée, pour la troisième fois : ce qui
+    coûte dans un changement de comportement n'est pas le code, c'est ce que le dépôt affirme
+    autour.
+  - **Et INV-25 a changé de gravité le jour de sa naissance.** Elle protégeait contre une perte
+    définitive ; l'original survivant, les octets ne sont plus perdus. Ce qui reste : le témoin
+    certifierait une copie trouée, donc l'application démarrerait sur une bibliothèque incomplète
+    **sans jamais remigrer**, et son propriétaire n'aurait aucune raison de soupçonner que ses
+    données entières sont à côté. Noté dans le skill avec la question posée à Thomas (rester 🔴
+    ou devenir 🟡) ; la règle, elle, ne bouge pas — elle coûte 90 ms.
+  - **Question ouverte, posée et non tranchée** : `smb_buffer/` est un cache **reconstructible**
+    que V1 était censé purger à chaque lancement (W008, correctif `eaee676`) et qu'il n'a pas
+    purgé. Le supprimer ne perdrait aucune donnée et ramènerait le retour arrière à un coût
+    presque nul. Mais « garde-le » répondait à « garder ton dossier V1 », pas à « garder tout sauf
+    le cache ». Au tableau des décisions ouvertes.
+  - **Et la règle des 400 lignes a crié, exactement où elle avait annoncé qu'elle crierait.**
+    `src-tauri/tests/demarrage.rs` est passé à **444 lignes** en recevant le test d'INV-26.
+    L'encadré « qui va rougir le premier » de `tools/check-sizes.sh` nommait ce fichier comme le
+    deuxième à franchir la limite et disait « c'est là qu'atterrira chaque test futur de la
+    séquence de démarrage ». C'est la première fois qu'une de ces prédictions est vérifiée par
+    les faits, et la consigne qui l'accompagnait — « il faudra découper, pas désactiver » — a été
+    suivie le jour même : cinq modules par thème dans `tests/demarrage/`, le plus gros à 126
+    lignes. **Le point d'entrée garde son nom**, et c'est un choix : une douzaine de textes du
+    dépôt renvoient à `src-tauri/tests/demarrage.rs`, dont l'ADR 0012, **et un ADR ne se
+    modifie pas** — déplacer ce nom aurait transformé une décision écrite en renvoi mort. Cargo
+    accepte cette forme (un fichier de cible, un dossier du même nom, des `#[path]` explicites
+    parce que les sous-modules d'une racine de cible se cherchent à côté d'elle).
+  - **Le détecteur de renvois morts m'a attrapé sur ma propre prose**, et c'est la bonne
+    nouvelle du découpage : le commentaire qui explique le piège des `#[path]` citait
+    `tests/bac.rs` — un chemin volontairement inexistant, donné en exemple — et
+    `tests/bibliotheque/main.rs` sans son préfixe `src-tauri/`. Deux renvois morts, refusés.
+    Un détecteur qui n'épargne pas l'explication de son propre contournement est un bon
+    détecteur.

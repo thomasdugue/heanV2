@@ -1,10 +1,18 @@
-//! La vérification d'une copie. **C'est la pièce qui autorise la suppression de l'original.**
+//! La vérification d'une copie. **C'est la pièce qui autorise l'échange** — l'instant où le
+//! dossier provisoire devient la bibliothèque de l'application.
 //!
 //! L'ADR 0003 l'écrit en une phrase : « copie puis vérification puis suppression de
 //! l'ancien, pas un `mv` sec ». La raison tient en deux temps : un `mv` entre deux dossiers
 //! du même volume est instantané et atomique, donc tentant — mais il ne laisse **aucun
 //! moyen de revenir** si V2 se révèle incapable de lire ce qu'il a déplacé. Une copie
 //! vérifiée, elle, garde l'original jusqu'à la preuve que l'arrivée est complète.
+//!
+//! **Et depuis le 2026-11-25, elle le garde tout court** : Thomas a décidé que la migration ne
+//! supprime pas le dossier de V1 (ADR 0014, INV-26). Ce que cette vérification autorise n'est
+//! donc plus une suppression mais une **certification** — le témoin écrit juste après dit
+//! « cette copie est complète », et c'est lui qui empêche de remigrer. Vérifier reste donc
+//! exactement aussi nécessaire : un témoin posé sur une copie trouée ferait démarrer
+//! l'application sur une bibliothèque incomplète, sans plus jamais retenter.
 //!
 //! Ce qui est vérifié, et ce qui ne l'est pas, est un arbitrage assumé (`inventaire.rs`) :
 //! chaque fichier par sa **taille**, et les fichiers irremplaçables par leur **contenu**.
