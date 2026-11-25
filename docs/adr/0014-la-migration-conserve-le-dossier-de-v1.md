@@ -1,12 +1,19 @@
-# 0014 — La migration conserve le dossier de V1
+# 0014 — La migration conserve le dossier de V1, moins son cache de téléchargement
 
 - **Date** : 2026-11-25
 - **État** : Acceptée
-- **Décideur** : **Thomas**, le 2026-11-25. Question posée : « Je fais garder ton dossier V1 au
-  lieu de le supprimer ? » Sa réponse, et c'est ce qui rend l'attribution revérifiable :
-  **« Oui, garde-le »**.
-  Ce qu'il a choisi est donc exactement cela — **ne rien supprimer** — et pas « supprimer sauf le
-  cache ». La question du cache SMB est ouverte plus bas, elle ne se déduit pas de celle-ci.
+- **Décideur** : **Thomas**, le 2026-11-25, en **deux** réponses, et les deux sont citées parce
+  que c'est ce qui rend une attribution revérifiable :
+  1. « Je fais garder ton dossier V1 au lieu de le supprimer ? » → **« Oui, garde-le »** ;
+  2. « Je fais supprimer le cache de 289 Mo en migrant, et garder le reste ? » → **« Oui, jette
+     le cache »**.
+  **La première a été écrite dans cet ADR avant que la seconde soit posée**, et la section
+  « question ouverte » qui portait le cache est devenue la décision n° 2. C'est dit plutôt que
+  lissé : un document qui prétend avoir toujours su ce qu'il sait est un document qu'on ne peut
+  plus relire.
+  Ce que ces deux réponses couvrent est **exactement** leur lettre. « Jette le cache » vise
+  `smb_buffer/`, pas « les caches » : voir le périmètre ci-dessous, et ce qui n'a pas été
+  arbitré.
   **La forme de la décision appartient à la session** : implémentation, tests, et le fait d'en
   faire un invariant. Même distinction que pour les [ADR 0010](0010-methode-de-migration-des-donnees-v1.md)
   et [0012](0012-un-echec-de-migration-doit-rester-rattrapable.md) : « Thomas a décidé ceci » est
@@ -21,7 +28,8 @@
 ## Décision
 
 **La migration de `~/Library/Application Support/noir/` vers `hean/` ne supprime pas le dossier
-d'origine.** Il reste en place, intact, comme retour arrière vers la V1.
+d'origine.** Il reste en place comme retour arrière vers la V1 — **à l'exception de son cache de
+téléchargement `smb_buffer/`**, qui est supprimé après un échange réussi et vérifié.
 
 C'est **INV-26**, tenu par deux mécanismes et non par une phrase :
 
@@ -31,8 +39,31 @@ C'est **INV-26**, tenu par deux mécanismes et non par une phrase :
   (`src-tauri/tests/demarrage/retour_arriere.rs`) : la source survit intacte, et le second démarrage ne retouche
   à rien.
 
-Et la migration **dit** où les données d'origine sont restées, par une ligne de journal. Un
-retour arrière dont personne ne connaît l'existence n'en est pas un.
+Et la migration **dit** où les données d'origine sont restées, et combien d'octets le cache a
+rendus, par deux lignes de journal. Un retour arrière dont personne ne connaît l'existence n'en
+est pas un.
+
+### Le périmètre du cache, au mot près
+
+**`noir/smb_buffer/` et rien d'autre.** C'est une suppression chez cinquante personnes : elle ne
+s'étend pas par déduction.
+
+- Trois autres fichiers de `noir/` portent le mot *cache* — `tracks_cache.json` (1,7 Mo),
+  `added_dates_cache.json` (512 Ko), `network_scan_cache.json` (2,2 Mo) — et ne sont **pas**
+  jetables : c'est l'état de la bibliothèque V1, et c'est `tracks_cache.json` qui porte les
+  **3 443 pistes** de Thomas, donc c'est lui qui rend le retour arrière utile. Les supprimer
+  viderait le filet qu'on vient de décider de garder, pour 4 Mo. Thomas ne les a pas arbitrés.
+- **Après le succès, jamais avant.** La suppression du cache occupe, dans l'ordre d'INV-25, le
+  rang qu'avait celle du dossier : rien ne se supprime tant que l'arrivée n'est pas vérifiée et
+  durable. Le test de forme de `migration-durable.test.ts` tient cet ordre et distingue les deux
+  suppressions, pour qu'INV-26 ne passe pas au vert sur la faute qu'il existe pour voir.
+- **Un échec n'est pas fatal.** Un cache qui résiste coûte 289 Mio, pas une donnée, et faire
+  échouer une migration pour de la place disque serait l'inverse de l'ADR 0012. Avertissement au
+  journal, migration réussie — éprouvé en retirant le droit d'écrire sur `noir/`.
+- **Ce que `smb_buffer/` est** : des fichiers téléchargés du NAS pendant la lecture progressive,
+  nommés par empreinte, que V1 supprime elle-même ensuite. Ceux de Thomas avaient quatre jours :
+  ce ménage n'avait pas eu lieu. Les reperdre ne perd rien, ils se retéléchargent. C'est la seule
+  chose de `noir/` dont on puisse le dire.
 
 ## Pourquoi — et ce que la mesure a changé
 
@@ -60,17 +91,16 @@ rouvrir V1 et retrouver ses playlists, son historique et ses sources NAS. Pendan
 reconstruction complète, avec une cinquantaine de testeurs, c'est le seul retour arrière qui ne
 dépende pas d'une sauvegarde que personne n'a vérifiée.
 
-## Ce que la décision ne dit pas — question ouverte
+## Ce que la décision ne dit toujours pas
 
-**`smb_buffer/` vaut-il d'être supprimé, lui ?** Il pèse 289 Mio à lui seul, en trois fichiers
-FLAC téléchargés depuis le NAS les 21 novembre. C'est un **cache reconstructible** : V1 était
-censé le purger à chaque lancement (comportement W008, correctif de V1 au commit `eaee676`) et il
-ne l'a pas fait. Le supprimer ne perdrait donc aucune donnée — les fichiers se retéléchargent — et
-ramènerait le coût du retour arrière à **presque zéro**.
+**Rien ne nettoiera `noir/` plus tard.** Une fois le cache parti, ce qui reste — 283 Mio de
+fichiers **clonés**, donc partagés avec `hean/` et gratuits — n'a ni échéance, ni purge
+automatique, ni interface pour le supprimer. Le jour où V2 sera jugée sûre, ce sera une décision
+à prendre, pas un comportement à attendre.
 
-Mais Thomas a répondu « garde-le » à « garder ton dossier V1 », pas à « garder tout sauf le
-cache ». La question est donc **posée et non tranchée** : elle est au tableau des décisions
-ouvertes de [`README.md`](README.md).
+**Et les trois fichiers d'état de V1 n'ont pas été arbitrés.** Ils pèsent 4 Mo et portent la
+bibliothèque de V1. On n'y touche pas, et la question ne se posera que si quelqu'un veut
+récupérer ces 4 Mo — ce qui n'a pas de sens aujourd'hui.
 
 ## Conséquences acceptées
 

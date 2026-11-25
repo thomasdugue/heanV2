@@ -365,7 +365,7 @@ dette **visible**, que `./check` recompte à chaque passage.
   courant au bon millième de seconde, mais l'ordre des appels, lui, se lit. (Gravité 🔴 par
   défaut, comme INV-24, en attendant que Thomas la classe — c'est une perte de données.)
 
-### INV-26 — La migration ne supprime jamais le dossier de V1
+### INV-26 — La migration ne supprime pas le dossier de V1, sauf son cache de téléchargement
 - pile : test
 - gravité : 🔴 BLOQUANT
 - couverture : architecture `migration-durable.test.ts` — l'appel de suppression ne doit pas reparaître
@@ -373,6 +373,14 @@ dette **visible**, que `./check` recompte à chaque passage.
   garde-le ».** Question posée : « Je fais garder ton dossier V1 au lieu de le supprimer ? » Il a
   choisi le filet de retour arrière vers la V1. L'ADR 0014 l'acte et remplace sur ce point
   l'ADR 0010, dont la suppression était le quatrième temps.
+  **Une seule exception, nommée, et elle vient de lui aussi** : « Je fais supprimer le cache de
+  289 Mo en migrant, et garder le reste ? » → **« Oui, jette le cache »**. Donc `noir/smb_buffer/`
+  est supprimé après un échange réussi et vérifié, et **lui seul**. Le périmètre est écrit dans
+  `migration/cache_v1.rs`, avec la raison : trois autres fichiers de `noir/` portent le mot
+  *cache* (`tracks_cache.json`, `added_dates_cache.json`, `network_scan_cache.json`) et ne sont
+  pas jetables — c'est l'état de la bibliothèque V1, dont les 3 443 pistes de Thomas. Les
+  supprimer viderait le filet qu'on vient de décider de garder, pour 4 Mo. Une suppression chez
+  quelqu'un ne s'étend pas par déduction : ce qui n'a pas été arbitré n'est pas couvert.
   **Ce n'est pas qu'une préférence : la prémisse de l'ADR 0010 était fausse.** Il écartait
   « garder l'original au cas où » parce que ce serait « 283 Mo dupliqués sur le disque ». Mesuré
   le 2026-11-25 : sur APFS, `std::fs::copy` **clone** — copier 400 Mo ne consomme aucun espace —
@@ -387,6 +395,10 @@ dette **visible**, que `./check` recompte à chaque passage.
   **deux fois** pour établir ce que garder l'original ne casse pas — la source survit intacte, et
   le témoin seul empêche de remigrer 283 Mo à chaque lancement
   (`src-tauri/tests/demarrage/retour_arriere.rs`, plus l'idempotence dans `migration.rs`).
+  **Un échec de la suppression du cache n'est pas fatal** : un cache qui résiste coûte 289 Mio,
+  pas une donnée, et faire échouer une migration pour de la place disque serait l'inverse de ce
+  que l'ADR 0012 a établi. Avertissement au journal, migration réussie (test dans
+  `migration.rs`, qui provoque la panne en retirant le droit d'écrire sur `noir/`).
   **Et le filet doit se savoir** : une ligne de journal dit où les données d'origine sont
   restées. Un retour arrière dont personne ne connaît l'existence n'en est pas un — c'est le
   raisonnement d'INV-21 appliqué à une bonne nouvelle. S'il faut de l'interface pour le dire,

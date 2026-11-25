@@ -30,6 +30,6 @@ En V1, **3 sur 20** étaient couvertes par un test.
 | INV-23 | Un libellé destiné à l'affichage ne vient jamais d'un `{:?}` | 🧪 test | 🟡 AVERTISSEMENT | test `format.rs` (cible `bibliotheque`) — table `FileType` → libellé, une assertion par fixture audio |
 | INV-24 | Rien n'est créé dans le dossier de données avant que la migration ait rendu son verdict | 🧪 test | 🔴 BLOQUANT | test `echec_rattrapable.rs` (cible `demarrage`) — la séquence réelle de `run()`, rejouée en entier |
 | INV-25 | La copie d'une migration est sur le disque avant que le témoin ne la certifie | 🧪 test | 🔴 BLOQUANT | architecture `migration-durable.test.ts` — l'ordre des quatre étapes irréversibles |
-| INV-26 | La migration ne supprime jamais le dossier de V1 | 🧪 test | 🔴 BLOQUANT | architecture `migration-durable.test.ts` — l'appel de suppression ne doit pas reparaître |
+| INV-26 | La migration ne supprime pas le dossier de V1, sauf son cache de téléchargement | 🧪 test | 🔴 BLOQUANT | architecture `migration-durable.test.ts` — l'appel de suppression ne doit pas reparaître |
 | INV-13 | Mosaïque 28×28 : positionnement absolu, jamais CSS Grid | 🪨 irréductible | 🟡 AVERTISSEMENT | manuelle — piège PLAT-5, détecté a posteriori par la régression visuelle |
 | INV-18 | dylibbundler doit être suivi du fix des LC_RPATH dupliqués | 🪨 irréductible | 🔴 BLOQUANT | manuelle — piège PLAT-6, vérifiable dans le pipeline de release (phase 6) |

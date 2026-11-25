@@ -28,10 +28,11 @@ const MIGRATION_RS = 'src-tauri/src/migration/mod.rs';
  */
 export function ordreDeLaFinDeMigration(source: string): string[] {
   const re =
-    /durabilite::rendre_durable_le_renommage|durabilite::rendre_durable|std::fs::rename|std::fs::remove_dir_all\(source\)/g;
+    /durabilite::rendre_durable_le_renommage|durabilite::rendre_durable|cache_v1::jeter|std::fs::rename|std::fs::remove_dir_all\(source\)/g;
   const nom = (m: string): string => {
     if (m.endsWith('renommage')) return 'renommage-durable';
     if (m.endsWith('rendre_durable')) return 'copie-durable';
+    if (m.includes('cache_v1')) return 'cache-jete';
     if (m.includes('rename')) return 'echange';
     return 'suppression-de-loriginal';
   };
@@ -41,11 +42,22 @@ export function ordreDeLaFinDeMigration(source: string): string[] {
 }
 
 // Plus de `suppression-de-loriginal` : c'est l'objet d'INV-26, et l'absence se vérifie plus bas.
-const ATTENDU = ['copie-durable', 'echange', 'renommage-durable'];
+// `cache-jete` est la seule suppression qui reste, et elle vient en dernier — au rang qu'avait
+// celle du dossier : rien ne se supprime tant que l'arrivée n'est pas vérifiée et durable.
+const ATTENDU = ['copie-durable', 'echange', 'renommage-durable', 'cache-jete'];
 
 describe('INV-25 — rien n’est certifié avant que la copie soit sur le disque', () => {
   it('la migration synchronise, échange, puis synchronise le renommage', () => {
     expect(ordreDeLaFinDeMigration(lire(MIGRATION_RS))).toEqual(ATTENDU);
+  });
+
+  it('le détecteur voit la suppression du cache, et la distingue de celle du dossier', () => {
+    // Les deux sont des suppressions, une seule est autorisée : si le motif les confondait,
+    // INV-26 passerait au vert sur la faute qu'il existe pour voir.
+    expect(ordreDeLaFinDeMigration('cache_v1::jeter(source)')).toEqual(['cache-jete']);
+    expect(ordreDeLaFinDeMigration('std::fs::remove_dir_all(source)')).toEqual([
+      'suppression-de-loriginal',
+    ]);
   });
 
   it('INV-26 — et elle ne supprime pas le dossier de V1', () => {

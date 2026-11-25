@@ -43,6 +43,13 @@ limit=400
 # ⚠️ QUI VA ROUGIR LE PREMIER, écrit d'avance pour que ce rouge ne soit pas pris pour un faux
 # positif. Les deux fichiers les plus tendus du dépôt, mesurés le 2026-11-23 :
 #
+#   0. `src-tauri/src/migration/mod.rs` — **400 lignes sur 400, zéro marge**, depuis le
+#      2026-11-25 (ADR 0014 : la migration conserve le dossier de V1, moins son cache). Deux
+#      paragraphes d'en-tête ont déjà été rapatriés dans l'ADR et dans `cache_v1.rs` pour y
+#      entrer — le détail est allé là où il appartenait, ce qui est le bon effet de la règle, mais
+#      il n'en reste plus. Le prochain ajout ici DOIT sortir quelque chose du fichier ; la
+#      frontière la plus nette est l'inventaire des étapes (`copier`, `inventorier`, `descendre`),
+#      qui ne décide rien et pourrait vivre à côté de `inventaire.rs`.
 #   1. `src-tauri/src/library/repository.rs` — **398 lignes, 2 de marge.** C'est LUI le
 #      prochain, et il n'a rien à voir avec l'élargissement ci-dessus : il est dans
 #      `src-tauri/src`, donc couvert depuis toujours. Deux raisons de le savoir avant d'ouvrir le

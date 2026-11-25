@@ -42,7 +42,7 @@ décisions sous le même numéro ont coûté une heure et huit renvois à corrig
 | [0011](0011-derogation-inv-21-pour-les-exemples.md) | Les exemples en ligne de commande écrivent sur stdout : dérogation à INV-21 | Acceptée |
 | [0012](0012-un-echec-de-migration-doit-rester-rattrapable.md) | Un échec de migration doit rester rattrapable : rien n'est créé dans le dossier de données avant son verdict | Acceptée |
 | [0013](0013-une-session-un-perimetre.md) | Une session, un périmètre ; et aucune session n'en démarre une autre | Acceptée |
-| [0014](0014-la-migration-conserve-le-dossier-de-v1.md) | La migration conserve le dossier de V1 : « Oui, garde-le » | Acceptée |
+| [0014](0014-la-migration-conserve-le-dossier-de-v1.md) | La migration conserve le dossier de V1 moins son cache : « Oui, garde-le », « Oui, jette le cache » | Acceptée |
 
 **Décisions encore ouvertes**, à transformer en ADR dès qu'elles sont prises :
 
@@ -50,7 +50,6 @@ décisions sous le même numéro ont coûté une heure et huit renvois à corrig
 |---|---|---|
 | **Nouvelle cible de parité** après la passe « davantage de DM Sans » que Thomas fait côté design | phase 4 | Remplacera [`0004`](0004-cible-de-parite.md). Vérifié le 2026-11-21 : DM Sans **se charge** et le redesign v3 l'applique déjà aux grands titres ; la direction est d'élargir sa part. Méthode de réextraction : [`../../bootstrap/02-design/ECARTS-DESIGN.md`](../../bootstrap/02-design/ECARTS-DESIGN.md) §2. |
 | Identité d'une piste : par chemin de fichier, ou morceau logique avec N fichiers ? | phase 3 | 21 % de la bibliothèque est en double — [`../MESURES-V1.md`](../MESURES-V1.md) §10 |
-| **Le cache SMB de `noir/` vaut-il d'être supprimé, lui ?** Thomas a tranché le 2026-11-25 que le dossier de V1 est conservé ([`0014`](0014-la-migration-conserve-le-dossier-de-v1.md), « Oui, garde-le »). Son coût réel est **289 Mio, et c'est entièrement son `smb_buffer/`** — trois fichiers FLAC téléchargés depuis le NAS, un **cache reconstructible** que V1 était censé purger à chaque lancement (W008, correctif `eaee676`) et qu'il n'a pas purgé. Le supprimer ne perdrait aucune donnée et ramènerait le retour arrière à un coût presque nul. Mais « garde-le » répondait à « garder ton dossier V1 », pas à « garder tout sauf le cache » : c'est une autre question. | rien | [`0014`](0014-la-migration-conserve-le-dossier-de-v1.md), section « question ouverte » ; mesure du 2026-11-25 sur le dossier réel |
 | Régime de V1 pendant la reconstruction (gel / hotfix seulement / évolution) | rien | [`0004`](0004-cible-de-parite.md) — la cible, elle, est tranchée |
 | WiFi Sync dans le périmètre de V2, et à quelle phase | rien | [`../../bootstrap/05-postmortem/chantier-wifi-sync/README.md`](../../bootstrap/05-postmortem/chantier-wifi-sync/README.md) |
 | V2 = mise à jour de V1 (même bundle identifier) ou app distincte | phase 7 | [`0003`](0003-dossier-de-donnees.md) |

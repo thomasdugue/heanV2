@@ -25,14 +25,12 @@
 //! 4. **Échanger** : un `rename` du provisoire vers `hean/`. Sur le même volume, c'est
 //!    atomique — il n'existe aucun instant où `hean/` est à moitié là.
 //!
-//! **Et un cinquième temps qui n'existe plus : supprimer l'original.** L'ADR 0003 puis l'ADR
-//! 0010 en faisaient le dernier geste (« copie puis vérification puis suppression de l'ancien,
-//! pas un `mv` sec »). Thomas a tranché l'inverse le 2026-11-25 — **« Oui, garde-le »** — et
-//! c'est l'ADR 0014 : le dossier de V1 reste en place, comme retour arrière vers la V1. C'est
-//! INV-26, et un test l'assure, parce qu'un « nettoyage » de phase 3 remettrait cette
-//! suppression sans que personne ne la relise comme une décision.
-//! Ce que garder coûte est mesuré, pas supposé — **289 Mio sur 572 Mio apparents**, parce que
-//! les fichiers migrés sont des clones APFS : le détail est dans l'ADR 0014.
+//! **Et un cinquième temps qui n'existe plus : supprimer l'original.** L'ADR 0003 puis l'ADR 0010
+//! en faisaient le dernier geste ; Thomas a tranché l'inverse le 2026-11-25 (« Oui, garde-le »),
+//! et son dossier de V1 reste comme retour arrière vers la V1 — ADR 0014, INV-26, tenu par un
+//! test parce qu'un « nettoyage » de phase 3 remettrait cette suppression sans la relire comme
+//! une décision. Seul son **cache de téléchargement** est jeté : voir `cache_v1`, qui porte le
+//! périmètre exact et ce que garder coûte vraiment.
 //!
 //! ## Ce qui n'est pas ici
 //!
@@ -45,6 +43,7 @@
 //!   tous les autres — le provisoire est effacé, l'original n'a pas bougé. Un pré-contrôle
 //!   ajouterait du code et une façon de se tromper, sans rien garantir de plus.
 
+mod cache_v1;
 mod durabilite;
 pub mod inventaire;
 pub mod verification;
@@ -180,11 +179,10 @@ pub fn migrer_si_necessaire(source: &Path, cible: &Path) -> Result<Rapport, Erre
             // chaque démarrage. Les fichiers cachés sont donc **déplacés** dans le
             // provisoire, et non supprimés : ils retrouvent leur place après l'échange.
             //
-            // **La nuance, relevée en relecture** : si le `rename` juste en dessous échoue,
-            // ils restent dans le provisoire — que le démarrage suivant efface. Ils seraient
-            // donc perdus sur ce chemin-là, et « jamais supprimés » serait trop dire. Ce qui
-            // est en jeu est un fichier de préférences d'affichage du Finder, que le Finder
-            // réécrit ; ce qui compte ici est de ne pas l'écrire plus fort que ce n'est vrai.
+            // **La nuance, relevée en relecture** : si le `rename` juste en dessous échoue, ils
+            // restent dans le provisoire — que le démarrage suivant efface — donc « jamais
+            // supprimés » serait trop dire. C'est un fichier de préférences du Finder, que le
+            // Finder réécrit ; ce qui compte est de ne pas l'écrire plus fort que ce n'est vrai.
             deplacer_les_fichiers_caches(cible, &provisoire);
 
             std::fs::rename(&provisoire, cible).map_err(|source| Erreur::Echange {
@@ -205,6 +203,16 @@ pub fn migrer_si_necessaire(source: &Path, cible: &Path) -> Result<Rapport, Erre
                     erreur = %e,
                     "le renommage du dossier de données n'a pas pu être forcé sur le disque"
                 );
+            }
+
+            // **Le cache jetable, et lui seul** : seconde décision de Thomas, « Oui, jette le
+            // cache » (ADR 0014). Après le succès et jamais avant, au même rang qu'aurait eu la
+            // suppression du dossier dans l'ordre d'INV-25. Un échec n'est pas fatal — un cache
+            // qui résiste coûte 289 Mio, pas une donnée. Le périmètre est dans `cache_v1`.
+            match cache_v1::jeter(source) {
+                Ok(0) => {}
+                Ok(octets) => tracing::info!(octets, "cache de téléchargement de V1 jeté"),
+                Err(e) => tracing::warn!(erreur = %e, "le cache de V1 n'a pas pu être jeté"),
             }
 
             // **Dire où les données d'origine sont restées** (INV-26). Sans cette ligne,

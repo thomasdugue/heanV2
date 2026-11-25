@@ -14,7 +14,10 @@ use std::path::Path;
 /// `smb_buffer/` : fichiers temporaires du téléchargement progressif SMB. Les recopier
 /// serait copier 289 Mo pour les supprimer au premier lancement — et si V2 oubliait de les
 /// supprimer à son tour, on aurait transporté le bug de V1 avec ses données.
-pub const IGNORES: &[&str] = &["smb_buffer"];
+/// Le nom vient de `cache_v1`, qui est le module du sujet : un dossier « ignoré » sous une
+/// orthographe et « supprimé » sous une autre serait la forme de défaut qu'INV-06 a coûtée à V1,
+/// sur un chemin qui mène à un `remove_dir_all`.
+pub const IGNORES: &[&str] = &[super::cache_v1::CHEMIN];
 
 /// Le fichier témoin écrit dans le dossier d'arrivée, une fois la migration vérifiée.
 /// Il porte le compte des fichiers et des octets : un témoin qui ne dit que « c'est fait »

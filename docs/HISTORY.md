@@ -1359,3 +1359,32 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     `tests/bibliotheque/main.rs` sans son préfixe `src-tauri/`. Deux renvois morts, refusés.
     Un détecteur qui n'épargne pas l'explication de son propre contournement est un bon
     détecteur.
+  - **Seconde décision, vingt minutes plus tard, ses mots : « Oui, jette le cache ».** Question
+    posée : « Je fais supprimer le cache de 289 Mo en migrant, et garder le reste ? » Donc la
+    migration jette `noir/smb_buffer/` après un échange réussi et vérifié, et **lui seul** — c'est
+    `migration/cache_v1.rs`, nouveau module qui porte le nom du dossier (une seule orthographe
+    dans le projet : `inventaire::IGNORES` le reprend de là, parce qu'un dossier « ignoré » sous
+    un nom et « supprimé » sous un autre est la faute d'INV-06 sur un chemin qui mène à un
+    `remove_dir_all` chez cinquante personnes).
+  - **Le périmètre a été tenu au mot, et c'est le point qui compte.** Trois autres fichiers de
+    `noir/` portent le mot *cache* — `tracks_cache.json` (1,7 Mo), `added_dates_cache.json`,
+    `network_scan_cache.json` — et ne sont pas jetables : c'est l'état de la bibliothèque V1, dont
+    les **3 443 pistes** de Thomas, donc c'est précisément ce qui rend le retour arrière utile.
+    Les supprimer aurait vidé le filet qu'il venait de décider de garder, pour 4 Mo. Une
+    suppression chez quelqu'un ne s'étend pas par déduction : ce qui n'a pas été arbitré n'est
+    pas couvert, et un test l'assure maintenant.
+  - **Un cache qui résiste ne fait pas échouer la migration** : il coûte 289 Mio, pas une donnée.
+    Éprouvé en retirant le droit d'écrire sur `noir/` — on peut encore lire, donc copier, mais
+    plus supprimer. (Le test rend les droits **avant** ses assertions : sans ça, un échec laisse
+    un dossier temporaire non effaçable derrière lui.)
+  - **La suppression du cache est entrée dans l'ordre d'INV-25**, au rang qu'avait celle du
+    dossier, et le détecteur de forme **distingue les deux suppressions** — sans quoi INV-26
+    passerait au vert sur la faute exacte qu'il existe pour voir.
+  - **Et `migration/mod.rs` est à 400 lignes sur 400.** Troisième point chaud du dépôt, après
+    `library/repository.rs` (398) et le feu `tests/demarrage.rs` (découpé ce soir). Deux
+    paragraphes d'en-tête ont été rapatriés dans l'ADR 0014 et dans `cache_v1.rs` pour y entrer —
+    c'est-à-dire que le détail est allé là où il appartenait, ce qui est le bon effet de la
+    règle, mais la marge est nulle. Noté dans l'encadré de `check-sizes.sh`.
+  - **Un nom de test est devenu faux et a été changé** : `un_dossier_v1_complet_se_migre_et_
+    lancien_disparait` → `..._et_lancien_est_conserve`. Un nom de test qui ment est une
+    affirmation de plus à retourner, et personne ne la relit.
