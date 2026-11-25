@@ -127,5 +127,5 @@ pendant la reconstruction, la parité est une cible mobile et le travail ne se t
 
 ---
 
-Hean V1 (v0.2.0-beta.1, distribuée à ~50 testeurs) reste dans
+Hean V1 (v0.2.0-beta.1, **jamais distribuée : aucun utilisateur**) reste dans
 [`thomasdugue/noirdesktop`](https://github.com/thomasdugue/noirdesktop).

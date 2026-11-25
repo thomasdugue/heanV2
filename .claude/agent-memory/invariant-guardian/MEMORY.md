@@ -8,3 +8,5 @@
 - [Dérogation examples/ à INV-21](derogation-examples-inv-21.md) — exception à une règle 🔴 écrite sans ADR, et le rouge volontaire attendu au merge de la migration.
 - [Périmètre de check-sizes](perimetre-de-check-sizes.md) — `src-tauri/tests/` est hors du scan des 400 lignes, et `bibliotheque.rs` dépasse déjà.
 - [Périmètre de la règle des 400 lignes](perimetre-de-la-regle-des-400-lignes.md) — check-sizes ne lit ni .py ni .sh : le wc -l à faire soi-même.
+- [Zone audio : chemins Rust seulement](zone-audio-chemins-rust-seulement.md) — les fichiers frontend du lecteur sont de l'UI malgré leur nom
+- [Les listes de zones du harnais](les-listes-de-zones-du-harnais.md) — chaque garde-fou a la sienne ; on retourne une liste d'oublis, pas une liste de choix

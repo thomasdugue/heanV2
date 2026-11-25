@@ -1538,3 +1538,18 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
 7. **Facultatif, si tu veux éprouver le filet** : éteins le NAS, et relance « Scanner cette source ».
    Tu dois obtenir une **erreur** — pas une bibliothèque qui retombe à 305 pistes. Rallume, rescanne,
    tout revient.
+
+- **2026-11-25** (nuit, réduction du harnais) : **26 000 lignes d'outils et de documents pour
+  5 530 d'application** — un audit mené par un modèle extérieur a mis le chiffre sur la table, et
+  Thomas a tranché (ADR 0017). Le harnais est **gelé** ; quatre chantiers planifiés passent en
+  « à rouvrir quand le son sort ». Les 27 fiches d'invariants quittent `SKILL.md` pour
+  `CATALOGUE.md` : le péage de lecture d'une session de code tombe de **617 à 222 lignes**, et le
+  bandeau de `check` de 95 à 27. Règle qui le justifie : **ce qu'un test applique ne s'écrit pas
+  pour être lu** — restent sous les yeux les pièges de plateforme, que rien ne prouvera jamais.
+  Deux plafonds entrent dans `./check` (entrée de journal ≤ 15 lignes, ADR ≤ 1 page), appliqués
+  à partir d'aujourd'hui seulement : recadrer les entrées passées falsifierait un relevé.
+  **Et une prémisse fausse a été effacée des documents actifs** : la bêta V1 n'a jamais été
+  distribuée, il n'y a aucun utilisateur. Les « ~50 testeurs » avaient déjà faussé deux
+  raisonnements le jour même. Les ADR 0001, 0003, 0004 et 0010 reposent dessus et restent
+  intacts — on ne modifie pas un ADR. Deezer devient obligatoire, WiFi Sync sort du périmètre.
+  Suite : **le son**, avec un jalon à 14 jours.

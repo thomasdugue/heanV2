@@ -44,7 +44,12 @@ if (/portés \(sur \d+\)/.test(verif)) {
 // 2. Les comptes de piles d'invariants de CLAUDE.md ↔ le skill, source de vérité.
 // (check-invariants.mjs vérifie déjà le tableau DU SKILL contre les invariants eux-mêmes ;
 //  ici on ferme le maillon suivant, la copie lue à chaque session.)
-const skill = lire('.claude/skills/hean-invariants/SKILL.md');
+// Les fiches vivent dans CATALOGUE.md depuis le 2026-11-25, le tableau de tri dans SKILL.md.
+// Les deux ensemble, sans quoi les comptes seraient tirés d'une moitié du catalogue.
+const skill =
+  lire('.claude/skills/hean-invariants/SKILL.md') +
+  '\n' +
+  lire('.claude/skills/hean-invariants/CATALOGUE.md');
 const piles = { rayé: 0, test: 0, irréductible: 0 };
 for (const m of skill.matchAll(/^- pile\s*:\s*(\S+)\s*$/gm)) {
   if (m[1] in piles) piles[m[1]]++;
