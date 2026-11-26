@@ -13,7 +13,11 @@
 //! choisie par Thomas le 2026-11-26 : un seul nom, celui de V2. Le nom de V1
 //! (`com.tdugue.noir.smb`) **n'est plus lu**, et n'a jamais été écrit ni supprimé par V2 —
 //! ce qu'il contient reste dans le trousseau de l'utilisateur, intact, à lui d'en disposer.
-//! Ce que ça coûte, en entier : le mot de passe de chaque source est à saisir une fois.
+//! **Ce que ça coûte : rien.** L'ADR chiffrait « une saisie de mot de passe » ; ce coût était
+//! déjà payé quand Thomas a répondu. Son trousseau porte le compte de la source vivante sous
+//! `com.tdugue.hean.smb` depuis le 2026-11-25 21:55:37Z — il l'a ressaisi pendant le
+//! diagnostic de connexion, et `enregistrer()` n'écrit que sous le nom de V2. Mesuré, pas
+//! déduit : son journal du 2026-11-26 01:01Z porte `service="com.tdugue.hean.smb"`.
 //!
 //! V009 — *aucun dialogue Keychain au lancement* : rien ici n'est appelé au démarrage. La
 //! cascade est consultée au **premier scan** d'une source, et le cache de session fait que

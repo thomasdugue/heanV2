@@ -1696,8 +1696,11 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   option B. `SERVICES` ne contient plus que `com.tdugue.hean.smb` ; le nom de V1 n'est plus lu.
   Ce que V2 n'a jamais fait, et ne fait toujours pas : écrire ou supprimer sous le nom de V1.
   Les deux entrées du trousseau de Thomas restent donc intactes, l'orpheline comprise — les
-  effacer est à lui. Coût accepté, en entier : **une saisie de mot de passe, pour une source**,
-  au prochain scan. Un test interdit le retour du nom de V1 en lecture, parce que ce retour
+  effacer est à lui. **Coût réel : aucun** — son mot de passe était déjà sous le nom de V2
+  (trousseau, compte `dcdd24af-…`, 2026-11-25 21:55:37Z), ressaisi pendant le diagnostic de
+  connexion. Troisième estimation de ce coût, et la première mesurée : les deux précédentes
+  (cinquante saisies, puis une) penchaient du côté qui fait paraître « propre » plus cher.
+  Un test interdit le retour du nom de V1 en lecture, parce que ce retour
   ressemblerait à une correction (« le mot de passe n'est plus trouvé ») alors qu'il annulerait
   la décision. Corrigés avec : l'en-tête du module, le commentaire de `lire_du_trousseau` qui
   parlait d'un « premier élément », et l'arbre de `hean-smb` qui décrivait la cascade.

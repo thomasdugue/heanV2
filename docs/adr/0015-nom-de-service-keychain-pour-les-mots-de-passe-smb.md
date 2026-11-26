@@ -38,10 +38,20 @@ relevées sous `com.tdugue.noir.smb` restent **intactes dans le trousseau de Tho
 compris l'orpheline. Les effacer est à lui, pas à l'app : c'est précisément ce que cet ADR
 refusait de décider seul, et la décision prise ne l'autorise pas davantage.
 
-Le coût, en entier : **au prochain scan, Hean ne trouve pas le mot de passe et demande de le
-saisir.** Une fois, pour la source `dugstation`. Le message d'erreur nomme le service consulté
-— c'est ce qui permettra de distinguer « mot de passe à ressaisir » (attendu, aujourd'hui) de
-« nom de service changé » (une régression, plus tard).
+**Le coût chiffré ci-dessous était déjà payé au moment de la réponse, et c'est mesuré.** Le
+service `com.tdugue.hean.smb` porte le compte `dcdd24af-…` — la source vivante — créé le
+2026-11-25 à 21:55:37Z : Thomas avait ressaisi son mot de passe la veille au soir pendant le
+diagnostic de connexion, et `enregistrer()` n'écrit que sous le nom de V2. Son journal du
+2026-11-26 à 01:01Z le confirme côté lecture (`service="com.tdugue.hean.smb"`). **Option B ne
+lui demande donc aucun geste.**
+
+C'est la **troisième** estimation de ce coût, et les deux premières étaient fausses du même
+côté : « cinquante saisies » (des testeurs qui n'existent pas), puis « une saisie » (déjà
+faite). Les deux faisaient paraître « propre » plus cher qu'il ne l'était. La leçon n'est pas
+sur le trousseau : **un coût qui arbitre une décision se mesure, il ne s'estime pas.**
+
+Le message d'erreur nomme le service consulté, et c'est ce qui permettra plus tard de
+distinguer « mot de passe effacé » de « nom de service changé ».
 
 Et un test garde la décision : `un_seul_nom_de_service_et_celui_de_v1_nest_plus_lu` échoue si
 quelqu'un remet le nom de V1 en lecture. Sans lui, un mot de passe introuvable se « réparerait »
@@ -165,8 +175,13 @@ mesurer sur une build signée.
 - **Un seul nom de service est consulté.** La cascade à deux noms a existé deux jours, le temps
   que la question soit posée et répondue ; elle n'a jamais rien écrit sous le nom de V1, ce qui
   est la raison pour laquelle sa suppression ne laisse aucune trace à nettoyer dans le code.
-- **Thomas ressaisit le mot de passe de ses sources NAS une fois**, au premier scan qui suit.
-  C'est le coût accepté, et il était chiffré avant la réponse : une personne, une source.
+- **Thomas ne ressaisit rien** : son mot de passe était déjà sous le nom de V2 au moment où il
+  a répondu (relevé ci-dessus). Une source ajoutée dans V2 à l'avenir demande sa saisie une
+  fois, comme n'importe quelle source neuve — ce n'est pas un coût de cette décision.
+- **Les entrées laissées par V1 ne sont plus jamais lues.** `com.tdugue.noir.smb` porte deux
+  comptes dans le trousseau de Thomas : `dcdd24af-…`, le doublon de la source vivante, et
+  `1c420320-…`, l'orphelin d'une source qui n'existe plus. V2 ne les touche pas. Les effacer
+  lui appartient.
 - Un mot de passe enregistré depuis V2 n'est **pas** relu par V1. Si Thomas repasse à V1 après
   avoir saisi un mot de passe dans V2, V1 ne le trouvera pas et le redemandera. Le retour
   arrière de l'[ADR 0014](0014-la-migration-conserve-le-dossier-de-v1.md) reste donc entier
