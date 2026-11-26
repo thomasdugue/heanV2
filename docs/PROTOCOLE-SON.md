@@ -11,20 +11,14 @@ précédente, sauf le lancement.
 
 ## Lancement
 
-⚠️ **Tant que la PR #25 n'est pas fusionnée, ce moteur n'est pas dans le dossier
-principal** : il vit sur sa branche, dans un dossier à part. C'est celui-là qu'il faut
-lancer. Lancer le dossier principal ouvrirait une version **sans moteur de son** — tout ce
-protocole échouerait dès l'étape 2, sans avoir rien éprouvé de ce qu'il vise.
-
-```bash
-cd "/Users/tsunami25/Documents/Thomas/heanV2/.claude/worktrees/phase-2-bibliotheque-dce2d1" && npm run tauri dev
-```
-
-Après la fusion, le dossier principal porte le moteur et la ligne redevient la courte :
-
 ```bash
 cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
 ```
+
+La PR #25 est fusionnée (2026-11-26, squash `f171218`) : **le moteur est dans le dossier
+principal**, c'est celui-là qu'il faut lancer. Le dossier de la branche
+(`.claude/worktrees/phase-2-bibliotheque-dce2d1`) existe encore mais n'est plus à jour — ne
+pars pas de lui.
 
 **« Port 1420 is already in use »** : une fenêtre de développement tourne déjà quelque part,
 souvent oubliée d'une session précédente. Elle tient le port, et rien d'autre ne démarrera
@@ -41,18 +35,22 @@ design est pour plus tard. La section **Lecture** est en haut, sous les dossiers
 
 ## Déjà passées sur ton matériel, le 2026-11-26
 
-Relevé dans le journal de ta session, pas déduit d'un test. Tu peux les sauter.
+Relevé dans le journal de ta session, pas déduit d'un test. **Tu peux sauter les lignes
+qui portent un numéro d'étape, celles-là seulement.** Les deux lignes sans numéro sont des
+observations utiles qui ne valident aucune étape de la liste.
 
 | | Ce que le journal montre |
 |---|---|
 | **2** — une piste locale joue | `piste ouverte` puis `sortie démarrée` en **52 ms** (`03 - ATLiens.flac`, 16 bits / 44,1 kHz) |
 | **9** — le 192 kHz perd le badge | `repli de fréquence : l'AUHAL rééchantillonne` · `source_hz=192000 sortie_hz=96000` · `bit_perfect=false`, sur trois fichiers |
-| **11** — changer de sortie | `sortie changée, défaut système synchronisé id=86`, et la piste réouverte à `depart_ms=6315` : la position est conservée |
-| **14** — le matériel est rendu | la fréquence d'origine est remise à **chaque** fermeture de flux, et pas seulement en quittant l'app |
+| *(aucun numéro)* — changer de sortie | `sortie changée, défaut système synchronisé id=86`, et la piste réouverte à `depart_ms=6315` : la position est conservée. **Ne saute pas l'étape 11** : elle dit « un 24/192 joue sur le DAC, et le DAC passe vraiment à 192 kHz », et elle n'a pas été faite |
+| *(aucun numéro)* — le matériel est rendu | la fréquence d'origine est remise à **chaque** fermeture de flux, et pas seulement en quittant l'app. **Ne saute pas l'étape 14** : elle demande que ton DAC retrouve sa fréquence, et aucun DAC n'a été branché |
 | **3** — zéro trou | aucun avertissement sur **huit** fermetures de flux, rééchantillonnage compris. Reste à tenir trois minutes d'affilée sur une seule piste |
 
 Restent, et elles demandent tes oreilles : **4** (pause), **5** (déplacement), **7** (volume),
-**8** (album enchaîné) et tout le bloc du DAC.
+**8** (album enchaîné). Et **aucune étape du bloc DAC (10 à 14) n'est passée** : le repli à
+96 kHz de l'étape 9 s'est fait sur les haut-parleurs du Mac mini. **Hean n'a encore jamais
+piloté ton DAC** — c'est la partie qui reste entièrement à éprouver.
 
 ## Sans rien brancher
 

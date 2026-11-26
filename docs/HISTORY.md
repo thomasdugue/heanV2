@@ -1736,3 +1736,11 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   dans le son sont comptés** — après correction, car le compteur comptait aussi chaque fin
   d'album et chaque déplacement, et un indicateur qui crie au loup se fait retirer.
   **À la charge de Thomas** : `docs/PROTOCOLE-SON.md`. **Hors périmètre** : la lecture NAS.
+- **2026-11-26** (passe) : **le protocole du son envoyait Thomas sauter l'épreuve du DAC.**
+  Son tableau « déjà passées » cochait les étapes **11** et **14**, qui sont deux étapes du
+  bloc DAC (« un 24/192 joue sur le DAC », « le DAC retrouve sa fréquence »), alors que ses
+  descriptions décrivaient tout autre chose et que deux lignes plus bas il écrivait que ce
+  bloc restait à faire. Les deux lignes perdent leur numéro. Et son bloc de lancement
+  envoyait encore dans le dossier de la branche, périmé depuis la fusion de la #25. Le repli
+  à 96 kHz prouvé cet après-midi s'est fait sur les haut-parleurs du Mac mini : **Hean n'a
+  encore jamais piloté le DAC**, et le document le dit maintenant.
