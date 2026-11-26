@@ -49,8 +49,9 @@ observations utiles qui ne valident aucune étape de la liste.
 
 Restent, et elles demandent tes oreilles : **4** (pause), **5** (déplacement), **7** (volume),
 **8** (album enchaîné). Et **aucune étape du bloc DAC (10 à 14) n'est passée** : le repli à
-96 kHz de l'étape 9 s'est fait sur les haut-parleurs du Mac mini. **Hean n'a encore jamais
-piloté ton DAC** — c'est la partie qui reste entièrement à éprouver.
+96 kHz de l'étape 9 s'est fait sur une **sortie intégrée** qui plafonne là, pas sur un DAC —
+le journal nomme `id=86`, soit « Écouteurs externes ». **Hean n'a encore jamais piloté ton
+DAC** : c'est la partie qui reste entièrement à éprouver.
 
 ## Sans rien brancher
 

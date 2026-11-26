@@ -1742,5 +1742,7 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   descriptions décrivaient tout autre chose et que deux lignes plus bas il écrivait que ce
   bloc restait à faire. Les deux lignes perdent leur numéro. Et son bloc de lancement
   envoyait encore dans le dossier de la branche, périmé depuis la fusion de la #25. Le repli
-  à 96 kHz prouvé cet après-midi s'est fait sur les haut-parleurs du Mac mini : **Hean n'a
+  à 96 kHz prouvé cet après-midi s'est fait sur une sortie intégrée (`id=86`, « Écouteurs
+  externes », relevé au démarrage de 20:21) et non sur les haut-parleurs du Mac mini comme je
+  l'avais d'abord écrit, faute de l'avoir vérifié : **Hean n'a
   encore jamais piloté le DAC**, et le document le dit maintenant.
