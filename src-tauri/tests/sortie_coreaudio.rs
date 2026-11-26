@@ -87,7 +87,7 @@ fn le_hal_accepte_un_flux_declare_en_entier_32_bits() {
     let hz = frequence::frequence_du_peripherique(id).expect("lire la fréquence");
     // La fréquence actuelle du périphérique, justement pour n'avoir rien à changer.
     let format = FormatAudio::nouveau(hz, 2, Profondeur::Bits24);
-    let (_producteur, consommateur) = tampon::nouveau(4096);
+    let (_producteur, consommateur) = tampon::nouveau(2048, 2);
     let flux = Flux::ouvrir(Some(id), format, consommateur);
     let flux = flux.unwrap_or_else(|e| {
         panic!(

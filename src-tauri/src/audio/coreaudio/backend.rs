@@ -210,11 +210,14 @@ impl BackendAudio for BackendCoreAudio {
         self.routage.reappliquer_mode_exclusif()?;
 
         // Le tampon est dimensionné sur la fréquence du FICHIER : c'est à ce rythme que le
-        // décodeur le remplit et que l'AudioUnit le consomme.
-        let par_seconde = format.frequence as f64 * f64::from(format.canaux);
-        let cases = (par_seconde * SECONDES_DE_TAMPON).ceil() as usize;
-        self.preroll = (par_seconde * SECONDES_DE_PREROLL).ceil() as usize;
-        let (producteur, consommateur) = tampon::nouveau(cases.max(1));
+        // décodeur le remplit et que l'AudioUnit le consomme. Il est exprimé en **trames**,
+        // ce qui rend sa capacité multiple du nombre de canaux par construction — sans quoi
+        // l'enroulement pourrait décaler l'alignement des canaux (voir `tampon`).
+        let canaux = format.canaux as usize;
+        let trames_par_seconde = f64::from(format.frequence);
+        let trames = (trames_par_seconde * SECONDES_DE_TAMPON).ceil() as usize;
+        self.preroll = (trames_par_seconde * SECONDES_DE_PREROLL).ceil() as usize * canaux;
+        let (producteur, consommateur) = tampon::nouveau(trames.max(1), canaux.max(1));
         self.jauge = Some(producteur.jauge());
 
         // L'AudioUnit est alimentée à la fréquence du fichier. Quand le périphérique tourne

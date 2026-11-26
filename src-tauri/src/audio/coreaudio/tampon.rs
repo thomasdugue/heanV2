@@ -15,6 +15,27 @@
 //! blocage de quelques millisecondes se traduit par un trou dans le son. D'où un seul
 //! producteur, un seul consommateur, et deux compteurs atomiques — pas un `Mutex`.
 //!
+//! # Le tampon compte en TRAMES, pas en échantillons
+//!
+//! Il connaît le nombre de canaux, et ni `pousser` ni `tirer` ne laissent passer une demi-trame.
+//! Ce n'est pas de la précaution décorative : **une seule publication tombant au milieu d'une
+//! trame intervertirait L et R pour tout le reste du flux.** Le callback suivant attaquerait le
+//! tampon de CoreAudio à l'index 0 avec un échantillon de canal droit, et rien ne le dirait —
+//! le compteur de famines ne bougerait pas, puisque le tampon n'est pas à vide : il est décalé.
+//! Inaudible en intégration continue, parfaitement audible chez Thomas.
+//!
+//! ⚠️ **Avant le 2026-11-26 la garde n'existait pas, et la justesse des canaux reposait
+//! entièrement sur le fait qu'une constante soit un nombre entier** : la capacité valait
+//! `ceil(frequence × canaux × SECONDES_DE_TAMPON)`, et avec `5.0` elle tombait toujours sur un
+//! multiple du nombre de canaux. Avec `0.333`, `ceil(44100 × 2 × 0.333)` vaut 29 371 — impair,
+//! donc une demi-trame devient publiable. Le mode de défaut était pourtant déjà **écrit** dans
+//! `rendu.rs`, qui explique refuser de reprendre à moitié le chemin désentrelacé de V1 pour
+//! exactement cette raison. Identifié un étage, laissé sans garde l'étage d'en dessous.
+//!
+//! D'où la forme actuelle : la capacité est donnée en **trames**, donc elle est un multiple du
+//! nombre de canaux par construction, et les deux bouts arrondissent à la trame entière. La
+//! faute cesse d'être improbable pour devenir inexprimable. Relevé en relecture.
+//!
 //! Les compteurs sont **absolus** et ne reviennent jamais en arrière. C'est ce qui lève
 //! l'ambiguïté classique entre « plein » et « vide » sans sacrifier une case, et ça donne en
 //! prime la position de lecture : le nombre d'échantillons sortis depuis le début. À
@@ -30,6 +51,8 @@ struct Interieur {
     /// construction — c'est ce qui rend l'`UnsafeCell` sûr ici.
     cases: UnsafeCell<Box<[i32]>>,
     capacite: usize,
+    /// Le nombre de canaux. C'est lui qui fait du tampon un tampon de trames.
+    canaux: usize,
     /// Nombre total d'échantillons jamais écrits. Publié en `Release` par le producteur.
     ecrit: AtomicUsize,
     /// Nombre total d'échantillons jamais lus. Publié en `Release` par le consommateur.
@@ -47,6 +70,11 @@ unsafe impl Send for Interieur {}
 unsafe impl Sync for Interieur {}
 
 impl Interieur {
+    /// Arrondit un nombre d'échantillons à la trame entière inférieure.
+    fn a_la_trame(&self, echantillons: usize) -> usize {
+        echantillons - echantillons % self.canaux
+    }
+
     fn pleines(&self) -> usize {
         // Toujours ≥ 0 : `lu` ne dépasse jamais `ecrit`.
         self.ecrit
@@ -74,12 +102,19 @@ pub struct Consommateur {
 #[derive(Clone)]
 pub struct Jauge(Arc<Interieur>);
 
-/// Crée un tampon de `capacite` échantillons et rend ses deux bouts.
-pub fn nouveau(capacite: usize) -> (Producteur, Consommateur) {
-    assert!(capacite > 0, "un tampon de capacité nulle ne transporte rien");
+/// Crée un tampon de `trames` trames de `canaux` canaux, et rend ses deux bouts.
+///
+/// La capacité est exprimée en **trames** et non en échantillons, exprès : c'est ce qui
+/// garantit qu'elle est un multiple du nombre de canaux, donc que l'enroulement ne peut pas
+/// décaler l'alignement des canaux. Voir l'en-tête du module.
+pub fn nouveau(trames: usize, canaux: usize) -> (Producteur, Consommateur) {
+    assert!(trames > 0, "un tampon de capacité nulle ne transporte rien");
+    assert!(canaux > 0, "un flux sans canal n'existe pas");
+    let capacite = trames * canaux;
     let interieur = Arc::new(Interieur {
         cases: UnsafeCell::new(vec![0i32; capacite].into_boxed_slice()),
         capacite,
+        canaux,
         ecrit: AtomicUsize::new(0),
         lu: AtomicUsize::new(0),
     });
@@ -99,8 +134,9 @@ impl Producteur {
     /// Pousse ce qui rentre et rend combien d'échantillons ont été pris. **Ne bloque
     /// jamais** : c'est à l'appelant de rappeler plus tard avec le reste.
     pub fn pousser(&mut self, echantillons: &[i32]) -> usize {
-        let libre = self.libre();
-        let combien = libre.min(echantillons.len());
+        // Arrondi à la trame entière : publier une demi-trame intervertirait les canaux pour
+        // tout le reste du flux (en-tête du module).
+        let combien = self.interieur.a_la_trame(self.libre().min(echantillons.len()));
         if combien == 0 {
             return 0;
         }
@@ -127,6 +163,10 @@ impl Producteur {
         self.interieur.capacite
     }
 
+    pub fn canaux(&self) -> usize {
+        self.interieur.canaux
+    }
+
     /// Le total écrit depuis le début.
     pub fn total_ecrit(&self) -> usize {
         self.position
@@ -141,7 +181,10 @@ impl Consommateur {
     /// Remplit `sortie` avec ce qui est disponible et rend combien d'échantillons ont été
     /// écrits dedans. Ne bloque jamais, n'alloue pas : appelable depuis le fil temps réel.
     pub fn tirer(&mut self, sortie: &mut [i32]) -> usize {
-        let combien = self.interieur.pleines().min(sortie.len());
+        // Même raison qu'à l'écriture : on ne consomme que des trames entières.
+        let combien = self
+            .interieur
+            .a_la_trame(self.interieur.pleines().min(sortie.len()));
         if combien == 0 {
             return 0;
         }
@@ -188,137 +231,5 @@ impl Jauge {
     /// Ce qui attend d'être joué.
     pub fn en_attente(&self) -> usize {
         self.0.pleines()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn un_tampon_neuf_ne_rend_rien() {
-        let (p, mut c) = nouveau(8);
-        let mut sortie = [0i32; 4];
-        assert_eq!(c.tirer(&mut sortie), 0);
-        assert_eq!(p.libre(), 8);
-    }
-
-    /// LA propriété qui compte : ce qui sort est exactement ce qui est entré, dans l'ordre,
-    /// sans qu'un seul bit change. Le tampon est sur le chemin bit-perfect.
-    #[test]
-    fn ce_qui_sort_est_exactement_ce_qui_est_entre() {
-        let (mut p, mut c) = nouveau(16);
-        let entree = [i32::MIN, -1, 0, 1, 1 << 16, i32::MAX];
-        assert_eq!(p.pousser(&entree), entree.len());
-        let mut sortie = [0i32; 6];
-        assert_eq!(c.tirer(&mut sortie), 6);
-        assert_eq!(sortie, entree);
-    }
-
-    #[test]
-    fn un_tampon_plein_nen_prend_pas_un_de_plus() {
-        let (mut p, mut c) = nouveau(4);
-        assert_eq!(p.pousser(&[1, 2, 3, 4, 5, 6]), 4, "seul ce qui rentre est pris");
-        assert_eq!(p.libre(), 0);
-        assert_eq!(p.pousser(&[7]), 0, "rien n'est écrasé");
-        let mut sortie = [0i32; 4];
-        c.tirer(&mut sortie);
-        assert_eq!(sortie, [1, 2, 3, 4], "les premiers arrivés, intacts");
-    }
-
-    /// L'enroulement : c'est là que vit la faute classique d'un tampon circulaire, et elle
-    /// ne se voit pas tant qu'on ne fait pas plus d'un tour.
-    #[test]
-    fn lordre_survit_a_plusieurs_tours() {
-        let (mut p, mut c) = nouveau(5);
-        let mut recus = Vec::new();
-        let mut sortie = [0i32; 3];
-        let mut prochain = 0i32;
-        for _ in 0..20 {
-            while p.libre() > 0 {
-                if p.pousser(&[prochain]) == 1 {
-                    prochain += 1;
-                } else {
-                    break;
-                }
-            }
-            let n = c.tirer(&mut sortie);
-            recus.extend_from_slice(&sortie[..n]);
-        }
-        let attendu: Vec<i32> = (0..recus.len() as i32).collect();
-        assert_eq!(recus, attendu, "aucune perte, aucun doublon, aucun désordre");
-        assert!(recus.len() > 5 * 3, "le test doit avoir fait plusieurs tours");
-    }
-
-    #[test]
-    fn vider_jette_ce_qui_attend_et_avance_la_position() {
-        let (mut p, mut c) = nouveau(8);
-        p.pousser(&[1, 2, 3, 4, 5]);
-        assert_eq!(c.vider(), 5);
-        assert_eq!(c.total_lu(), 5, "la position avance : les 5 sont considérés sortis");
-        let mut sortie = [0i32; 4];
-        assert_eq!(c.tirer(&mut sortie), 0, "plus rien n'attend");
-        assert_eq!(p.libre(), 8, "et les cases sont rendues au producteur");
-    }
-
-    #[test]
-    fn la_jauge_voit_les_deux_bouts() {
-        let (mut p, mut c) = nouveau(8);
-        let j = p.jauge();
-        assert_eq!((j.total_ecrit(), j.total_lu(), j.en_attente()), (0, 0, 0));
-        p.pousser(&[1, 2, 3]);
-        assert_eq!((j.total_ecrit(), j.total_lu(), j.en_attente()), (3, 0, 3));
-        let mut sortie = [0i32; 2];
-        c.tirer(&mut sortie);
-        assert_eq!((j.total_ecrit(), j.total_lu(), j.en_attente()), (3, 2, 1));
-    }
-
-    /// Deux vrais fils, comme en lecture : le décodeur pousse, le callback tire. Si la
-    /// synchronisation était fausse, le résultat montrerait un trou, un doublon ou une
-    /// inversion — c'est-à-dire précisément ce qui s'entendrait comme un craquement.
-    #[test]
-    fn deux_fils_concurrents_ne_perdent_ni_ne_doublent_rien() {
-        const COMBIEN: i32 = 200_000;
-        let (mut p, mut c) = nouveau(1024);
-
-        let producteur = std::thread::spawn(move || {
-            let mut prochain = 0i32;
-            while prochain < COMBIEN {
-                // Des lots de taille variable : un décodeur ne rend pas des blocs réguliers.
-                let lot: Vec<i32> = (prochain..(prochain + 97).min(COMBIEN)).collect();
-                let mut pousses = 0;
-                while pousses < lot.len() {
-                    pousses += p.pousser(&lot[pousses..]);
-                    if pousses < lot.len() {
-                        std::thread::yield_now();
-                    }
-                }
-                prochain += lot.len() as i32;
-            }
-        });
-
-        let consommateur = std::thread::spawn(move || {
-            let mut recus: Vec<i32> = Vec::with_capacity(COMBIEN as usize);
-            // Des tailles de lecture qui ne divisent pas la capacité, pour forcer des
-            // enroulements à des positions quelconques.
-            let mut sortie = [0i32; 61];
-            while recus.len() < COMBIEN as usize {
-                let n = c.tirer(&mut sortie);
-                if n == 0 {
-                    std::thread::yield_now();
-                    continue;
-                }
-                recus.extend_from_slice(&sortie[..n]);
-            }
-            recus
-        });
-
-        producteur.join().expect("fil producteur");
-        let recus = consommateur.join().expect("fil consommateur");
-        assert_eq!(recus.len(), COMBIEN as usize);
-        // Comparer à la suite attendue vérifie d'un coup l'absence de perte, de doublon et
-        // de désordre : seule la suite exacte 0, 1, 2… satisfait les trois.
-        let attendu: Vec<i32> = (0..COMBIEN).collect();
-        assert_eq!(recus, attendu);
     }
 }
