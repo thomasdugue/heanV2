@@ -5,7 +5,8 @@
 - **Décideur** : **Thomas**, le 2026-11-26, en corrigeant une analyse fausse de la session
   d'orchestration (voir § « Ce qui a provoqué cet ADR »).
 - **Complète** : la formule « bit-perfect = pas de rééchantillonnage », qui circule dans ce
-  dépôt depuis le 2026-11-21 sans ADR qui la porte. Ne remplace rien.
+  dépôt depuis le 2026-11-21 sans ADR qui la porte, **et la prescription de l'ADR 0007 § 5**
+  (voir plus bas). Ne remplace rien.
 
 ## La décision, dans les mots de Thomas
 
@@ -49,6 +50,28 @@ repli — donc supprimer une fonction que Thomas veut. Elle est reformulée, pas
 L'ADR 0007 n'est pas modifié — il ne se modifie pas. Sa ligne 55 tenait d'ailleurs déjà la
 bonne forme pour le volume : « bit-perfect si, et seulement si, le volume est à 100 % ». Le
 bit-perfect y était **déjà** conditionnel ; seule la condition de fréquence manquait.
+
+### Et une phrase de l'ADR 0007 prescrit l'inverse, elle aussi
+
+Relevé par la relecture d'invariants de la session CoreAudio, et vérifié : l'ADR 0007 § 5 ne
+se contente pas de citer la formule, **il en tire une consigne** — « Rendre le format obtenu
+permet de *constater* l'écart, donc **de le refuser** — puisque le bit-perfect interdit de
+rééchantillonner. »
+
+Cette phrase-là est plus dangereuse que la formule, parce qu'elle dit quoi *faire*. Lue par
+une session de phase 4 ou 5 qui trouverait ensuite le repli dans le code, elle lui ferait
+**supprimer le repli en croyant corriger une faute**.
+
+Ce qui vaut, et qui remplace la fin de cette phrase :
+
+> Rendre le format obtenu permet de **constater** l'écart, donc de **l'afficher** — fréquence
+> entrante, fréquence sortante, et pas de badge bit-perfect. Le refuser serait refuser de
+> jouer le fichier.
+
+La première moitié reste juste, et c'est elle qui compte : c'est parce que `preparer()` rend
+le format réellement obtenu que l'écart est connu, donc affichable. **Le mécanisme était bon,
+seule la conclusion était trop raide.** L'ADR 0007 n'est toujours pas modifié : c'est ici que
+la correction vit, et l'index des ADR est le chemin qui y mène.
 
 ## Ce qui a provoqué cet ADR
 
