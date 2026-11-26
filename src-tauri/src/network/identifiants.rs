@@ -8,11 +8,12 @@
 //! d'architecture refuse `unwrap_or_default()` sur toute ligne qui parle d'identifiant, et
 //! les tests d'ici refusent qu'un mot de passe vide passe pour un mot de passe.
 //!
-//! **Le nom de service est un point ouvert, pas une décision** : voir
-//! [ADR 0015](../../../docs/adr/0015-nom-de-service-keychain-pour-les-mots-de-passe-smb.md).
-//! La cascade ci-dessous est le sous-ensemble non destructif des trois options — elle lit, et
-//! n'écrit ni ne supprime rien sous le nom de V1. La trancher consiste à **retirer une
-//! ligne** de `SERVICES`.
+//! **Le nom de service est tranché** — option B de
+//! [l'ADR 0015](../../../docs/adr/0015-nom-de-service-keychain-pour-les-mots-de-passe-smb.md),
+//! choisie par Thomas le 2026-11-26 : un seul nom, celui de V2. Le nom de V1
+//! (`com.tdugue.noir.smb`) **n'est plus lu**, et n'a jamais été écrit ni supprimé par V2 —
+//! ce qu'il contient reste dans le trousseau de l'utilisateur, intact, à lui d'en disposer.
+//! Ce que ça coûte, en entier : le mot de passe de chaque source est à saisir une fois.
 //!
 //! V009 — *aucun dialogue Keychain au lancement* : rien ici n'est appelé au démarrage. La
 //! cascade est consultée au **premier scan** d'une source, et le cache de session fait que
@@ -21,13 +22,15 @@
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
-/// Les noms de service consultés, **dans cet ordre**. Le premier est celui de V2, le second
-/// celui que V1 a écrit (`noir-tauri/src-tauri/src/network/credentials.rs`, ligne 12) alors
-/// que le bundle identifier disait déjà `com.tdugue.hean`.
+/// Le nom de service, et il n'y en a **qu'un**. V1 écrivait sous `com.tdugue.noir.smb`
+/// (`noir-tauri/src-tauri/src/network/credentials.rs`, ligne 12) alors que le bundle
+/// identifier disait déjà `com.tdugue.hean` ; V2 ne porte pas ce nom-là.
 ///
-/// L'écriture, elle, ne va **que** dans le premier : hériter d'un nom en lecture est
-/// réversible, y écrire ne l'est pas.
-const SERVICES: &[&str] = &["com.tdugue.hean.smb", "com.tdugue.noir.smb"];
+/// **Reste une liste, et pas une constante seule, pour une raison** : la forme plurielle est
+/// ce qui a permis d'hériter du nom de V1 en lecture pendant deux jours sans rien écrire, et
+/// c'est la forme qu'il faudrait reprendre si un nom devait un jour être abandonné pour un
+/// autre. La réduire à un `&str` ferait réécrire la cascade, ses messages et ses tests.
+const SERVICES: &[&str] = &["com.tdugue.hean.smb"];
 
 /// Le cache de session. Il existe pour une raison précise, héritée de V1 : **sans lui,
 /// macOS peut demander une autorisation à chaque lecture**. Un scan qui ouvre 3 000 fichiers
@@ -119,8 +122,9 @@ fn verrou() -> std::sync::MutexGuard<'static, HashMap<String, String>> {
     CACHE.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// La lecture réelle. `None` = absent **de ce service** ; ce n'est pas une erreur, c'est le
-/// cas normal du premier élément de la cascade chez quelqu'un qui vient de V1.
+/// La lecture réelle. `None` = absent **de ce service** ; ce n'est pas une erreur en soi,
+/// c'est ce que rend le trousseau d'une source dont le mot de passe n'a pas encore été saisi
+/// sous le nom de V2 — le cas de chaque source héritée de V1, une fois.
 ///
 /// Un échec qui n'est pas une absence — trousseau verrouillé, autorisation refusée — est
 /// journalisé **et** rendu comme absent, ce qui fait tomber l'appelant sur `Erreur::Absent`.
@@ -173,11 +177,15 @@ mod tests {
     /// la **cascade** et la forme des erreurs — ce qui est précisément ce qu'INV-04 protège.
     /// Ce qui ne s'éprouve pas : que `get_generic_password` fasse ce que sa doc dit.
     #[test]
-    fn la_cascade_lit_v2_puis_v1_et_necrit_que_sous_v2() {
-        assert_eq!(SERVICES, &["com.tdugue.hean.smb", "com.tdugue.noir.smb"]);
-        // L'ordre est la décision provisoire de l'ADR 0015 : si quelqu'un l'inverse, les
-        // mots de passe enregistrés par V2 cessent d'être trouvés en premier.
-        assert_eq!(SERVICES[0], "com.tdugue.hean.smb", "l'écriture va sous ce nom");
+    fn un_seul_nom_de_service_et_celui_de_v1_nest_plus_lu() {
+        assert_eq!(SERVICES, &["com.tdugue.hean.smb"]);
+        // L'ADR 0015 est tranché (option B, Thomas, 2026-11-26). Ce test est ce qui empêche
+        // quelqu'un de « réparer » un mot de passe introuvable en remettant le nom de V1 :
+        // ce ne serait pas une correction, ce serait annuler la décision sans le dire.
+        assert!(
+            !SERVICES.iter().any(|s| s.contains("noir")),
+            "le nom de V1 ne revient pas en lecture sans un nouvel ADR"
+        );
     }
 
     /// INV-04 — un mot de passe vide n'est jamais rendu comme un mot de passe.
@@ -197,7 +205,7 @@ mod tests {
             services: SERVICES.join(", "),
         }
         .to_string();
-        for attendu in ["dcdd24af", "com.tdugue.hean.smb", "com.tdugue.noir.smb", "saisir"] {
+        for attendu in ["dcdd24af", "com.tdugue.hean.smb", "saisir"] {
             assert!(absent.contains(attendu), "« {attendu} » absent de : {absent}");
         }
         let vide = Erreur::Vide { id_source: "dcdd24af".into() }.to_string();

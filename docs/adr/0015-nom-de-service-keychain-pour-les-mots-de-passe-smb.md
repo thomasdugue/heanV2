@@ -1,11 +1,11 @@
 # 0015 — Nom de service Keychain pour les mots de passe SMB
 
 - **Date** : 2026-11-25
-- **État** : Proposée
-- **Décideur** : **Thomas**. La question lui est posée ci-dessous et **n'est pas tranchée**. Ce
-  qui est écrit dans la section « en attendant » est un **choix provisoire de session**, pris
-  pour que la part réseau de la bibliothèque soit observable ce soir, et il se retire en une
-  ligne de code.
+- **État** : Acceptée
+- **Décideur** : **Thomas**, qui a répondu le **2026-11-26** : **option B**, un nom propre à V2.
+  La question lui était posée ci-dessous et ne l'a pas été à sa place. Rien n'a été retiré de ce
+  qui précédait sa réponse — ni le raisonnement, ni la recommandation, ni la prémisse fausse et
+  sa correction : un ADR dont on efface l'attente ne se relit plus.
 - **Clôt** : le point ouvert « Nom de service Keychain pour les mots de passe SMB » de
   [`docs/adr/README.md`](README.md), ouvert par l'[ADR 0003](0003-dossier-de-donnees.md) §
   « ce que la migration ne déplace pas ».
@@ -29,6 +29,24 @@
 > de « propre » est presque nul. La remise à plat des documents qui portent le chiffre faux
 > ne se fait pas ici (elle est à part) ; ce qui est corrigé ci-dessous est le seul endroit où
 > ce chiffre servait à **trancher**.
+
+## La réponse, et ce qu'elle change dans le code
+
+**Option B.** `SERVICES` ne contient plus qu'un nom, `com.tdugue.hean.smb`. Le nom de V1
+n'est **plus lu** — et il n'a jamais été écrit ni supprimé par V2, donc les deux entrées
+relevées sous `com.tdugue.noir.smb` restent **intactes dans le trousseau de Thomas**, y
+compris l'orpheline. Les effacer est à lui, pas à l'app : c'est précisément ce que cet ADR
+refusait de décider seul, et la décision prise ne l'autorise pas davantage.
+
+Le coût, en entier : **au prochain scan, Hean ne trouve pas le mot de passe et demande de le
+saisir.** Une fois, pour la source `dugstation`. Le message d'erreur nomme le service consulté
+— c'est ce qui permettra de distinguer « mot de passe à ressaisir » (attendu, aujourd'hui) de
+« nom de service changé » (une régression, plus tard).
+
+Et un test garde la décision : `un_seul_nom_de_service_et_celui_de_v1_nest_plus_lu` échoue si
+quelqu'un remet le nom de V1 en lecture. Sans lui, un mot de passe introuvable se « réparerait »
+en annulant cette décision sans le dire — le mode de défaut le plus probable, parce qu'il
+ressemble à une correction.
 
 ## Le contexte, en trois faits mesurés
 
@@ -144,9 +162,11 @@ mesurer sur une build signée.
 
 ## Conséquences acceptées
 
-- Tant que Thomas n'a pas tranché, **deux noms de service** sont consultés en lecture. Le coût
-  est un appel Keychain supplémentaire par source et par session, uniquement quand le premier
-  échoue — c'est-à-dire exactement une fois, sur la seule machine concernée.
+- **Un seul nom de service est consulté.** La cascade à deux noms a existé deux jours, le temps
+  que la question soit posée et répondue ; elle n'a jamais rien écrit sous le nom de V1, ce qui
+  est la raison pour laquelle sa suppression ne laisse aucune trace à nettoyer dans le code.
+- **Thomas ressaisit le mot de passe de ses sources NAS une fois**, au premier scan qui suit.
+  C'est le coût accepté, et il était chiffré avant la réponse : une personne, une source.
 - Un mot de passe enregistré depuis V2 n'est **pas** relu par V1. Si Thomas repasse à V1 après
   avoir saisi un mot de passe dans V2, V1 ne le trouvera pas et le redemandera. Le retour
   arrière de l'[ADR 0014](0014-la-migration-conserve-le-dossier-de-v1.md) reste donc entier

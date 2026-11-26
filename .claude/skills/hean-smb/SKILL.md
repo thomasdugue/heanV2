@@ -14,7 +14,7 @@ description: Sous-système NAS/SMB de Hean — pavao/libsmbclient singleton, URI
 ```
 src-tauri/src/network/
 ├── mod.rs           scanner_une_source() — la forme en TROIS TEMPS (voir ci-dessous)
-├── identifiants.rs  Keychain : cascade com.tdugue.hean.smb → com.tdugue.noir.smb (ADR 0015)
+├── identifiants.rs  Keychain : com.tdugue.hean.smb SEUL — ADR 0015 tranché (option B)
 ├── client.rs        libsmbclient via pavao, UN mutex de process, reessayer_une_fois (INV-03)
 ├── uri.rs           smb://{id}/{partage}/{chemin} — format hérité de V1, épinglé par test
 ├── entete.rs        1 Mio d'en-tête pour FLAC/WAV/AIFF, fichier entier pour MP3/M4A/OGG

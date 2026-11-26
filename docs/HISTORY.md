@@ -1692,3 +1692,13 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   raisonnements le jour même. Les ADR 0001, 0003, 0004 et 0010 reposent dessus et restent
   intacts — on ne modifie pas un ADR. Deezer devient obligatoire, WiFi Sync sort du périmètre.
   Suite : **le son**, avec un jalon à 14 jours.
+- **2026-11-26** (passe) : **le trousseau prend un nom propre** — ADR 0015 tranché par Thomas,
+  option B. `SERVICES` ne contient plus que `com.tdugue.hean.smb` ; le nom de V1 n'est plus lu.
+  Ce que V2 n'a jamais fait, et ne fait toujours pas : écrire ou supprimer sous le nom de V1.
+  Les deux entrées du trousseau de Thomas restent donc intactes, l'orpheline comprise — les
+  effacer est à lui. Coût accepté, en entier : **une saisie de mot de passe, pour une source**,
+  au prochain scan. Un test interdit le retour du nom de V1 en lecture, parce que ce retour
+  ressemblerait à une correction (« le mot de passe n'est plus trouvé ») alors qu'il annulerait
+  la décision. Corrigés avec : l'en-tête du module, le commentaire de `lire_du_trousseau` qui
+  parlait d'un « premier élément », et l'arbre de `hean-smb` qui décrivait la cascade.
+  Première entrée sous le plafond de 15 lignes.
