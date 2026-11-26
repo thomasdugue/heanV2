@@ -13,9 +13,6 @@
 //! le design est la phase 4), et un sondage ne peut pas se désynchroniser de l'état réel
 //! — il **est** l'état réel. Le jour où la barre de progression doit être fluide, c'est un
 //! `collect_events!` à ajouter, pas une architecture à refaire.
-//!
-//! **Aucun `u64` ni `i64` ici** : `specta_typescript` les rend en `bigint`, que `JSON.parse`
-//! ne sait pas relire. Les millisecondes tiennent dans un `u32` jusqu'à 49 jours.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -30,50 +27,78 @@ use crate::audio::lecteur::{Commande, Lecteur};
 pub type Lecture = Mutex<Lecteur>;
 
 /// Un périphérique de sortie, tel que l'interface le montre.
+///
+/// Les champs n'ont **aucun commentaire**, et c'est voulu : `specta` recopie les
+/// doc-commentaires dans `src/ipc/bindings.ts`, pour chaque variante du type — le pourquoi y
+/// serait donc écrit deux fois, dans un fichier généré que personne ne lit. Il vit là où les
+/// valeurs sont produites : `audio/coreaudio/peripheriques.rs` pour `airplay` (PLAT-1 : un
+/// AirPlay n'est jamais bit-perfect, et l'interface doit pouvoir le dire **avant** qu'on le
+/// choisisse) et `frequence.rs` pour `frequences`, la liste sur laquelle le repli choisit.
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]
 pub struct PeripheriqueAudio {
     pub id: u32,
     pub nom: String,
     pub par_defaut: bool,
-    /// Les fréquences standard annoncées, pour l'affichage. La décision de jouer, elle,
-    /// interroge le matériel (voir `audio::coreaudio::frequence::est_servie`).
     pub frequences: Vec<u32>,
     pub frequence_actuelle: u32,
     pub canaux_max: u32,
-    /// Un AirPlay ne peut **jamais** être bit-perfect (PLAT-1) : l'interface doit pouvoir le
-    /// dire avant que Thomas le choisisse, pas après.
     pub airplay: bool,
     pub bluetooth: bool,
 }
 
+impl PeripheriqueAudio {
+    fn depuis(p: &crate::audio::coreaudio::InfoPeripherique) -> Self {
+        Self {
+            id: p.id,
+            nom: p.nom.clone(),
+            par_defaut: p.par_defaut,
+            frequences: p.frequences.clone(),
+            frequence_actuelle: p.frequence_actuelle,
+            canaux_max: u32::from(p.canaux_max),
+            airplay: p.est_airplay(),
+            bluetooth: p.est_bluetooth(),
+        }
+    }
+}
+
 /// Tout ce que la fenêtre a besoin de savoir sur la lecture en cours.
+///
+/// # Deux choses à savoir avant d'y toucher
+///
+/// **Aucun `u64` ni `i64`** : `specta_typescript` les rend en `bigint`, que `JSON.parse` ne
+/// sait pas relire. Les millisecondes tiennent dans un `u32` jusqu'à 49 jours.
+///
+/// **Aucun `Option`, et aucun commentaire sur les champs.** `specta` émet **deux** types dès
+/// qu'un champ est optionnel (`_Serialize` et `_Deserialize`), et recopie les
+/// doc-commentaires dans chacun : cette structure-ci pesait à elle seule 122 des 436 lignes
+/// de `src/ipc/bindings.ts`, qui a une limite de 400. Une chaîne vide dit « rien » aussi bien
+/// qu'un `None` pour un chemin de piste ou un message, et le pourquoi de chaque valeur vit là
+/// où elle est produite — `audio/lecteur/mod.rs` pour l'état, `audio/coreaudio/negociation.rs`
+/// pour les deux fréquences et le badge bit-perfect.
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]
 pub struct EtatLecture {
     pub en_lecture: bool,
     pub en_pause: bool,
     pub position_ms: u32,
-    /// Zéro quand le conteneur ne déclare pas de durée (un MP3 sans en-tête Xing). À
-    /// afficher comme « durée inconnue », pas comme zéro seconde.
     pub duree_ms: u32,
     pub index: u32,
     pub total: u32,
     pub volume: f32,
-    /// Nombre de trous dans le son depuis le début de la lecture. **Zéro est la seule valeur
-    /// acceptable** : c'est la mesure de « ça ne coupe pas », et V1 n'en avait aucune.
     pub famines: u32,
     pub bit_perfect: bool,
-    /// Les deux conditions que Hean peut constater séparément. « Pas bit-perfect » sans dire
-    /// laquelle manque ne se corrige pas.
     pub sans_reechantillonnage: bool,
     pub mode_exclusif: bool,
-    pub piste: Option<String>,
+    pub source_hz: u32,
+    pub source_bits: u32,
+    pub sortie_hz: u32,
+    pub airplay: bool,
+    /// Vide quand rien ne joue.
+    pub piste: String,
     pub peripherique: String,
-    /// L'identifiant de la sortie active : c'est par lui que l'interface sait quelle ligne
-    /// de sa liste est sélectionnée. Par le nom, deux DAC identiques seraient confondus.
     pub peripherique_id: u32,
-    /// Ce qu'il y a à dire à Thomas : un refus de lecture, un avertissement AirPlay. C'est
-    /// le canal qui manquait entièrement à V1 (`docs/MESURES-V1.md` §8).
-    pub message: Option<String>,
+    /// Vide quand il n'y a rien à dire.
+    pub message: String,
+    pub peripheriques: Vec<PeripheriqueAudio>,
 }
 
 fn lecteur<'a>(etat: &'a State<'_, Lecture>) -> std::sync::MutexGuard<'a, Lecteur> {
@@ -111,16 +136,17 @@ pub fn play_tracks(
     )
 }
 
+/// Pause ou reprise. **Un seul booléen** plutôt que deux commandes : l'appel est idempotent,
+/// donc deux clics rapides ne peuvent pas laisser l'état à l'envers.
 #[tauri::command]
 #[specta::specta]
-pub fn playback_pause(etat: State<'_, Lecture>) -> Result<(), String> {
-    envoyer(&etat, "mettre en pause", Commande::Pause)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn playback_resume(etat: State<'_, Lecture>) -> Result<(), String> {
-    envoyer(&etat, "reprendre la lecture", Commande::Reprendre)
+pub fn playback_set_paused(etat: State<'_, Lecture>, en_pause: bool) -> Result<(), String> {
+    let (quoi, commande) = if en_pause {
+        ("mettre en pause", Commande::Pause)
+    } else {
+        ("reprendre la lecture", Commande::Reprendre)
+    };
+    envoyer(&etat, quoi, commande)
 }
 
 #[tauri::command]
@@ -139,16 +165,12 @@ pub fn playback_seek(etat: State<'_, Lecture>, position_ms: u32) -> Result<(), S
     )
 }
 
+/// Change de piste de `pas` rangs : `1` pour la suivante, `-1` pour la précédente. Une seule
+/// commande, parce que le fil de lecture n'a de toute façon qu'une seule opération dessous.
 #[tauri::command]
 #[specta::specta]
-pub fn playback_next(etat: State<'_, Lecture>) -> Result<(), String> {
-    envoyer(&etat, "passer à la piste suivante", Commande::Suivante)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn playback_previous(etat: State<'_, Lecture>) -> Result<(), String> {
-    envoyer(&etat, "revenir à la piste précédente", Commande::Precedente)
+pub fn playback_skip(etat: State<'_, Lecture>, pas: i32) -> Result<(), String> {
+    envoyer(&etat, "changer de piste", Commande::Changer(i64::from(pas)))
 }
 
 /// Le volume, de 0 à 1. **Seul 1,0 exactement est bit-perfect** (ADR 0007) : toute autre
@@ -189,29 +211,6 @@ pub fn refresh_audio_devices(etat: State<'_, Lecture>) -> Result<(), String> {
     )
 }
 
-#[tauri::command]
-#[specta::specta]
-pub fn audio_devices(etat: State<'_, Lecture>) -> Vec<PeripheriqueAudio> {
-    let partage = lecteur(&etat);
-    let liste = partage.etat().peripheriques.lock();
-    liste
-        .map(|l| {
-            l.iter()
-                .map(|p| PeripheriqueAudio {
-                    id: p.id,
-                    nom: p.nom.clone(),
-                    par_defaut: p.par_defaut,
-                    frequences: p.frequences.clone(),
-                    frequence_actuelle: p.frequence_actuelle,
-                    canaux_max: u32::from(p.canaux_max),
-                    airplay: p.est_airplay(),
-                    bluetooth: p.est_bluetooth(),
-                })
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
 /// L'état de la lecture, interrogé par la fenêtre toutes les 100 ms.
 #[tauri::command]
 #[specta::specta]
@@ -231,13 +230,22 @@ pub fn playback_state(etat: State<'_, Lecture>) -> EtatLecture {
         bit_perfect: e.bit_perfect.load(Relaxed),
         sans_reechantillonnage: e.sans_reechantillonnage.load(Relaxed),
         mode_exclusif: e.mode_exclusif.load(Relaxed),
-        piste: e.piste.lock().ok().and_then(|p| p.clone()),
+        source_hz: e.source_hz.load(Relaxed),
+        source_bits: e.source_bits.load(Relaxed),
+        sortie_hz: e.sortie_hz.load(Relaxed),
+        airplay: e.airplay.load(Relaxed),
+        piste: e.piste.lock().ok().and_then(|p| p.clone()).unwrap_or_default(),
         peripherique: e
             .peripherique
             .lock()
             .map(|p| p.clone())
             .unwrap_or_default(),
         peripherique_id: e.peripherique_id.load(Relaxed),
-        message: e.message.lock().ok().and_then(|m| m.clone()),
+        message: e.message.lock().ok().and_then(|m| m.clone()).unwrap_or_default(),
+        peripheriques: e
+            .peripheriques
+            .lock()
+            .map(|l| l.iter().map(PeripheriqueAudio::depuis).collect())
+            .unwrap_or_default(),
     }
 }

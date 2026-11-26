@@ -46,8 +46,8 @@ impl InfoPeripherique {
         self.transport == TRANSPORT_BLUETOOTH
     }
 
-    /// Les fréquences, écrites pour un humain : « 44 100, 48 000, 96 000 Hz ».
-    /// Sert le message d'`ErreurAudio::FrequenceNonServie`, que Thomas lit.
+    /// Les fréquences, écrites pour un humain : « 44 100, 48 000, 96 000 Hz ». Pour le
+    /// journal et pour l'écran.
     pub fn frequences_en_clair(&self) -> String {
         if self.frequences.is_empty() {
             return "aucune fréquence annoncée".to_owned();
@@ -130,8 +130,12 @@ fn nombre_de_tampons(id: AudioObjectID, portee: u32) -> u32 {
         return 0;
     }
     // SÛRETÉ : le tampon vient du HAL pour cette propriété exacte et fait au moins la taille
-    // d'un `AudioBufferList` ; on ne lit que son premier champ.
-    unsafe { (*(octets.as_ptr() as *const AudioBufferList)).mNumberBuffers }
+    // d'un `AudioBufferList`. `read_unaligned` et non un déréférencement : un `Vec<u8>` ne
+    // garantit qu'un alignement de 1, là où `AudioBufferList` en demande 8. En pratique
+    // l'allocateur rend du 16-aligné, donc le déréférencement direct « marche » — mais c'est
+    // un comportement indéfini que Miri refuse, et s'appuyer sur l'allocateur est exactement
+    // le genre de chose qui tient jusqu'au jour où elle ne tient plus.
+    unsafe { std::ptr::read_unaligned(octets.as_ptr() as *const AudioBufferList).mNumberBuffers }
 }
 
 pub fn a_des_flux_de_sortie(id: AudioObjectID) -> bool {
@@ -152,10 +156,17 @@ pub fn nom_du_peripherique(id: AudioObjectID) -> Result<String, ErreurAudio> {
             code: 0,
         });
     }
-    // SÛRETÉ : le HAL rend une `CFStringRef` valide suivant la *get rule* — on ne possède
-    // pas la référence, donc `wrap_under_get_rule` (qui la retient) est la bonne enveloppe.
-    // `wrap_under_create_rule` la libérerait à tort et provoquerait un double relâchement.
-    let texte = unsafe { CFString::wrap_under_get_rule(brut) };
+    // SÛRETÉ : règle *CREATE*, et c'est l'inverse de ce que ce commentaire disait avant le
+    // 2026-11-26. `AudioHardwareBase.h` est explicite pour `kAudioObjectPropertyName` :
+    // « A CFString that contains the human readable name of the object. **The caller is
+    // responsible for releasing the returned CFObject.** » (lignes 280-282 du SDK macOS).
+    // Donc `wrap_under_create_rule`, qui prend possession et libérera.
+    //
+    // ⚠️ `wrap_under_get_rule` — ce que V1 écrit (`coreaudio_backend.rs:394`) et ce que
+    // j'avais recopié — **retient** la référence sans jamais la rendre : une `CFString`
+    // fuitée par périphérique et par rafraîchissement, donc à chaque piste. Relevé par
+    // `invariant-guardian`, qui doutait du commentaire ; l'en-tête du SDK a tranché.
+    let texte = unsafe { CFString::wrap_under_create_rule(brut) };
     Ok(texte.to_string())
 }
 
@@ -173,19 +184,33 @@ pub fn canaux_max(id: AudioObjectID) -> u16 {
     if octets.len() < std::mem::size_of::<AudioBufferList>() {
         return 2;
     }
-    // SÛRETÉ : même propriété et même garantie de taille que `nombre_de_tampons` ; le
-    // nombre de tampons est relu ici pour borner le parcours à ce que le HAL a écrit.
-    let total: u32 = unsafe {
-        let liste = octets.as_ptr() as *const AudioBufferList;
-        let combien = (*liste).mNumberBuffers as usize;
-        let disponibles = (octets.len() - std::mem::size_of::<AudioBufferList>())
-            / std::mem::size_of::<coreaudio_sys::AudioBuffer>()
-            + 1;
-        std::slice::from_raw_parts((*liste).mBuffers.as_ptr(), combien.min(disponibles))
-            .iter()
-            .map(|t| t.mNumberChannels)
-            .sum()
-    };
+    // SÛRETÉ : même propriété et même garantie de taille que `nombre_de_tampons`, et même
+    // raison de lire sans supposer l'alignement. Le nombre de tampons annoncé est borné par
+    // ce que la taille du tampon permet réellement : le HAL pourrait annoncer plus qu'il n'a
+    // écrit, et le croire ferait lire au-delà.
+    let combien_annonces =
+        unsafe { std::ptr::read_unaligned(octets.as_ptr() as *const AudioBufferList) }
+            .mNumberBuffers as usize;
+    let taille_tampon = std::mem::size_of::<coreaudio_sys::AudioBuffer>();
+    let disponibles =
+        (octets.len() - std::mem::size_of::<AudioBufferList>()) / taille_tampon + 1;
+    let combien = combien_annonces.min(disponibles);
+    // Décalage du premier `AudioBuffer` dans la structure : il suit le `mNumberBuffers`,
+    // après le remplissage d'alignement que le compilateur insère.
+    let decalage = std::mem::offset_of!(AudioBufferList, mBuffers);
+    let total: u32 = (0..combien)
+        .map(|i| {
+            // SÛRETÉ : `i < combien <= disponibles`, donc cette lecture tient entièrement
+            // dans `octets`.
+            unsafe {
+                std::ptr::read_unaligned(
+                    octets.as_ptr().add(decalage + i * taille_tampon)
+                        as *const coreaudio_sys::AudioBuffer,
+                )
+            }
+            .mNumberChannels
+        })
+        .sum();
     u16::try_from(total).unwrap_or(2)
 }
 

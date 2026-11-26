@@ -63,18 +63,23 @@ export const commands = {
 	scanNetworkSource: (sourceId: string, options?: InvokeOptions) => __TAURI_INVOKE<RapportDeScan>("scan_network_source", { sourceId }, options),
 	/**  Remplace la file de lecture et démarre à `depart`. */
 	playTracks: (chemins: string[], depart: number, options?: InvokeOptions) => __TAURI_INVOKE<null>("play_tracks", { chemins, depart }, options),
-	playbackPause: (options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_pause", undefined, options),
-	playbackResume: (options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_resume", undefined, options),
+	/**
+	 *  Pause ou reprise. **Un seul booléen** plutôt que deux commandes : l'appel est idempotent,
+	 *  donc deux clics rapides ne peuvent pas laisser l'état à l'envers.
+	 */
+	playbackSetPaused: (enPause: boolean, options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_set_paused", { enPause }, options),
 	playbackStop: (options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_stop", undefined, options),
 	playbackSeek: (positionMs: number, options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_seek", { positionMs }, options),
-	playbackNext: (options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_next", undefined, options),
-	playbackPrevious: (options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_previous", undefined, options),
+	/**
+	 *  Change de piste de `pas` rangs : `1` pour la suivante, `-1` pour la précédente. Une seule
+	 *  commande, parce que le fil de lecture n'a de toute façon qu'une seule opération dessous.
+	 */
+	playbackSkip: (pas: number, options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_skip", { pas }, options),
 	/**
 	 *  Le volume, de 0 à 1. **Seul 1,0 exactement est bit-perfect** (ADR 0007) : toute autre
 	 *  valeur fait multiplier chaque échantillon, donc arrondir.
 	 */
 	setVolume: (volume: number | null, options?: InvokeOptions) => __TAURI_INVOKE<null>("set_volume", { volume }, options),
-	audioDevices: (options?: InvokeOptions) => __TAURI_INVOKE<PeripheriqueAudio[]>("audio_devices", undefined, options),
 	setAudioDevice: (id: number, options?: InvokeOptions) => __TAURI_INVOKE<null>("set_audio_device", { id }, options),
 	/**
 	 *  Le mode exclusif : Hean réserve le DAC, aucune autre application ne peut y mélanger du
@@ -87,7 +92,7 @@ export const commands = {
 	 */
 	refreshAudioDevices: (options?: InvokeOptions) => __TAURI_INVOKE<null>("refresh_audio_devices", undefined, options),
 	/**  L'état de la lecture, interrogé par la fenêtre toutes les 100 ms. */
-	playbackState: (options?: InvokeOptions) => __TAURI_INVOKE<EtatLecture_Serialize>("playback_state", undefined, options),
+	playbackState: (options?: InvokeOptions) => __TAURI_INVOKE<EtatLecture>("playback_state", undefined, options),
 };
 
 /* Types */
@@ -129,103 +134,64 @@ export type Edition_Serialize = {
 	genre: string | null,
 };
 
-/**  Tout ce que la fenêtre a besoin de savoir sur la lecture en cours. */
-export type EtatLecture = EtatLecture_Serialize | EtatLecture_Deserialize;
-
-/**  Tout ce que la fenêtre a besoin de savoir sur la lecture en cours. */
-export type EtatLecture_Deserialize = {
+/**
+ *  Tout ce que la fenêtre a besoin de savoir sur la lecture en cours.
+ * 
+ *  # Deux choses à savoir avant d'y toucher
+ * 
+ *  **Aucun `u64` ni `i64`** : `specta_typescript` les rend en `bigint`, que `JSON.parse` ne
+ *  sait pas relire. Les millisecondes tiennent dans un `u32` jusqu'à 49 jours.
+ * 
+ *  **Aucun `Option`, et aucun commentaire sur les champs.** `specta` émet **deux** types dès
+ *  qu'un champ est optionnel (`_Serialize` et `_Deserialize`), et recopie les
+ *  doc-commentaires dans chacun : cette structure-ci pesait à elle seule 122 des 436 lignes
+ *  de `src/ipc/bindings.ts`, qui a une limite de 400. Une chaîne vide dit « rien » aussi bien
+ *  qu'un `None` pour un chemin de piste ou un message, et le pourquoi de chaque valeur vit là
+ *  où elle est produite — `audio/lecteur/mod.rs` pour l'état, `audio/coreaudio/negociation.rs`
+ *  pour les deux fréquences et le badge bit-perfect.
+ */
+export type EtatLecture = {
 	en_lecture: boolean,
 	en_pause: boolean,
 	position_ms: number,
-	/**
-	 *  Zéro quand le conteneur ne déclare pas de durée (un MP3 sans en-tête Xing). À
-	 *  afficher comme « durée inconnue », pas comme zéro seconde.
-	 */
 	duree_ms: number,
 	index: number,
 	total: number,
 	volume: number | null,
-	/**
-	 *  Nombre de trous dans le son depuis le début de la lecture. **Zéro est la seule valeur
-	 *  acceptable** : c'est la mesure de « ça ne coupe pas », et V1 n'en avait aucune.
-	 */
 	famines: number,
 	bit_perfect: boolean,
-	/**
-	 *  Les deux conditions que Hean peut constater séparément. « Pas bit-perfect » sans dire
-	 *  laquelle manque ne se corrige pas.
-	 */
 	sans_reechantillonnage: boolean,
 	mode_exclusif: boolean,
-	piste?: string | null,
+	source_hz: number,
+	source_bits: number,
+	sortie_hz: number,
+	airplay: boolean,
+	/**  Vide quand rien ne joue. */
+	piste: string,
 	peripherique: string,
-	/**
-	 *  L'identifiant de la sortie active : c'est par lui que l'interface sait quelle ligne
-	 *  de sa liste est sélectionnée. Par le nom, deux DAC identiques seraient confondus.
-	 */
 	peripherique_id: number,
-	/**
-	 *  Ce qu'il y a à dire à Thomas : un refus de lecture, un avertissement AirPlay. C'est
-	 *  le canal qui manquait entièrement à V1 (`docs/MESURES-V1.md` §8).
-	 */
-	message?: string | null,
+	/**  Vide quand il n'y a rien à dire. */
+	message: string,
+	peripheriques: PeripheriqueAudio[],
 };
 
-/**  Tout ce que la fenêtre a besoin de savoir sur la lecture en cours. */
-export type EtatLecture_Serialize = {
-	en_lecture: boolean,
-	en_pause: boolean,
-	position_ms: number,
-	/**
-	 *  Zéro quand le conteneur ne déclare pas de durée (un MP3 sans en-tête Xing). À
-	 *  afficher comme « durée inconnue », pas comme zéro seconde.
-	 */
-	duree_ms: number,
-	index: number,
-	total: number,
-	volume: number | null,
-	/**
-	 *  Nombre de trous dans le son depuis le début de la lecture. **Zéro est la seule valeur
-	 *  acceptable** : c'est la mesure de « ça ne coupe pas », et V1 n'en avait aucune.
-	 */
-	famines: number,
-	bit_perfect: boolean,
-	/**
-	 *  Les deux conditions que Hean peut constater séparément. « Pas bit-perfect » sans dire
-	 *  laquelle manque ne se corrige pas.
-	 */
-	sans_reechantillonnage: boolean,
-	mode_exclusif: boolean,
-	piste: string | null,
-	peripherique: string,
-	/**
-	 *  L'identifiant de la sortie active : c'est par lui que l'interface sait quelle ligne
-	 *  de sa liste est sélectionnée. Par le nom, deux DAC identiques seraient confondus.
-	 */
-	peripherique_id: number,
-	/**
-	 *  Ce qu'il y a à dire à Thomas : un refus de lecture, un avertissement AirPlay. C'est
-	 *  le canal qui manquait entièrement à V1 (`docs/MESURES-V1.md` §8).
-	 */
-	message: string | null,
-};
-
-/**  Un périphérique de sortie, tel que l'interface le montre. */
+/**
+ *  Un périphérique de sortie, tel que l'interface le montre.
+ * 
+ *  Les champs n'ont **aucun commentaire**, et c'est voulu : `specta` recopie les
+ *  doc-commentaires dans `src/ipc/bindings.ts`, pour chaque variante du type — le pourquoi y
+ *  serait donc écrit deux fois, dans un fichier généré que personne ne lit. Il vit là où les
+ *  valeurs sont produites : `audio/coreaudio/peripheriques.rs` pour `airplay` (PLAT-1 : un
+ *  AirPlay n'est jamais bit-perfect, et l'interface doit pouvoir le dire **avant** qu'on le
+ *  choisisse) et `frequence.rs` pour `frequences`, la liste sur laquelle le repli choisit.
+ */
 export type PeripheriqueAudio = {
 	id: number,
 	nom: string,
 	par_defaut: boolean,
-	/**
-	 *  Les fréquences standard annoncées, pour l'affichage. La décision de jouer, elle,
-	 *  interroge le matériel (voir `audio::coreaudio::frequence::est_servie`).
-	 */
 	frequences: number[],
 	frequence_actuelle: number,
 	canaux_max: number,
-	/**
-	 *  Un AirPlay ne peut **jamais** être bit-perfect (PLAT-1) : l'interface doit pouvoir le
-	 *  dire avant que Thomas le choisisse, pas après.
-	 */
 	airplay: boolean,
 	bluetooth: boolean,
 };

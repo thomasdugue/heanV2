@@ -14,12 +14,9 @@
   // les touches media et le plein écran ne sont pas portés.
   import {
     appVersion,
-    audioDevices,
-    playbackNext,
-    playbackPause,
-    playbackPrevious,
-    playbackResume,
     playbackSeek,
+    playbackSetPaused,
+    playbackSkip,
     playbackState,
     playbackStop,
     playTracks,
@@ -28,7 +25,6 @@
     setExclusiveMode,
     setVolume,
     type EtatLecture,
-    type PeripheriqueAudio,
     type RapportDeScan,
     type SourceReseau,
     type Track,
@@ -61,7 +57,6 @@
   // `src-tauri/src/commands/lecture.rs` pour le pourquoi. Conséquence agréable : il n'y a
   // aucun état de lecture local à garder en phase avec le backend, donc rien à désynchroniser.
   let lecture = $state<EtatLecture | null>(null);
-  let peripheriques = $state.raw<readonly PeripheriqueAudio[]>([]);
   let version = $state<string | null>(null);
   let erreur = $state<string | null>(null);
   let occupe = $state(true);
@@ -108,22 +103,15 @@
   // destruction du composant.
   $effect(() => {
     let tic = 0;
-    /** Les sorties, en une chaîne : sert à ne réassigner la liste que si elle a changé. */
-    const signature = (l: readonly PeripheriqueAudio[]): string =>
-      l.map((p) => `${p.id}:${p.nom}:${p.par_defaut}`).join('|');
-
     const relever = async (): Promise<void> => {
       try {
+        // UN seul aller-retour : l'état porte la liste des sorties avec lui.
         lecture = await playbackState();
         // Toutes les 2 s, on demande au moteur de RELIRE le matériel. Sans ça, brancher le
         // DAC pendant que l'app tourne ne le ferait pas apparaître dans la liste — c'est
         // l'étape 10 du protocole de test, et elle échouerait.
         if (tic % 20 === 0) await refreshAudioDevices();
         tic += 1;
-        const liste = await audioDevices();
-        // Comparaison sur les NOMS et pas sur le nombre : débrancher une sortie et en
-        // brancher une autre laisse le compte identique, et la liste serait restée fausse.
-        if (signature(liste) !== signature(peripheriques)) peripheriques = liste;
       } catch {
         // Le backend n'a pas répondu : on garde le dernier état connu plutôt que de vider
         // l'affichage. Une barre qui saute à zéro sur un sondage raté serait un faux signal.
@@ -169,7 +157,7 @@
   }
 
   function lectureOuPause(): void {
-    ordre(() => (lecture?.en_pause === true ? playbackResume() : playbackPause()));
+    ordre(() => playbackSetPaused(lecture?.en_pause !== true));
   }
 
   function ajouterUnDossier(chemin: string): void {
@@ -240,11 +228,10 @@
 
   <Lecture
     etat={lecture}
-    {peripheriques}
     surLectureOuPause={lectureOuPause}
     surArret={() => ordre(() => playbackStop())}
-    surPrecedente={() => ordre(() => playbackPrevious())}
-    surSuivante={() => ordre(() => playbackNext())}
+    surPrecedente={() => ordre(() => playbackSkip(-1))}
+    surSuivante={() => ordre(() => playbackSkip(1))}
     surDeplacement={(ms) => ordre(() => playbackSeek(ms))}
     surVolume={(v) => ordre(() => setVolume(v))}
     surPeripherique={(id) => ordre(() => setAudioDevice(id))}

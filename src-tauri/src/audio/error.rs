@@ -53,18 +53,6 @@ pub enum ErreurAudio {
     #[error("« {nom} » est réservé par un autre programme (PID {pid}) — le fermer, ou jouer en mode partagé")]
     PeripheriqueReserve { nom: String, pid: i32 },
 
-    /// Le périphérique ne sait pas servir la fréquence du fichier, et Hean ne rééchantillonne
-    /// pas (ADR 0002, et ADR 0018 pour ce que ça donne à l’écran). C'est la correction du
-    /// défaut de V1 relevé dans `docs/MESURES-V1.md` §11 : V1 jouait quand même, à une autre
-    /// fréquence, sans rien dire. Ce texte-ci est lu par Thomas : il nomme le périphérique,
-    /// la fréquence qui manque et celles qui existent.
-    #[error("« {peripherique} » ne sait pas jouer ce fichier à sa fréquence native ({demandee} Hz) ; il ne propose que {proposees}. Hean ne rééchantillonne pas : la lecture est refusée plutôt que dégradée en silence.")]
-    FrequenceNonServie {
-        peripherique: String,
-        demandee: u32,
-        proposees: String,
-    },
-
     #[error("écriture impossible : {0}")]
     Ecriture(#[source] std::io::Error),
 }

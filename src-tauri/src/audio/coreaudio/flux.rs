@@ -10,8 +10,9 @@
 //!
 //! Conséquence heureuse, et c'est le chemin bit-perfect : quand le DAC travaille en 24 bits,
 //! la conversion que fait l'AUHAL depuis notre 32 bits est un **décalage à droite**, donc
-//! exacte pour toute source de 24 bits ou moins. Aucune fréquence n'est touchée ici — elle a
-//! été négociée avant, et un écart a déjà fait refuser la lecture (ADR 0018).
+//! exacte pour toute source de 24 bits ou moins. Aucune fréquence n'est touchée ici : elle a
+//! été négociée avant, et un écart éventuel est déjà parti vers l'écran (voir
+//! [`super::negociation`]).
 
 use std::ffi::c_void;
 use std::mem;
@@ -133,6 +134,7 @@ impl Flux {
             canaux: format.canaux as usize,
             etat: Arc::clone(&etat),
             travail: vec![0i32; TRAMES_MAX_PAR_CALLBACK * format.canaux as usize],
+            amorti: false,
         });
 
         let rappel = AURenderCallbackStruct {

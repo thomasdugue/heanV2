@@ -34,12 +34,28 @@ pub struct EtatDuFlux {
     /// Le volume, en bits d'un `f32`. Lu à chaque callback, donc un changement est immédiat
     /// — et non après les secondes déjà dans le tampon.
     volume: AtomicU32,
-    /// Nombre de callbacks où rien n'était disponible alors que la lecture tournait.
+    /// Nombre de callbacks où rien n'était disponible **alors que le décodeur devait
+    /// suivre**.
     ///
     /// **C'est la mesure de « ça ne coupe pas ».** Chaque famine est un trou audible. V1
     /// n'avait aucun compteur : une coupure ne laissait aucune trace, et « j'ai cru entendre
     /// un craquement » n'était pas vérifiable. Ici le chiffre remonte jusqu'à l'écran.
+    ///
+    /// ⚠️ **Un compteur d'anomalie ne compte que des anomalies**, et c'est tout l'objet de
+    /// `fin_de_flux` et de l'amortissement après purge ci-dessous. Sans eux, chaque fin
+    /// d'album et chaque déplacement dans la piste en ajoutaient — dans le chemin normal.
+    /// Un indicateur qui crie au loup est désarmé par celui qui le lit, et l'aveuglement
+    /// revient : c'est le raisonnement d'INV-21 appliqué à une mesure. Relevé par
+    /// `invariant-guardian` le 2026-11-26.
     pub famines: AtomicU64,
+    /// Posé quand il n'y a plus rien à décoder : les callbacks qui restent à servir d'ici
+    /// l'arrêt de l'AudioUnit tombent légitimement à vide, et n'ont rien d'une famine.
+    pub fin_de_flux: AtomicBool,
+    /// Callbacks où CoreAudio a donné autre chose qu'un tampon entrelacé unique. Doit rester
+    /// à zéro : le format déclaré par `flux.rs` est entrelacé, donc l'AUHAL n'a aucune raison
+    /// d'en donner plusieurs. S'il le fait, notre hypothèse est fausse et il vaut mieux un
+    /// silence compté qu'un son dont les canaux seraient intervertis.
+    pub tampons_inattendus: AtomicU64,
     /// Demande de purge du tampon, posée par le fil de lecture et honorée **par le
     /// callback** — parce que le consommateur du tampon vit dans le callback et nulle part
     /// ailleurs. C'est la moitié « notre tampon » du déplacement dans la piste ; l'autre
@@ -57,6 +73,8 @@ impl EtatDuFlux {
             en_pause: AtomicBool::new(false),
             volume: AtomicU32::new(1.0f32.to_bits()),
             purge_demandee: AtomicBool::new(false),
+            fin_de_flux: AtomicBool::new(false),
+            tampons_inattendus: AtomicU64::new(0),
             famines: AtomicU64::new(0),
             demandes_trop_grandes: AtomicU64::new(0),
         }
@@ -79,6 +97,11 @@ pub(super) struct DonneesDuCallback {
     pub(super) etat: Arc<EtatDuFlux>,
     /// Pré-alloué une fois pour toutes : le callback ne doit jamais allouer.
     pub(super) travail: Vec<i32>,
+    /// Vrai depuis une purge et jusqu'au premier callback entièrement servi : le tampon a
+    /// été vidé exprès, donc les callbacks à vide qui suivent sont attendus et non comptés.
+    /// Un seul callback d'amortissement ne suffirait pas — après un déplacement, le décodeur
+    /// met plusieurs dizaines de millisecondes à refaire de l'avance.
+    pub(super) amorti: bool,
 }
 
 /// Le callback de rendu. **Fil temps réel : aucune allocation, aucun verrou, aucun log.**
@@ -119,6 +142,7 @@ pub(super) unsafe extern "C" fn rendre(
         // sont ceux d'avant le saut. `vider` ne fait qu'avancer deux compteurs — rien qui
         // puisse bloquer le fil temps réel.
         donnees.consommateur.vider();
+        donnees.amorti = true;
         faire_silence(tampons);
         return 0;
     }
@@ -130,8 +154,25 @@ pub(super) unsafe extern "C" fn rendre(
         return 0;
     }
 
+    if tampons.len() != 1 {
+        // Notre hypothèse de format est fausse. Le chemin désentrelacé de V1 existait pour
+        // ce cas ; le reprendre à moitié juste serait pire que de ne pas l'avoir — une trame
+        // partielle y décalait l'offset de canal, et L/R restaient intervertis pour tout le
+        // reste du flux. Silence **compté**, donc visible, plutôt qu'un son faux.
+        donnees
+            .etat
+            .tampons_inattendus
+            .fetch_add(1, Ordering::Relaxed);
+        faire_silence(tampons);
+        return 0;
+    }
+
     let lus = donnees.consommateur.tirer(&mut donnees.travail[..attendus]);
-    if lus < attendus {
+    if lus >= attendus {
+        // Le tampon a de l'avance : ce qui précédait est rattrapé.
+        donnees.amorti = false;
+    } else if !donnees.amorti && !donnees.etat.fin_de_flux.load(Ordering::Relaxed) {
+        // Un vrai trou : le décodeur n'a pas suivi, et ça s'entend.
         donnees.etat.famines.fetch_add(1, Ordering::Relaxed);
     }
 
@@ -139,7 +180,7 @@ pub(super) unsafe extern "C" fn rendre(
     // les échantillons partent tels quels (voir `chain.rs`).
     Chaine::avec_volume(donnees.etat.volume()).appliquer(&mut donnees.travail[..lus]);
 
-    ecrire_vers_coreaudio(tampons, &donnees.travail[..lus], donnees.canaux);
+    ecrire_vers_coreaudio(tampons, &donnees.travail[..lus]);
     0
 }
 
@@ -154,49 +195,28 @@ unsafe fn faire_silence(tampons: &mut [coreaudio_sys::AudioBuffer]) {
     }
 }
 
-/// Recopie `echantillons` (entrelacés) vers les tampons de CoreAudio, et met le reste de
-/// chaque tampon à **zéro**.
+/// Recopie `echantillons` (entrelacés) dans le tampon unique de CoreAudio, et met le reste
+/// à **zéro**.
 ///
-/// Les deux formes sont gérées comme en V1 : un tampon unique entrelacé — ce que l'AUHAL
-/// donne pour le format déclaré ici — et le cas désentrelacé, un tampon par canal.
+/// Un seul cas, et c'est voulu : le format déclaré par `flux.rs` est entrelacé, donc l'AUHAL
+/// donne un tampon unique. Le cas désentrelacé est écarté par l'appelant, qui le compte.
 ///
 /// SÛRETÉ : mêmes garanties que `faire_silence`.
 unsafe fn ecrire_vers_coreaudio(
     tampons: &mut [coreaudio_sys::AudioBuffer],
     echantillons: &[i32],
-    canaux: usize,
 ) {
-    if tampons.len() == 1 {
-        let t = &mut tampons[0];
-        if t.mData.is_null() {
-            return;
-        }
-        let cases = t.mDataByteSize as usize / OCTETS_PAR_ECHANTILLON as usize;
-        let destination = std::slice::from_raw_parts_mut(t.mData as *mut i32, cases);
-        let combien = echantillons.len().min(cases);
-        destination[..combien].copy_from_slice(&echantillons[..combien]);
-        for case in destination[combien..].iter_mut() {
-            *case = 0;
-        }
+    let Some(t) = tampons.first_mut() else {
+        return;
+    };
+    if t.mData.is_null() {
         return;
     }
-
-    let trames_lues = if canaux == 0 { 0 } else { echantillons.len() / canaux };
-    for (canal, t) in tampons.iter_mut().enumerate().take(canaux) {
-        if t.mData.is_null() {
-            continue;
-        }
-        let cases = t.mDataByteSize as usize / OCTETS_PAR_ECHANTILLON as usize;
-        let destination = std::slice::from_raw_parts_mut(t.mData as *mut i32, cases);
-        // Tout le tampon est écrit, et ce qui dépasse les trames lues est mis à zéro.
-        // Laisser la queue telle quelle rejouerait le contenu du callback précédent — un
-        // bourdonnement, pas un silence.
-        for (trame, case) in destination.iter_mut().enumerate() {
-            *case = if trame < trames_lues {
-                echantillons[trame * canaux + canal]
-            } else {
-                0
-            };
-        }
+    let cases = t.mDataByteSize as usize / OCTETS_PAR_ECHANTILLON as usize;
+    let destination = std::slice::from_raw_parts_mut(t.mData as *mut i32, cases);
+    let combien = echantillons.len().min(cases);
+    destination[..combien].copy_from_slice(&echantillons[..combien]);
+    for case in destination[combien..].iter_mut() {
+        *case = 0;
     }
 }

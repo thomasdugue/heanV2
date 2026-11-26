@@ -40,7 +40,8 @@ impl CachePeripheriques {
     /// Un périphérique dont une propriété est illisible n'est pas écarté : il vient peut-être
     /// d'être débranché pendant la lecture, et l'omettre silencieusement de la liste serait
     /// plus déroutant que de le montrer sans sa fréquence. Les valeurs de repli ici ne
-    /// décident de rien — la décision de jouer interroge le matériel (`frequence::est_servie`).
+    /// décident de rien : la fréquence de sortie est choisie par
+    /// `frequence::meilleure_frequence_supportee`, qui replie et le fait afficher.
     pub fn rafraichir(&mut self) -> Result<(), ErreurAudio> {
         let ids = peripheriques::tous_les_peripheriques_de_sortie()?;
         let defaut = peripheriques::peripherique_par_defaut().ok();

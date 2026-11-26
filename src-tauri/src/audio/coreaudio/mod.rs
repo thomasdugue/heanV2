@@ -18,18 +18,22 @@
 //! | [`flux`] | la vie de l'AudioUnit | `coreaudio_stream.rs` |
 //! | [`rendu`] | le callback temps réel | idem |
 //! | [`routage`] | quel périphérique joue, et PLAT-1 | `set_output_device`, `check_device_change` |
-//! | [`verdict`] | l'état du bit-perfect après négociation | **neuf** : V1 ne distinguait pas |
+//! | [`mesures`] | ce que le backend laisse observer et régler en jouant | **neuf** : V1 ne mesurait rien |
+//! | [`negociation`] | ce qui entre, ce qui sort, et le badge bit-perfect | `AudioSpecs` + `playback.js` |
 //! | [`backend`] | l'implémentation de `BackendAudio` | `impl AudioBackend for CoreAudioBackend` |
 //!
 //! # Ce qui a changé par rapport à V1, et seulement ça
 //!
 //! 1. **Le flux est déclaré en entier 32 bits** et non en flottant : conséquence directe du
 //!    format interne acté par l'ADR 0007. Obligatoire, pas optionnel.
-//! 2. **Une fréquence que le périphérique ne sait pas servir fait refuser la lecture**, au
-//!    lieu d'en choisir une autre en silence. C'est le défaut mesuré de V1
-//!    (`docs/MESURES-V1.md` §11), et la décision est l'ADR 0018.
-//! 3. **Les famines sont comptées.** V1 n'avait aucun compteur de trou dans le son ; ici
-//!    chaque callback servi à vide est compté et remonte jusqu'à l'écran.
+//! 2. **Les famines sont comptées.** V1 n'avait aucun compteur de trou dans le son ; ici
+//!    chaque callback servi à vide alors que le décodeur devait suivre est compté et remonte
+//!    jusqu'à l'écran.
+//!
+//! Le **repli de fréquence**, lui, est porté tel quel : quand le périphérique ne sait pas
+//! servir la fréquence du fichier, on replie sur la plus proche et **on l'affiche** —
+//! fréquence entrante, fréquence sortante, pas de badge bit-perfect. C'est la règle du
+//! produit (voir [`negociation`]), pas un défaut à corriger.
 //!
 //! Tout le reste est porté à l'identique, PLAT-1 compris.
 //!
@@ -46,12 +50,13 @@ pub mod exclusif;
 pub mod flux;
 pub mod frequence;
 pub mod hal;
+pub mod mesures;
+pub mod negociation;
 pub mod peripheriques;
 pub mod rendu;
 pub mod routage;
 pub mod tampon;
-pub mod verdict;
 
 pub use backend::BackendCoreAudio;
-pub use verdict::Verdict;
+pub use negociation::Negociation;
 pub use peripheriques::InfoPeripherique;

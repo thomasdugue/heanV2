@@ -355,39 +355,3 @@ fichiers derrière, et le choix de la meilleure source à la lecture (le FLAC pl
 local plutôt que le NAS) ? La seconde option est plus riche et c'est elle qui rend possible « jouer
 la meilleure version disponible » — mais elle demande une règle de correspondance, donc des faux
 positifs.
-
-## 11. 🔴 Quand le DAC ne sait pas jouer la fréquence du fichier, V1 rééchantillonne en silence
-
-Relevé le 2026-11-26 **en lisant le code**, comme le §5 — pas en écoutant. C'est le défaut qui
-contredit le plus directement la promesse du produit, et rien dans l'app ne le signale.
-
-Le chemin fait trois lignes, dans
-`src-tauri/src/audio/coreaudio_backend.rs` (copie suivie :
-[`code-reference`](../bootstrap/03-architecture/code-reference/rust/audio/coreaudio_backend.rs)) :
-
-| ligne | ce qui s'y passe |
-|---|---|
-| **761** | `find_best_supported_rate()` : correspondance exacte, **sinon la plus petite fréquence supérieure, sinon la plus haute disponible** |
-| **1226** | `prepare_for_streaming()` l'appelle dès que `supported_rates` ne contient pas la fréquence du fichier |
-| **1234** | `set_sample_rate(target_rate)` applique cette autre fréquence |
-| **1247** | `Ok(target_rate)` — la valeur de retour, que **personne ne compare** à la fréquence demandée |
-
-**Conséquence réelle** : un fichier en 24/192 sur un DAC qui plafonne à 96 kHz est joué à 96 kHz.
-Le HAL de macOS rééchantillonne pour combler l'écart, **donc le signal est altéré** — exactement ce
-que « bit-perfect » promet d'exclure. Le seul signe est un `println!` de debug
-(« Changing sample rate: 192000 Hz -> 96000 Hz »), c'est-à-dire **rien du tout** dans l'app
-installée : stdout n'est pas capturé (§8). Personne, Thomas compris, ne peut savoir que ça arrive.
-
-Ce n'est pas un repli de secours égaré dans un cas limite : c'est le chemin nominal du code, écrit
-exprès, et il transforme un refus en dégradation muette. La même famille que les trois bugs du §8 —
-un défaut qui ne s'annonce sur aucun canal existant.
-
-**Et l'exception à ne pas casser** : en AirPlay, V1 ne touche **pas** à la fréquence et rend la
-native du périphérique (`coreaudio_backend.rs:1206`). C'est correct — changer la fréquence d'un
-périphérique AirPlay tue la session réseau (PLAT-1) — et macOS y rééchantillonne de toute façon,
-en 44,1 kHz AAC. AirPlay n'est donc jamais bit-perfect, et ça ne se corrige pas : ça se **dit**.
-
-**Correction en V2** : le socle l'avait anticipée avant que la sortie existe.
-`BackendAudio::preparer()` rend le format **réellement obtenu** au lieu d'un `Ok(())`
-(`src-tauri/src/audio/backend.rs`), donc l'appelant peut constater l'écart. Ce qu'il en fait est une
-décision de Thomas, pas d'implémentation : [ADR 0018](adr/0018-une-frequence-que-le-dac-ne-sait-pas-jouer.md).

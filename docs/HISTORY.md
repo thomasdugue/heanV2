@@ -1694,17 +1694,17 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   Suite : **le son**, avec un jalon à 14 jours.
 
 - **2026-11-26** (le son sort) : **la sortie audio est portée** — les 1 993 lignes de
-  `coreaudio_backend.rs` + `coreaudio_stream.rs` de V1 redécoupées en 11 fichiers sous
+  `coreaudio_backend.rs` + `coreaudio_stream.rs` de V1 redécoupées en 13 fichiers sous
   400 lignes, le long des coutures de V1 (HAL, périphériques, fréquence, mode exclusif,
   cache, routage, AudioUnit, callback), PLAT-1 compris. Hean joue une piste locale, un album
-  sans trou, pause, déplacement, volume, sortie, mode exclusif. **Trois écarts avec V1, et
-  seulement trois.** (1) Le flux est déclaré en **entier 32 bits** et non en flottant :
-  conséquence obligatoire de l'ADR 0007, vérifiée sur le Mac mini — l'AUHAL l'accepte.
-  (2) **Une fréquence que le périphérique ne sait pas servir fait refuser la lecture** au lieu
-  d'en choisir une autre en silence : défaut de V1 mesuré en lisant son code
-  (MESURES-V1.md §11), décision ADR 0018, cas réel — les haut-parleurs du Mac mini plafonnent
-  à 96 kHz. (3) **Les trous dans le son sont comptés** et remontent à l'écran ; V1 n'avait
-  aucune mesure de « ça ne coupe pas ». Le tampon circulaire est écrit à la main plutôt que
-  pris dans `ringbuf` : seule partie du moteur que la CI puisse prouver, deux fils y poussent
-  200 000 échantillons sans en perdre un. **À la charge de Thomas** : `docs/PROTOCOLE-SON.md`,
-  16 étapes. **Hors périmètre, et c'est le trou qui compte** : la lecture d'un fichier du NAS.
+  sans trou, pause, déplacement, volume, sortie, mode exclusif.
+  **Et une leçon payée dans la session même** : j'avais pris le repli de fréquence de V1 pour
+  un défaut et commencé à le « corriger » en refusant la lecture. C'est un comportement
+  **voulu** — V1 l'affiche (`audio_engine.rs:540` → `playback.js:862`, deux champs source et
+  sortie, classe `resampled` cyan et non rouge), ce que le Rust seul ne montre pas. D'où la
+  règle : **avant d'appeler un comportement de V1 un défaut, lire la chaîne entière, Rust ET
+  JS.** Le repli est donc porté tel quel, avec son indicateur. Deux écarts restent : le flux
+  est déclaré en **entier 32 bits** (ADR 0007 ; vérifié, l'AUHAL l'accepte), et **les trous
+  dans le son sont comptés** — après correction, car le compteur comptait aussi chaque fin
+  d'album et chaque déplacement, et un indicateur qui crie au loup se fait retirer.
+  **À la charge de Thomas** : `docs/PROTOCOLE-SON.md`. **Hors périmètre** : la lecture NAS.

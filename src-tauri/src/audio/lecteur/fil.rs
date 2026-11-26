@@ -195,34 +195,59 @@ impl Fil {
     }
 
     /// La piste courante est entièrement décodée : on enchaîne.
+    ///
+    /// **Une boucle, et non un appel récursif**, et ce n'est pas un détail de style : la
+    /// branche « piste illisible » s'appelait elle-même, une trame de pile par piste. Un NAS
+    /// qui tombe ou un disque éjecté en cours d'album fait échouer l'ouverture de *toutes*
+    /// les suivantes — jusqu'à 3 421 chez Thomas — sur un fil de 2 Mio de pile. Un
+    /// débordement de pile est un `SIGSEGV` sans une ligne de journal : la famille d'INV-21,
+    /// un défaut qui ne laisse aucune trace. Relevé par `invariant-guardian`.
     fn piste_decodee(&mut self) {
         if let Some(derniere) = self.en_vol.back_mut() {
             derniere.fin = Some(self.ecrit);
         }
         self.decodeur = None;
-        let suivante = self.index_decode + 1;
-        if suivante >= self.file.len() {
-            self.etape = Etape::FinDeFile;
-            return;
+
+        let mut suivante = self.index_decode + 1;
+        loop {
+            if suivante >= self.file.len() {
+                self.declarer_fin_de_flux();
+                self.etape = Etape::FinDeFile;
+                return;
+            }
+            // L'ENCHAÎNEMENT SANS TROU : si le format est identique, on continue de pousser
+            // dans le MÊME tampon. Il ne se passe rien, donc il n'y a rien à entendre. Sinon
+            // il faut laisser le tampon se vider avant de renégocier la fréquence du DAC.
+            //
+            // Le fichier n'est ouvert qu'UNE fois, et le décodeur est réutilisé : connaître
+            // le format demande de l'ouvrir, et le rouvrir ensuite doublerait
+            // l'entrée/sortie à chaque passage de piste — invisible en local, pas sur le NAS.
+            match Decodeur::ouvrir(&self.file[suivante]) {
+                Ok(decodeur) if Some(decodeur.format()) == self.format_du_flux => {
+                    self.inscrire_la_piste(suivante, decodeur, 0);
+                    return;
+                }
+                Ok(_) => {
+                    self.declarer_fin_de_flux();
+                    self.etape = Etape::AttenteDeVidange(suivante);
+                    return;
+                }
+                Err(e) => {
+                    // Une piste illisible ne doit pas arrêter l'album : on la dit et on
+                    // passe à la suivante.
+                    self.etat.dire(format!("piste ignorée — {e}"));
+                    self.index_decode = suivante;
+                    suivante += 1;
+                }
+            }
         }
-        // L'ENCHAÎNEMENT SANS TROU : si le format est identique, on continue de pousser dans
-        // le MÊME tampon. Il ne se passe rien, donc il n'y a rien à entendre. Sinon, il faut
-        // laisser le tampon se vider avant de renégocier la fréquence du DAC.
-        //
-        // Le fichier n'est ouvert qu'UNE fois, et le décodeur est réutilisé : connaître le
-        // format demande de l'ouvrir, et le rouvrir ensuite doublerait l'entrée/sortie à
-        // chaque passage de piste — invisible en local, pas sur le NAS.
-        match Decodeur::ouvrir(&self.file[suivante]) {
-            Ok(decodeur) if Some(decodeur.format()) == self.format_du_flux => {
-                self.inscrire_la_piste(suivante, decodeur, 0);
-            }
-            Ok(_) => self.etape = Etape::AttenteDeVidange(suivante),
-            Err(e) => {
-                // Une piste illisible ne doit pas arrêter l'album : on la dit et on passe.
-                self.etat.dire(format!("piste ignorée — {e}"));
-                self.index_decode = suivante;
-                self.piste_decodee();
-            }
+    }
+
+    /// Dit au flux qu'il n'y aura plus de trames : les callbacks qui restent tombent à vide
+    /// légitimement, et ne doivent pas être comptés comme des trous dans le son.
+    fn declarer_fin_de_flux(&self) {
+        if let Some(backend) = self.backend.as_ref() {
+            backend.declarer_fin_de_flux();
         }
     }
 

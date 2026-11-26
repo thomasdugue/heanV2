@@ -5,7 +5,8 @@
 //! périphérique, ou `-1` si personne ne l'a fait.
 //!
 //! ⚠️ **Jamais sur un AirPlay** : le mode exclusif est incompatible avec une diffusion
-//! réseau. Le refus est dans `backend.rs`, là où le périphérique actif est connu.
+//! réseau. Le refus est dans [`super::routage::Routage::definir_mode_exclusif`], là où le
+//! périphérique actif est connu.
 
 use coreaudio_sys::{kAudioDevicePropertyHogMode, AudioObjectID};
 

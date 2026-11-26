@@ -31,11 +31,12 @@
 //! | [`coreaudio`] | le backend qui parle au DAC — périphériques, fréquence, mode exclusif, AudioUnit |
 //! | [`lecteur`] | ce qui transforme « appuie sur lecture » en son : file, pause, déplacement, enchaînement |
 //!
-//! Les décisions qui l'encadrent ne se rouvrent pas (ADR 0002) : **CoreAudio direct, jamais
-//! CPAL**, et **aucun rééchantillonnage** — la fréquence du périphérique suit celle du
-//! fichier. Un périphérique qui ne peut pas servir le format fait **refuser la lecture**, ce
-//! qui est la correction d'un défaut mesuré de V1 (`docs/MESURES-V1.md` §11, ADR 0018) : V1
-//! choisissait une autre fréquence et jouait quand même, sans rien dire.
+//! **CoreAudio direct, jamais CPAL** (ADR 0002). Et la règle du bit-perfect n'est pas
+//! « aucun rééchantillonnage », formule qu'on lit dans le skill `hean-invariants` et
+//! qui est plus absolue que la décision réelle : c'est **« bit-perfect quand le DAC sait
+//! décoder, et le dire quand il ne sait pas »**. La fréquence du périphérique suit celle du
+//! fichier quand elle peut ; sinon on replie, et l'écran affiche la fréquence entrante, la
+//! fréquence sortante, et pas de badge bit-perfect. Voir [`coreaudio::negociation`].
 //!
 //! # Ce que ce module ne contient toujours pas
 //!
@@ -59,7 +60,7 @@ pub mod wav;
 pub mod wav_backend;
 
 pub use backend::BackendAudio;
-pub use coreaudio::{BackendCoreAudio, Verdict};
+pub use coreaudio::{BackendCoreAudio, Negociation};
 pub use lecteur::{Commande, EtatPartage, Lecteur};
 pub use chain::{Chaine, Volume};
 pub use decode::{decoder_entierement, Decodeur};

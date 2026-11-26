@@ -10,8 +10,19 @@
 //! | on va vers | ce qu'on fait du défaut système | pourquoi |
 //! |---|---|---|
 //! | un AirPlay | **on le met** sur l'AirPlay, puis on attend 800 ms | c'est le seul moyen d'exister : hors défaut système, macOS tue la session |
-//! | autre chose, **en venant d'un AirPlay** | **on n'y touche pas** | changer le défaut tuerait la session AirPlay, qui ne se rouvre pas depuis le HAL. Le son part sur le nouveau périphérique par assignement explicite sur l'AudioUnit |
-//! | autre chose, en venant d'autre chose | on le met | pour que les touches de volume et l'indicateur de macOS suivent |
+//! | autre chose, alors que **le défaut système EST un AirPlay** | **on n'y touche pas** | changer le défaut tuerait la session AirPlay, qui ne se rouvre pas depuis le HAL. Le son part sur le nouveau périphérique par assignement explicite sur l'AudioUnit |
+//! | autre chose, et le défaut système n'est pas un AirPlay | on le met | pour que les touches de volume et l'indicateur de macOS suivent |
+//!
+//! ⚠️ **La deuxième ligne pose la bonne question, et ce n'était pas le cas avant le
+//! 2026-11-26.** Le code demandait « est-ce que je *viens* d'un AirPlay ? », en lisant le
+//! périphérique précédent. Les deux questions divergent au **deuxième** changement :
+//! AirPlay → DAC → haut-parleurs. Au troisième saut le périphérique précédent est le DAC,
+//! donc « je ne viens pas d'un AirPlay », donc on écrivait le défaut système — alors qu'il
+//! pointait encore sur l'AirPlay, dont la session était ainsi tuée. V1 a exactement le même
+//! défaut (`coreaudio_backend.rs:946-949`), et son commentaire énonce l'intention complète
+//! (« *or if system default is currently AirPlay* ») que son code ne tient pas. Relevé par
+//! `invariant-guardian` ; corrigé ici, parce qu'un tableau qui se lit comme une stratégie
+//! complète ne doit pas être contredit par la ligne d'en dessous.
 //!
 //! **Limitation connue, et cosmétique** : dans le deuxième cas, macOS continue d'afficher
 //! « AirPlay » dans sa notification de volume alors que le son sort ailleurs. Le volume agit
@@ -149,9 +160,11 @@ impl Routage {
         // mort serait accepté sans aucun effet (PLAT-1).
         let id = self.cache.resoudre(demande)?;
         let vers_airplay = self.cache.info(id).is_some_and(InfoPeripherique::est_airplay);
-        let depuis_airplay = self
-            .cache
-            .info(self.dernier)
+        // La question est « le défaut système EST-IL un AirPlay ? », et non « est-ce que je
+        // viens d'un AirPlay ? » — voir l'avertissement en tête de fichier.
+        let defaut_systeme_est_airplay = peripheriques::peripherique_par_defaut()
+            .ok()
+            .and_then(|defaut| self.cache.info(defaut))
             .is_some_and(InfoPeripherique::est_airplay);
 
         if self.mode_exclusif {
@@ -173,10 +186,11 @@ impl Routage {
             peripheriques::definir_peripherique_par_defaut_systeme(id)?;
             std::thread::sleep(ATTENTE_ACTIVATION_AIRPLAY);
             tracing::info!(id, "sortie AirPlay activée (défaut système, attente d'activation)");
-        } else if depuis_airplay {
+        } else if defaut_systeme_est_airplay {
             tracing::info!(
                 id,
-                "sortie changée sans toucher au défaut système : la session AirPlay est préservée (PLAT-1)"
+                "sortie changée sans toucher au défaut système : il pointe sur un AirPlay, \
+                 dont la session est ainsi préservée (PLAT-1)"
             );
         } else {
             // ⚠️ Ici l'échec n'est PAS fatal, et c'est une correction de ma propre erreur de
@@ -260,7 +274,7 @@ impl Routage {
         }
         for (id, hz) in frequences_dorigine.drain() {
             // Remettre la fréquence d'origine : Hean ne laisse pas le DAC dans un état que
-            // personne n'a demandé (ADR 0018).
+            // personne n'a demandé.
             if let Err(e) = super::frequence::definir_frequence_du_peripherique(id, hz) {
                 tracing::warn!(peripherique = id, hz, erreur = %e, "fréquence d'origine non restaurée");
             }

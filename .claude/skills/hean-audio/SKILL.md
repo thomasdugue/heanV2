@@ -16,8 +16,11 @@ description: Moteur audio Hean — pipeline CoreAudio, bit-perfect, hog mode, sa
 > octet** à un fichier écrit par ffmpeg.
 > **La sortie, portée le 2026-11-26** : `audio/coreaudio/` (périphériques, fréquence, mode
 > exclusif, AudioUnit, PLAT-1) et `audio/lecteur/` (file, pause, déplacement, enchaînement
-> d'album). **Une fréquence que le périphérique ne sait pas servir fait refuser la lecture**
-> et non rééchantillonner en silence comme V1 ([ADR 0018](../../../docs/adr/0018-une-frequence-que-le-dac-ne-sait-pas-jouer.md)).
+> d'album). **Le repli de fréquence est porté tel quel de V1, et il s'affiche** : fréquence
+> entrante, fréquence sortante, pas de badge bit-perfect. ⚠️ La formule « bit-perfect = pas de
+> resampling » du skill `hean-invariants` est plus absolue que la règle réelle, qui est
+> **« bit-perfect quand le DAC sait décoder, et le dire quand il ne sait pas »** — prise au
+> pied de la lettre elle ferait supprimer une fonction que Thomas veut.
 > Restent à porter : l'égaliseur, les touches media, et **la lecture d'un fichier du NAS**.
 
 
@@ -52,7 +55,8 @@ File / SmbProgressiveFile → [Symphonia decoder] → i32 entrelacé, à l'éche
 - **Et l'intégrité d'un fichier ne se déduit PAS du décodeur** : mesuré, des trames abîmées
   ou un fichier tronqué passent en silence (symphonia saute les trames invalides). Seul un
   en-tête STREAMINFO incohérent est refusé. À vérifier autrement quand le NAS arrivera.
-- **Sample rate auto-switch**: `audio/coreaudio/frequence.rs` negotiates with the DAC via `kAudioDevicePropertyNominalSampleRate`. ⚠️ **La décision de jouer interroge les plages brutes du matériel, jamais la liste des huit fréquences standard** — un MP3 en 32 kHz est servi par le DAC sans être dans cette liste, et refuser sur la liste serait refuser plus que V1.
+- **Sample rate auto-switch**: `audio/coreaudio/frequence.rs` negotiates with the DAC via `kAudioDevicePropertyNominalSampleRate`. Le repli (`meilleure_frequence_supportee`, porté de `find_best_supported_rate`) choisit sur la liste des **huit fréquences standard** annoncées, comme V1 — pas sur les plages brutes. Conséquence connue, non corrigée faute de défaut mesuré : un MP3 en 32 kHz est replié à 44,1 kHz même sur un périphérique qui annonce une plage continue et saurait le servir nativement.
+- **L'écart se montre, il ne se cache pas** : `audio/coreaudio/negociation.rs` porte les deux chiffres jusqu'à `EtatLecture`, et `src/lib/ui/Lecture.svelte` les affiche. C'est l'équivalent de l'`AudioSpecs` de V1 (`audio_engine.rs:540`) et de `playback.js:862-903`. **Avant d'appeler un comportement de V1 un défaut, lire la chaîne entière — le mécanisme est en Rust, l'honnêteté du mécanisme est souvent en JS.**
 - **Hog Mode**: `kAudioDevicePropertyHogMode` dans `audio/coreaudio/exclusif.rs` — accès exclusif, refusé en AirPlay
 - **Compteur de famines** : chaque callback servi à vide est compté (`EtatDuFlux::famines`) et remonte jusqu'à l'écran. C'est la seule mesure de « ça ne coupe pas » ; V1 n'en avait aucune.
 - **Supported formats**: FLAC, WAV, AIFF, ALAC, MP3, AAC/M4A, OGG Vorbis

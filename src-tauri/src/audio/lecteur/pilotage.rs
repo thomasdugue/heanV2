@@ -15,7 +15,7 @@ use std::time::Duration;
 use super::fil::{EnVol, Etape, Fil};
 use super::Commande;
 use crate::audio::backend::BackendAudio;
-use crate::audio::coreaudio::{BackendCoreAudio, Verdict};
+use crate::audio::coreaudio::BackendCoreAudio;
 use crate::audio::decode::Decodeur;
 use crate::audio::error::ErreurAudio;
 
@@ -48,8 +48,7 @@ impl Fil {
                 Ok(())
             }
             Commande::Aller(ms) => self.aller_a(ms),
-            Commande::Suivante => self.changer_de_piste(1),
-            Commande::Precedente => self.changer_de_piste(-1),
+            Commande::Changer(pas) => self.changer_de_piste(pas),
             Commande::Volume(v) => {
                 self.etat.definir_volume(v);
                 if let Some(b) = &self.backend {
@@ -105,28 +104,26 @@ impl Fil {
         if self.format_du_flux != Some(format) {
             // Une poignée propre sur l'état partagé : `self.backend()` emprunte `self`, et
             // `Arc` est fait pour ça.
+            // Une poignée propre sur l'état partagé : `self.backend()` emprunte `self`, et
+            // `Arc` est fait pour ça.
             let etat = Arc::clone(&self.etat);
             let backend = self.backend()?;
             let obtenu = backend.preparer(format)?;
-            match backend.verdict().clone() {
-                Verdict::Exact => {
-                    etat.sans_reechantillonnage.store(true, Ordering::Relaxed);
-                }
-                Verdict::ReechantillonneParMacos { peripherique, hz } => {
-                    // La lecture a lieu — refuser AirPlay serait perdre une fonction qui
-                    // marche — mais elle n'est pas bit-perfect, et ça se dit (ADR 0018).
-                    etat.sans_reechantillonnage.store(false, Ordering::Relaxed);
-                    etat.dire(format!(
-                        "« {peripherique} » est en AirPlay : macOS rééchantillonne vers {hz} Hz, \
-                         la lecture n’est pas bit-perfect."
-                    ));
-                }
-                verdict => {
-                    // Fréquence non servie : rien n'a été touché, rien ne joue.
-                    etat.sans_reechantillonnage.store(false, Ordering::Relaxed);
-                    return Err(verdict.en_erreur().unwrap_or(ErreurAudio::AucunPeripherique));
-                }
-            }
+            // LA PIÈCE QUI REND LE REPLI HONNÊTE. `preparer` a peut-être réglé le
+            // périphérique sur une autre fréquence que celle du fichier — c'est le repli que
+            // Thomas veut — et la seule chose qui en fasse de l'information plutôt qu'une
+            // altération cachée est que les deux chiffres arrivent à l'écran.
+            let n = backend.negociation().ok_or(ErreurAudio::AucunPeripherique)?;
+            etat.source_hz.store(n.source.frequence, Ordering::Relaxed);
+            etat.source_bits
+                .store(n.source.profondeur.bits(), Ordering::Relaxed);
+            etat.sortie_hz.store(n.sortie_hz, Ordering::Relaxed);
+            etat.airplay.store(n.airplay, Ordering::Relaxed);
+            // Un AirPlay n'est jamais bit-perfect, même quand les deux fréquences
+            // coïncident : macOS rééchantillonne de son côté et on ne peut pas l'en empêcher
+            // (PLAT-1). V1 l'étiquette de la même façon dans sa liste de périphériques.
+            etat.sans_reechantillonnage
+                .store(n.sans_reechantillonnage() && !n.airplay, Ordering::Relaxed);
             let exclusif = backend.mode_exclusif();
             let active = backend.info_active();
             let id_actif = active.as_ref().map(|i| i.id).unwrap_or(0);

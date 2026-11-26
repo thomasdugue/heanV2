@@ -49,8 +49,8 @@ pub enum Commande {
     Arreter,
     /// Déplacement dans la piste, en millisecondes.
     Aller(u64),
-    Suivante,
-    Precedente,
+    /// Change de piste de N rangs : `1` suivante, `-1` précédente.
+    Changer(i64),
     Volume(Volume),
     Peripherique(AudioObjectID),
     ModeExclusif(bool),
@@ -76,12 +76,23 @@ pub struct EtatPartage {
     /// Callbacks servis à vide : chaque unité est un trou audible. **Zéro est la seule
     /// valeur acceptable**, et c'est ce qui rend « ça ne coupe pas » vérifiable.
     pub famines: AtomicU64,
-    /// Vrai quand les quatre conditions du bit-perfect sont réunies. Les trois qui suivent
+    /// Vrai quand les quatre conditions du bit-perfect sont réunies. Les deux suivantes
     /// disent **laquelle** manque : « pas bit-perfect » sans dire pourquoi ne se corrige pas.
     pub bit_perfect: AtomicBool,
-    /// Le périphérique tourne à la fréquence du fichier : rien n'est rééchantillonné.
+    /// Le périphérique tourne à la fréquence du fichier, et ce n'est pas un AirPlay : rien
+    /// n'est rééchantillonné, ni par nous ni par macOS.
     pub sans_reechantillonnage: AtomicBool,
     pub mode_exclusif: AtomicBool,
+    /// **Les deux chiffres de l'indicateur**, et c'est la pièce qui rend le repli honnête :
+    /// ce qui entre (fréquence et profondeur du fichier) et ce qui sort (fréquence réelle du
+    /// périphérique). Équivalent de l'`AudioSpecs` de V1, affiché par `playback.js:862`.
+    /// Quand les deux fréquences diffèrent, l'AUHAL rééchantillonne, et l'écran le dit.
+    pub source_hz: AtomicU32,
+    pub source_bits: AtomicU32,
+    pub sortie_hz: AtomicU32,
+    /// Vrai quand la sortie est un AirPlay : macOS y rééchantillonne et on ne peut pas l'en
+    /// empêcher (PLAT-1), donc jamais bit-perfect.
+    pub airplay: AtomicBool,
     /// Le chemin de la piste qu'on entend.
     pub piste: Mutex<Option<String>>,
     /// Le nom du périphérique de sortie.
@@ -130,9 +141,17 @@ pub struct Lecteur {
 }
 
 impl Lecteur {
-    /// Démarre le fil de lecture. **N'ouvre aucun périphérique** : le matériel n'est touché
-    /// qu'au premier `Jouer`, pour qu'un lancement de Hean ne réserve pas le DAC et ne
-    /// change pas sa fréquence sans que personne ait rien demandé.
+    /// Démarre le fil de lecture.
+    ///
+    /// **Ne réserve rien et ne règle rien** : aucun mode exclusif, aucune écriture de
+    /// fréquence avant le premier `Jouer`, pour qu'un lancement de Hean ne prenne pas le DAC
+    /// et ne change pas son réglage sans que personne ait rien demandé.
+    ///
+    /// Il *lit* en revanche le matériel : `RafraichirPeripheriques` énumère le HAL pour
+    /// peupler la liste des sorties, et l'interface le redemande régulièrement — sans quoi
+    /// brancher le DAC en cours de route ne le ferait pas apparaître. Ce sont des lectures.
+    /// Le commentaire disait « n'ouvre aucun périphérique », ce qui était faux à la lettre :
+    /// relevé par `invariant-guardian`, et c'est le genre de phrase qu'on croit.
     pub fn demarrer() -> Self {
         let etat = Arc::new(EtatPartage::default());
         etat.definir_volume(Volume::UNITE);

@@ -53,15 +53,22 @@ fn les_peripheriques_de_sortie_se_listent_avec_un_nom() {
 
 #[test]
 #[ignore = "demande une carte son : voir l'en-tête du fichier"]
-fn la_frequence_du_peripherique_par_defaut_se_lit_et_fait_partie_de_ses_plages() {
+fn la_frequence_du_peripherique_par_defaut_se_lit_et_tombe_dans_ses_plages() {
     let id = peripheriques::peripherique_par_defaut().expect("périphérique par défaut");
     let hz = frequence::frequence_du_peripherique(id).expect("lire la fréquence");
     assert!(hz > 0, "fréquence nulle");
+    let plages = frequence::plages_de_frequences(id).expect("lire les plages");
     assert!(
-        frequence::est_servie(id, hz).expect("lire les plages"),
+        frequence::dans_les_plages(hz, &plages),
         "le périphérique tourne à {hz} Hz mais ne l'annonce pas dans ses plages : \
          le lecteur des plages ne lit pas ce qu'on croit"
     );
+    // Et le repli, interrogé sur la fréquence actuelle, doit la rendre telle quelle : c'est
+    // le cas bit-perfect, et s'il échouait ici il échouerait partout.
+    let supportees = frequence::frequences_supportees(id).expect("lire les fréquences standard");
+    if supportees.contains(&hz) {
+        assert_eq!(frequence::meilleure_frequence_supportee(hz, &supportees), hz);
+    }
 }
 
 /// **LA vérification qui porte tout le reste.**

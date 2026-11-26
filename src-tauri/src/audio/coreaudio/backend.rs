@@ -5,18 +5,24 @@
 //! L'AudioUnit est toujours alimentée **à la fréquence du fichier** : c'est ce que le
 //! décodeur produit. Ce que `preparer` négocie, c'est la fréquence du *périphérique*, et
 //! c'est elle qu'il rend. Quand les deux coïncident, les échantillons traversent l'AUHAL
-//! sans qu'une seule valeur change — le chemin bit-perfect. Quand elles diffèrent, l'AUHAL
-//! rééchantillonne, et c'est exactement ce que l'appelant doit pouvoir constater :
+//! sans qu'une seule valeur change — le chemin bit-perfect.
 //!
-//! - **le périphérique ne sait pas servir la fréquence** → rien n'est touché, aucun flux
-//!   n'est ouvert, et le verdict dit quoi afficher. L'appelant refuse (ADR 0018). C'est la
-//!   correction du défaut de V1 relevé dans `docs/MESURES-V1.md` §11, où V1 choisissait une
-//!   autre fréquence et jouait quand même ;
-//! - **AirPlay** → la fréquence n'est pas touchée non plus, mais pour une autre raison
-//!   (PLAT-1 : y toucher tue la session réseau) et avec une autre conséquence : la lecture a
-//!   lieu, macOS rééchantillonne, et ça se **dit**.
+//! Quand elles diffèrent, l'AUHAL rééchantillonne. **Ce n'est pas un défaut, c'est le repli
+//! que Thomas veut** — et la seule chose qui le rende honnête est que l'écart soit
+//! *affiché* : fréquence entrante, fréquence sortante, pas de badge bit-perfect. D'où
+//! [`Negociation`], qui porte les deux chiffres jusqu'à l'écran, et qui est l'équivalent de
+//! l'`AudioSpecs` de V1 (`audio_engine.rs:540`, affiché par `playback.js:862`).
 //!
-//! Le verdict est donc une pièce du contrat, pas un détail : voir [`Verdict`].
+//! Deux façons d'en arriver là, et elles ne se traitent pas pareil :
+//!
+//! - **le périphérique ne sait pas servir la fréquence** → on replie sur la plus proche
+//!   au-dessus (`frequence::meilleure_frequence_supportee`, porté tel quel de V1) et on règle
+//!   le périphérique dessus ;
+//! - **AirPlay** → on ne touche **pas** à sa fréquence (PLAT-1 : y toucher tue la session
+//!   réseau) et on joue à sa fréquence native, macOS rééchantillonnant en interne.
+//!
+//! Dans les deux cas la lecture a lieu. Refuser serait supprimer une fonction qui marche en
+//! V1 ; se taire serait la tromperie.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -26,10 +32,10 @@ use coreaudio_sys::AudioObjectID;
 
 use super::flux::Flux;
 use super::frequence;
+use super::negociation::Negociation;
 use super::peripheriques::InfoPeripherique;
 use super::rendu::EtatDuFlux;
 use super::routage::Routage;
-use super::verdict::Verdict;
 use super::tampon::{self, Jauge, Producteur};
 use crate::audio::backend::BackendAudio;
 use crate::audio::chain::Volume;
@@ -52,23 +58,18 @@ const SECONDES_DE_PREROLL: f64 = 0.5;
 /// consomme plus (débranché pendant la lecture).
 const ATTENTE_DE_VIDANGE_MAX: Duration = Duration::from_secs(10);
 
-/// Plafond d'attente de la purge du tampon par le callback. Un callback arrive toutes les
-/// quelques millisecondes ; 200 ms veut dire qu'il n'en vient plus, et la lecture ne doit pas
-/// bloquer pour autant.
-const ATTENTE_DE_PURGE_MAX: Duration = Duration::from_millis(200);
-
 pub struct BackendCoreAudio {
     routage: Routage,
     /// Les fréquences à remettre à l'arrêt, par périphérique. Hean ne laisse pas le DAC dans
     /// un état que personne n'a demandé.
     frequences_dorigine: HashMap<AudioObjectID, u32>,
-    flux: Option<Flux>,
-    producteur: Option<Producteur>,
-    jauge: Option<Jauge>,
-    etat: Option<Arc<EtatDuFlux>>,
-    verdict: Verdict,
+    pub(super) flux: Option<Flux>,
+    pub(super) producteur: Option<Producteur>,
+    pub(super) jauge: Option<Jauge>,
+    pub(super) etat: Option<Arc<EtatDuFlux>>,
+    negociation: Option<Negociation>,
     preroll: usize,
-    demarre: bool,
+    pub(super) demarre: bool,
 }
 
 impl BackendCoreAudio {
@@ -80,25 +81,16 @@ impl BackendCoreAudio {
             producteur: None,
             jauge: None,
             etat: None,
-            verdict: Verdict::Exact,
+            negociation: None,
             preroll: 0,
             demarre: false,
         })
     }
 
-    /// Le verdict de la dernière négociation. À lire **après chaque `preparer`**.
-    pub fn verdict(&self) -> &Verdict {
-        &self.verdict
-    }
-
-    /// L'état partagé avec le callback : pause, volume, compteur de famines.
-    pub fn etat_du_flux(&self) -> Option<Arc<EtatDuFlux>> {
-        self.etat.clone()
-    }
-
-    /// Les compteurs du tampon, pour savoir où en est la lecture.
-    pub fn jauge(&self) -> Option<Jauge> {
-        self.jauge.clone()
+    /// Le résultat de la dernière négociation : ce qui entre, ce qui sort. À lire **après
+    /// chaque `preparer`**, parce que c'est ce que l'écran doit afficher.
+    pub fn negociation(&self) -> Option<Negociation> {
+        self.negociation
     }
 
     pub fn liste_peripheriques(&self) -> Vec<InfoPeripherique> {
@@ -131,67 +123,6 @@ impl BackendCoreAudio {
         }
     }
 
-    /// Met la lecture en pause sans rien consommer : la reprise est instantanée, et le
-    /// tampon n'est pas jeté.
-    pub fn definir_pause(&self, en_pause: bool) {
-        if let Some(etat) = &self.etat {
-            etat.en_pause
-                .store(en_pause, std::sync::atomic::Ordering::Relaxed);
-        }
-    }
-
-    /// Jette ce qui attend et purge les tampons internes de CoreAudio.
-    ///
-    /// Les **deux** sont nécessaires au déplacement dans la piste : sans le premier on
-    /// rejoue les secondes d'avant le saut, sans le second on entend les ~50 ms déjà parties
-    /// dans le HAL. C'est précisément ce second point qui a fait quitter CPAL à V1 — sans
-    /// accès direct à l'AudioUnit, ces 50 ms s'entendent comme un hoquet après chaque saut.
-    ///
-    /// La purge du tampon est **demandée** et non faite ici : son consommateur vit dans le
-    /// callback. L'attente est bornée, et un callback qui ne vient pas (périphérique
-    /// débranché) ne doit pas bloquer la lecture.
-    pub fn purger(&mut self) -> Result<(), ErreurAudio> {
-        if let Some(etat) = &self.etat {
-            etat.purge_demandee
-                .store(true, std::sync::atomic::Ordering::Release);
-            let limite = Instant::now() + ATTENTE_DE_PURGE_MAX;
-            while etat
-                .purge_demandee
-                .load(std::sync::atomic::Ordering::Acquire)
-                && Instant::now() < limite
-            {
-                std::thread::sleep(Duration::from_millis(1));
-            }
-        }
-        if let Some(flux) = self.flux.as_mut() {
-            flux.purger()?;
-        }
-        Ok(())
-    }
-
-    /// Le total d'échantillons déjà sortis du tampon depuis l'ouverture du flux.
-    pub fn total_lu(&self) -> usize {
-        self.jauge.as_ref().map(Jauge::total_lu).unwrap_or(0)
-    }
-
-    /// Ce qui attend encore d'être joué.
-    pub fn en_attente(&self) -> usize {
-        self.jauge.as_ref().map(Jauge::en_attente).unwrap_or(0)
-    }
-
-    pub fn flux_ouvert(&self) -> bool {
-        self.flux.is_some()
-    }
-
-    /// Le nombre de callbacks servis à vide depuis l'ouverture du flux : la mesure de « ça
-    /// ne coupe pas ». Chaque unité est un trou audible.
-    pub fn famines(&self) -> u64 {
-        self.etat
-            .as_ref()
-            .map(|e| e.famines.load(std::sync::atomic::Ordering::Relaxed))
-            .unwrap_or(0)
-    }
-
     /// Coupe la lecture **tout de suite**, en jetant ce qui attend, et rend le matériel.
     ///
     /// C'est le pendant de [`BackendAudio::terminer`], qui lui *attend* la vidange du tampon
@@ -200,6 +131,7 @@ impl BackendCoreAudio {
     /// Thomas clique une autre piste, les entendre serait un défaut — il attendrait jusqu'à
     /// cinq secondes avant que sa piste démarre, en écoutant la précédente.
     pub fn interrompre(&mut self) {
+        self.declarer_fin_de_flux();
         let _ = self.purger();
         self.fermer_le_flux();
         self.routage
@@ -237,41 +169,43 @@ impl BackendAudio for BackendCoreAudio {
 
         let hz_du_peripherique = if info.est_airplay() {
             // PLAT-1 (🔴) : on ne touche PAS à la fréquence d'un AirPlay — ça tue la session
-            // réseau, et macOS y rééchantillonne de toute façon en interne.
-            let hz = frequence::frequence_du_peripherique(id)?;
-            self.verdict = Verdict::ReechantillonneParMacos {
-                peripherique: info.nom.clone(),
-                hz,
-            };
-            hz
-        } else if frequence::est_servie(id, format.frequence)? {
-            self.frequences_dorigine
-                .entry(id)
-                .or_insert(frequence::frequence_du_peripherique(id)?);
-            if frequence::frequence_du_peripherique(id)? != format.frequence {
-                frequence::definir_frequence_du_peripherique(id, format.frequence)?;
-            }
-            self.verdict = Verdict::Exact;
-            format.frequence
+            // réseau, et macOS y rééchantillonne de toute façon en interne. Un AirPlay n'est
+            // donc jamais bit-perfect, et ça ne se corrige pas : ça se dit.
+            frequence::frequence_du_peripherique(id)?
         } else {
-            // LE DÉFAUT DE V1, CORRIGÉ. V1 appelait ici `find_best_supported_rate` et jouait
-            // à une autre fréquence sans rien dire. On ne change **rien** — pas même la
-            // fréquence du périphérique, pour ne pas laisser derrière un réglage que
-            // personne n'a demandé — et on rend ce que le périphérique fait réellement.
-            let hz = frequence::frequence_du_peripherique(id)?;
-            self.verdict = Verdict::FrequenceNonServie {
-                peripherique: info.nom.clone(),
-                demandee: format.frequence,
-                proposees: info.frequences_en_clair(),
-            };
-            tracing::warn!(
-                peripherique = %info.nom,
-                demandee = format.frequence,
-                proposees = %info.frequences_en_clair(),
-                "fréquence non servie — la lecture est refusée, pas rééchantillonnée (ADR 0018)"
-            );
-            return Ok(FormatAudio::nouveau(hz, format.canaux, format.profondeur));
+            // LE REPLI, PORTÉ TEL QUEL DE V1 (`find_best_supported_rate`). Quand le
+            // périphérique sait servir la fréquence du fichier, c'est elle — et c'est le
+            // chemin bit-perfect. Sinon on prend la plus proche au-dessus, ce qui fait
+            // rééchantillonner l'AUHAL, ce qui est une altération, et ce que l'écran affiche.
+            let cible = frequence::meilleure_frequence_supportee(format.frequence, &info.frequences);
+            // La fréquence d'origine est mémorisée AVANT la première modification, pour
+            // pouvoir la remettre : Hean ne laisse pas le DAC dans un état que personne n'a
+            // demandé.
+            let actuelle = frequence::frequence_du_peripherique(id)?;
+            self.frequences_dorigine.entry(id).or_insert(actuelle);
+            if actuelle != cible {
+                frequence::definir_frequence_du_peripherique(id, cible)?;
+            }
+            cible
         };
+
+        let negociation = Negociation {
+            source: format,
+            sortie_hz: hz_du_peripherique,
+            airplay: info.est_airplay(),
+        };
+        self.negociation = Some(negociation);
+        if !negociation.sans_reechantillonnage() {
+            // `info!` et non `warn!` : le repli fonctionne, ce n'est pas une panne. V1 faisait
+            // le même choix côté écran — la classe `resampled` est cyan, délibérément pas
+            // rouge (`playback.js:890`).
+            tracing::info!(
+                peripherique = %info.nom,
+                source_hz = format.frequence,
+                sortie_hz = hz_du_peripherique,
+                "repli de fréquence : l'AUHAL rééchantillonne, l'écran l'affiche"
+            );
+        }
 
         self.routage.reappliquer_mode_exclusif()?;
 
@@ -296,8 +230,8 @@ impl BackendAudio for BackendCoreAudio {
         tracing::info!(
             peripherique = %info.nom,
             fichier = %format,
-            peripherique_hz = hz_du_peripherique,
-            verdict = ?self.verdict,
+            sortie_hz = hz_du_peripherique,
+            bit_perfect = negociation.sans_reechantillonnage(),
             "sortie préparée"
         );
         Ok(obtenu)
@@ -306,15 +240,13 @@ impl BackendAudio for BackendCoreAudio {
     /// Pousse ce qui rentre dans le tampon et rend combien a été pris. **Ne bloque jamais** :
     /// un appelant qui reçoit moins que ce qu'il a offert rappelle plus tard avec le reste.
     fn ecrire(&mut self, echantillons: &[i32]) -> Result<usize, ErreurAudio> {
-        let producteur = self.producteur.as_mut().ok_or_else(|| {
-            if let Some(e) = self.verdict.en_erreur() {
-                return e;
-            }
-            ErreurAudio::FormatRefuse {
+        let producteur = self
+            .producteur
+            .as_mut()
+            .ok_or_else(|| ErreurAudio::FormatRefuse {
                 demande: "écriture avant préparation".to_owned(),
                 obtenu: "aucun flux ouvert".to_owned(),
-            }
-        })?;
+            })?;
         let pris = producteur.pousser(echantillons);
 
         if !self.demarre && producteur.total_ecrit() >= self.preroll {
@@ -328,6 +260,9 @@ impl BackendAudio for BackendCoreAudio {
 
     /// Laisse sortir ce qui reste dans le tampon, puis arrête tout et rend le matériel.
     fn terminer(&mut self) -> Result<(), ErreurAudio> {
+        // Avant d'attendre la vidange : les callbacks qui vont suivre tombent à vide par
+        // construction, et ce ne sont pas des trous.
+        self.declarer_fin_de_flux();
         // Une piste plus courte que le pré-remplissage n'a jamais démarré la sortie : il
         // faut la lancer ici, sinon son son ne sort pas du tout.
         if !self.demarre && self.jauge.as_ref().is_some_and(|j| j.en_attente() > 0) {
@@ -349,11 +284,18 @@ impl BackendAudio for BackendCoreAudio {
             }
         }
         let famines = self.famines();
+        let tampons_inattendus = self.tampons_inattendus();
         self.fermer_le_flux();
         self.routage
             .rendre_le_materiel(&mut self.frequences_dorigine);
         if famines > 0 {
             tracing::warn!(famines, "la lecture a eu des trous : le décodeur n'a pas suivi");
+        }
+        if tampons_inattendus > 0 {
+            tracing::warn!(
+                tampons_inattendus,
+                "CoreAudio a donné des tampons désentrelacés : notre hypothèse de format est                  fausse, et ces callbacks ont été servis en silence"
+            );
         }
         Ok(())
     }

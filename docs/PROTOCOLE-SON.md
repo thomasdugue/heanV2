@@ -61,15 +61,20 @@ design est pour plus tard. La section **Lecture** est en haut, sous les dossiers
    **Échec** : un silence, un clic, ou une coupure au moment du passage. Le compteur de trous
    doit aussi rester à 0.
 
-9. **Un fichier 24/192 sur les haut-parleurs du Mac est REFUSÉ, et il le dit.** C'est le
-   point le plus important de la liste, parce que c'est ce que V1 faisait mal.
-   Choisis « Haut-parleurs Mac mini » comme sortie, puis joue un FLAC en 192 kHz. Tu dois
-   lire, en haut de la section Lecture, une phrase qui nomme le périphérique, la fréquence du
-   fichier **et** celles qu'il sait faire — tes haut-parleurs plafonnent à 96 kHz.
-   **Échec** : ça joue quand même. Cela voudrait dire que macOS rééchantillonne en silence,
-   c'est-à-dire que le son est altéré sans que rien ne le dise. C'est le défaut de V1.
-   *(Si le refus te gêne à l'usage, c'est une décision qui se change — dis-le, c'est écrit
-   dans [l'ADR 0018](adr/0018-une-frequence-que-le-dac-ne-sait-pas-jouer.md).)*
+9. **Un fichier que la sortie ne sait pas jouer nativement affiche LES DEUX fréquences, et
+   perd le badge bit-perfect.** C'est le point le plus important de la liste.
+   Choisis « Haut-parleurs Mac mini » comme sortie — ils plafonnent à **96 kHz**, mesuré le
+   2026-11-26 — puis joue un FLAC en 192 kHz. Tu dois lire :
+   « Source : **192 kHz / 24 bits** · Sortie : **96 kHz (rééchantillonné)** », et juste en
+   dessous « **Pas bit-perfect** : la sortie ne sait pas jouer cette fréquence. Le son est
+   joué, mais il est converti — ce n'est pas une panne. »
+   **Échec** : ça joue en affichant « Bit-perfect », ou la sortie affiche 192 kHz alors que
+   le matériel ne sait pas le faire. Ce serait une altération que rien ne signale, et c'est
+   exactement ce que l'indicateur existe pour empêcher.
+
+9bis. **Et le même fichier sur un DAC qui sait faire 192 kHz affiche les deux fois 192 kHz**,
+   avec le badge. C'est le témoin de l'étape précédente : sans lui, un indicateur bloqué sur
+   « rééchantillonné » passerait pour juste.
 
 ## Avec le DAC
 

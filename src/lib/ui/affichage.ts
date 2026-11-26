@@ -42,3 +42,26 @@ export function qualite(bits: number | null, echantillonnage: number | null): st
 export function compte(n: number, singulier: string, pluriel = `${singulier}s`): string {
   return `${n} ${n === 1 ? singulier : pluriel}`;
 }
+
+/**
+ * Une fréquence d'échantillonnage, écrite court : `44,1 kHz`, `192 kHz`.
+ *
+ * Même règle que `qualite` ci-dessus — au plus une décimale, virgule française — et c'est
+ * pour ça que les deux partagent ce fichier plutôt que de vivre dans les composants : V1 a
+ * payé trois bugs pour avoir réécrit une normalisation à plusieurs endroits (ADR 0009).
+ */
+export function frequence(hz: number): string {
+  if (!Number.isFinite(hz) || hz <= 0) return '—';
+  const khz = hz / 1000;
+  return `${(Math.round(khz * 10) / 10).toString().replace('.', ',')} kHz`;
+}
+
+/**
+ * Les specs de la source, telles que l'indicateur les montre : `192 kHz / 24 bits`.
+ * Équivalent du champ `source-specs` de V1 (`playback.js:878`).
+ */
+export function specsSource(hz: number, bits: number): string {
+  const morceaux = [frequence(hz)];
+  if (bits > 0) morceaux.push(`${bits} bits`);
+  return morceaux.join(' / ');
+}
