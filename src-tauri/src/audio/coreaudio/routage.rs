@@ -179,8 +179,23 @@ impl Routage {
                 "sortie changée sans toucher au défaut système : la session AirPlay est préservée (PLAT-1)"
             );
         } else {
-            peripheriques::definir_peripherique_par_defaut_systeme(id)?;
-            tracing::info!(id, "sortie changée, défaut système synchronisé");
+            // ⚠️ Ici l'échec n'est PAS fatal, et c'est une correction de ma propre erreur de
+            // portage : V1 ignorait le code de retour (`let _ = ...`), j'avais mis un `?`.
+            // Entre deux périphériques filaires, le défaut système ne sert qu'à faire suivre
+            // les touches de volume et l'indicateur de macOS — c'est **cosmétique**. Un `?`
+            // aurait refusé un changement de sortie qui aurait parfaitement fonctionné.
+            // Le cas AirPlay ci-dessus, lui, garde son `?` : là le défaut système est le
+            // seul chemin de routage qui existe (PLAT-1), donc son échec est fatal.
+            if let Err(e) = peripheriques::definir_peripherique_par_defaut_systeme(id) {
+                tracing::warn!(
+                    id,
+                    erreur = %e,
+                    "défaut système non synchronisé : la sortie change quand même, mais les \
+                     touches de volume de macOS continueront d'agir sur l'ancienne"
+                );
+            } else {
+                tracing::info!(id, "sortie changée, défaut système synchronisé");
+            }
         }
         Ok(())
     }
