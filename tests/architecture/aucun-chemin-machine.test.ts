@@ -8,19 +8,23 @@ import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { RACINE, lire } from './_lecture';
 
-// Chemins absolus de machine. Deux exceptions légitimes :
-//   - `~/Library/Application Support/hean/`, le dossier de données de l'app (ADR 0003) ;
-//   - les BLOCS DE LANCEMENT `cd <chemin absolu> && <commande>`, convention explicite de
-//     Thomas : un protocole de test s'exécute à la main, on ne veut pas chercher la commande.
-// Ce qui reste visé est la seule chose dangereuse : une RÉFÉRENCE à un fichier qu'on ne
-// peut pas ouvrir depuis le dépôt.
+// Chemins absolus de machine. Une seule exception reste légitime :
+// `~/Library/Application Support/hean/`, le dossier de données de l'app (ADR 0003), que ce
+// motif ne regarde pas puisqu'il commence par `~`.
+//
+// ⚠️ Il y en avait une seconde, retirée le 2026-11-26 : les BLOCS DE LANCEMENT
+// `cd <chemin absolu> && <commande>`. Elle couvrait les 23 chemins `/Users/<compte>` des
+// protocoles, tous remplacés par `$HOME` avant la bascule du dépôt en public (ADR 0019) —
+// `$HOME` et non `~`, qui ne s'étend pas entre guillemets doubles. L'exception n'avait donc
+// plus rien à couvrir, et une exception vide ne dort pas : elle **couvre d'avance**, et le
+// prochain `cd /Users/<quelqu'un>/… && …` serait passé au vert. C'est la règle écrite plus
+// bas pour `NON_LUS` — « exception sans objet : la retirer » — appliquée à elle.
 const CHEMIN_MACHINE = /\/(?:Users|home)\/[a-z0-9._-]+\//i;
-const BLOC_DE_LANCEMENT = /^[`$\s]*cd\s+["'`]?\//;
 
 export function cheminsMachine(texte: string): string[] {
   return texte
     .split('\n')
-    .filter((l) => CHEMIN_MACHINE.test(l) && !BLOC_DE_LANCEMENT.test(l))
+    .filter((l) => CHEMIN_MACHINE.test(l))
     .map((l) => l.trim().slice(0, 120));
 }
 
@@ -126,7 +130,19 @@ describe('aucune référence hors du dépôt', () => {
     expect(cheminsMachine('~/Library/Application Support/hean/')).toEqual([]);
   });
 
-  it('tolère un bloc de lancement, qui est une convention voulue', () => {
-    expect(cheminsMachine('cd /Users/x/Documents/heanV2 && ./check')).toEqual([]);
+  it('un bloc de lancement ne passe plus : son exception a été retirée', () => {
+    // Cette assertion est l'inverse exact de celle qu'elle remplace, et c'est tout son
+    // intérêt : l'exception retirée l'a été sur un argument, et un argument que rien ne
+    // vérifie se défait tout seul. Si quelqu'un la remet, ce test rougit et le dira.
+    expect(cheminsMachine('cd /Users/x/Documents/heanV2 && ./check')).toEqual([
+      'cd /Users/x/Documents/heanV2 && ./check',
+    ]);
+  });
+
+  it('la forme que les protocoles utilisent désormais reste verte', () => {
+    // Le pendant du précédent : retirer l'exception ne doit pas rendre le dépôt inécrivable.
+    // `$HOME` passe, entre guillemets doubles comme sans — c'est la raison du choix.
+    expect(cheminsMachine('cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev')).toEqual([]);
+    expect(cheminsMachine('cd "$HOME/Documents/Thomas/heanV2" && npm run tauri dev')).toEqual([]);
   });
 });

@@ -14,10 +14,13 @@ dit donc plus rien, ce qui est l'état exact où un garde-fou devient un bruit q
 ignorer.
 
 **Mesuré le 2026-11-26** : 114 runs et **232 minutes de runner macOS** entre le 21 et le 26
-novembre, soit 2,0 min par run en moyenne (dont 69 s de `./check` : le job est déjà maigre, le
-cache Rust fait son travail, `brew install samba` ne coûte que 14 s). Sur un dépôt **privé**, une
-minute macOS vaut environ dix minutes Linux. Le coût vient donc du **nombre** de runs, pas de leur
-durée.
+novembre, soit 2,0 min par run en moyenne. ⚠️ Ces 232 min sont du **temps de mur, pas du
+facturé** : GitHub arrondit chaque job à la minute supérieure, ce qui fait environ 294 min, et
+compte une minute macOS pour dix. Le facturé exact n'est pas mesurable ici — l'API `/timing`
+renvoie `billable.MACOS.total_ms: 0` sur tous les runs, probablement à cause du blocage
+lui-même. Sur **un seul** run réussi relevé pas à pas, `./check` prend 69 s et `brew install
+samba` 14 s : le job est maigre, le cache Rust fait son travail. Le coût vient donc du
+**nombre** de runs, pas de leur durée.
 
 Les runners standard — `macos-latest` en est un — sont gratuits et sans plafond de minutes sur un
 dépôt **public**.
@@ -35,21 +38,29 @@ Ce qui a été masqué dans l'arbre courant, par cette décision :
 | Apple Team ID | même fichier, 3 fois | `<TEAM_ID>` |
 | Adresse e-mail personnelle | 4 fichiers | l'adresse `users.noreply.github.com`, déjà publique |
 | Numéro de série du FiiO JM21 | 2 fichiers, 16 fois | `<SERIAL_APPAREIL>` |
-| Chemins `\/Users\/<compte>` | 11 fichiers, 23 fois | `$HOME` (correct y compris entre guillemets, contrairement à `~`) |
+| Chemins `/Users/<compte>` | 11 fichiers, 23 fois | `$HOME` — et non `~`, qui ne s'étend pas entre guillemets doubles ; le dépôt en a un cas, `docs/PROTOCOLE-SON.md` |
+| Mot de passe app-specific Apple | `GUIDE-LAUNCH-BETA-V1.md`, 1 fois | `<MOT_DE_PASSE_APP_SPECIFIQUE>` |
 
 ## Ce que le masquage ne règle pas, et qui reste à la charge de Thomas
 
-⚠️ **Masquer un fichier ne touche pas l'historique.** Publier le dépôt publie les 156 commits.
+⚠️ **Masquer un fichier ne touche pas l'historique.** Publier expose ce qui est sur GitHub :
+**60 commits sur `main`**, et 139 au total sur les 26 branches poussées. (Le compte
+`git rev-list --all` est un faux ami : il inclut des branches locales qui ne seront jamais
+publiées, et il dérive à chaque commit de n'importe quelle session.)
 
-1. **Le DSN Sentry est dans l'arbre des 156 commits** — c'est-à-dire de *tous* : le fichier qui le
-   porte est là depuis le commit initial. Le masquer dans `HEAD` est donc, à lui seul,
-   cosmétique. Un secret publié ne se nettoie pas, il **se révoque** : la seule correction est
-   de supprimer la clé côté Sentry et d'en créer une neuve. Un DSN ne donne accès à aucune
-   donnée — il part de toute façon dans chaque binaire distribué, donc il est déjà extractible
-   avec `strings` — mais publié, il permet de noyer le quota d'événements.
-2. **133 commits portent l'adresse e-mail personnelle en champ auteur.** Masquer les 4 fichiers
-   ne change rien : seule une réécriture d'historique l'enlèverait, et elle casserait tous les
-   clones existants. Pour la suite : `git config user.email` vers l'adresse `noreply`.
+1. **Le mot de passe app-specific Apple et le DSN Sentry sont dans l'arbre des 60 commits de
+   `main`** — c'est-à-dire de *tous* : le fichier qui les porte est là depuis le commit initial.
+   Les masquer dans `HEAD` est donc, à soi seul, cosmétique. Un justificatif publié ne se nettoie
+   pas, il **se révoque**, des deux côtés :
+   - **Le mot de passe app-specific, sur appleid.apple.com.** C'est le seul des trois qui
+     *authentifie* : il soumet des notarisations au nom de l'Apple ID. À révoquer en premier.
+   - **La clé Sentry, côté Sentry.** Un DSN n'ouvre aucune donnée et part de toute façon dans
+     chaque binaire distribué, donc il est déjà extractible avec `strings` ; publié, il permet
+     seulement de noyer le quota d'événements.
+2. **37 commits de `main` portent l'adresse e-mail personnelle en champ auteur** (116 sur
+   l'ensemble des branches poussées). Masquer les 4 fichiers n'y change rien : seule une
+   réécriture d'historique l'enlèverait, et elle casserait tous les clones existants. Pour la
+   suite : `git config user.email` vers l'adresse `noreply`.
 3. **Le nom « Thomas Dugué » n'est pas masqué**, volontairement. Il est l'auteur de chaque commit,
    le propriétaire du compte GitHub, et il figurera sur l'application signée. Le masquer dans
    trois fichiers serait du théâtre.
@@ -77,6 +88,9 @@ part d'un disque nu », notée en tête de [`check`](../../check) : c'est elle q
 - **Aucun fichier `LICENSE`.** Publier n'est pas ouvrir : par défaut, tous droits réservés — le
   code est lisible et copiable en fait, pas réutilisable en droit. Hean reste un produit payant
   (« distribution directe, licence perpétuelle »), et `bootstrap/` embarque 59 fichiers source
+  — mesure : les 142 fichiers suivis de `bootstrap/`, filtrés sur `.rs` (36), `.js` (12),
+  `.html` (7), `.css` (3) et `.py` (1) ; le reste est de la prose. Ce chiffre porte un argument
+  juridique, il doit dire ce qu'il compte
   de V1.
 - **Les documents de stratégie commerciale deviennent publics** : `pricing-gtm.md` (209 lignes),
   `market-viability.md` (150) et `gtm-playbook-solo-dev.md` (112), dans
