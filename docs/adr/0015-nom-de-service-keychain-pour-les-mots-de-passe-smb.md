@@ -27,6 +27,23 @@ le nom de V2 depuis ce soir-là, et son propre journal du 2026-11-26 à 01:01Z l
 `mot de passe SMB trouvé dans le trousseau service="com.tdugue.hean.smb"`, puis un scan
 différentiel de 32 secondes sans aucune saisie. **Retirer le nom de V1 ne lui a rien coûté.**
 
+**Le relevé du trousseau, daté, pour que ceci se revérifie plus tard.** Pris le 2026-11-26 par
+la session d'orchestration — qui a vérifié la mesure ci-dessus plutôt que de la croire, et sans
+lire aucun mot de passe : `security find-generic-password` sans `-w` ne rend que les attributs.
+
+| Service | Compte | Ce que c'est |
+|---|---|---|
+| `com.tdugue.hean.smb` | `dcdd24af-…` | **le seul que V2 lise** — créé le 2026-11-25 à 21:55:37Z, modifié le 2026-11-26 à 01:07:35Z |
+| `com.tdugue.noir.smb` | `dcdd24af-…` | le doublon écrit par V1 pour la même source, plus jamais lu |
+| `com.tdugue.noir.smb` | `1c420320-…` | l'orphelin d'une source recréée, plus jamais lu |
+
+Trois entrées, dont deux inertes. **La date de création est la preuve matérielle du coût nul** :
+l'entrée sous le nom de V2 existait trois minutes avant le début du grand scan du 2026-11-25
+(21:58:56Z), donc bien avant que la question ne soit posée à Thomas. La modification de
+01:07:35Z est postérieure au scan différentiel de 01:01 et n'est **pas expliquée** — une saisie
+de plus de sa part, probablement ; notée sans être interprétée, parce qu'un relevé qui comble
+ses trous par une hypothèse cesse d'être un relevé.
+
 Ce qui se généralise, et qui vaut plus que cette décision-ci : le coût de l'option B a été
 chiffré faux **deux fois** avant d'être mesuré — d'abord à cinquante saisies (des testeurs qui
 n'existent pas), puis à une (déjà faite). Les deux fois, l'erreur penchait du même côté : elle
