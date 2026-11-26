@@ -40,6 +40,19 @@ pub enum ErreurAudio {
     #[error("le backend ne peut pas servir {demande} (il propose {obtenu})")]
     FormatRefuse { demande: String, obtenu: String },
 
+    /// Le HAL de macOS a refusé une opération. Le code est l'`OSStatus` brut : il ne se
+    /// traduit pas en français, et le donner tel quel est ce qui permet de le chercher.
+    #[error("CoreAudio a refusé {operation} (code {code})")]
+    CoreAudio { operation: String, code: i32 },
+
+    #[error("aucun périphérique de sortie audio")]
+    AucunPeripherique,
+
+    /// Le mode exclusif est tenu par un autre processus. Message destiné à Thomas : il doit
+    /// pouvoir savoir quoi fermer, donc le PID en fait partie.
+    #[error("« {nom} » est réservé par un autre programme (PID {pid}) — le fermer, ou jouer en mode partagé")]
+    PeripheriqueReserve { nom: String, pid: i32 },
+
     #[error("écriture impossible : {0}")]
     Ecriture(#[source] std::io::Error),
 }

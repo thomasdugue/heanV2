@@ -21,6 +21,12 @@ export type { Track_Serialize as Track, Edition_Deserialize as Edition } from '.
 // aussi, mais jamais telle quelle — `addNetworkSource` prend ses champs un par un, ce qui
 // fait que l'interface ne peut pas fabriquer une source avec un identifiant de son choix.
 export type { SourceReseau_Serialize as SourceReseau } from './bindings';
+// L'état de la lecture remonte du Rust, et il porte la liste des sorties avec lui — un seul
+// aller-retour pour un sondage qui tourne dix fois par seconde. Il ne descend jamais :
+// l'interface n'envoie que des ordres (jouer, se déplacer, régler), donc elle ne peut pas
+// inventer une lecture qui n'a pas lieu. Ni `EtatLecture` ni `PeripheriqueAudio` n'ont de
+// variante `_Serialize` : ils ne portent aucun champ optionnel, exprès (voir le Rust).
+export type { EtatLecture, PeripheriqueAudio } from './bindings';
 
 export function appVersion(): Promise<string> {
   return commands.appVersion();
@@ -37,3 +43,22 @@ export const { listTracks, scanLibrary, writeMetadata, bulkEdit, excludeTrack, a
 // Les commandes réseau (ADR 0016). Aucune ne rend de piste : un scan rend un rapport, et
 // c'est le dépôt qui recharge la liste si ce rapport dit que quelque chose a bougé (V004).
 export const { networkSources, addNetworkSource, saveNetworkPassword, scanNetworkSource } = commands;
+
+// Les commandes de la lecture. Aucune
+// n'attend que le son sorte : elles postent un ordre au fil de lecture et rendent la main.
+// `playbackState` est le SEUL chemin par lequel l'interface apprend où en est la lecture —
+// il n'y a pas d'événement, donc pas d'état local à garder en phase (V013). `playbackSkip`
+// prend un pas (`1`/`-1`) et `playbackSetPaused` un booléen : deux commandes au lieu de
+// quatre, et des appels idempotents.
+export const {
+  playTracks,
+  playbackSetPaused,
+  playbackStop,
+  playbackSeek,
+  playbackSkip,
+  setVolume,
+  setAudioDevice,
+  setExclusiveMode,
+  refreshAudioDevices,
+  playbackState,
+} = commands;

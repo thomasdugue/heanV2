@@ -2,9 +2,11 @@
 //! inscrite dans `collect_commands!` (src/lib.rs) — sinon elle n'existe pas côté TypeScript.
 //!
 //! `app_version` sert à prouver la chaîne complète Rust → tauri-specta → bindings.ts →
-//! client.ts → Svelte. Les commandes de la bibliothèque sont dans `bibliotheque.rs`.
+//! client.ts → Svelte. Les commandes de la bibliothèque sont dans `bibliotheque.rs`, celles
+//! de la lecture dans `lecture.rs`.
 
 pub mod bibliotheque;
+pub mod lecture;
 pub mod reseau;
 
 /// Version de l'application, telle que déclarée dans `Cargo.toml`.

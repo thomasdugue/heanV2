@@ -32,6 +32,16 @@ pub fn ipc_builder() -> Builder<tauri::Wry> {
         commands::reseau::add_network_source,
         commands::reseau::save_network_password,
         commands::reseau::scan_network_source,
+        commands::lecture::play_tracks,
+        commands::lecture::playback_set_paused,
+        commands::lecture::playback_stop,
+        commands::lecture::playback_seek,
+        commands::lecture::playback_skip,
+        commands::lecture::set_volume,
+        commands::lecture::set_audio_device,
+        commands::lecture::set_exclusive_mode,
+        commands::lecture::refresh_audio_devices,
+        commands::lecture::playback_state,
     ])
 }
 
@@ -66,8 +76,15 @@ pub fn run() {
         }
     };
 
+    // Le fil de lecture démarre avec l'application, mais il ne touche à AUCUN matériel
+    // avant le premier `play_tracks` : lancer Hean ne doit ni réserver le DAC, ni changer sa
+    // fréquence, ni réveiller un AirPlay.
+    let lecteur = audio::Lecteur::demarrer();
+    let _ = lecteur.envoyer(audio::Commande::RafraichirPeripheriques);
+
     tauri::Builder::default()
         .manage(Mutex::new(depot) as commands::bibliotheque::Bibliotheque)
+        .manage(Mutex::new(lecteur) as commands::lecture::Lecture)
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             builder.mount_events(app);

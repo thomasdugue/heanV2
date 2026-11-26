@@ -10,11 +10,13 @@
 
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use symphonia::core::audio::SignalSpec;
 use symphonia::core::codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL};
 use symphonia::core::errors::Error as ErreurSymphonia;
-use symphonia::core::formats::{FormatOptions, FormatReader};
+use symphonia::core::formats::{FormatOptions, FormatReader, SeekMode, SeekTo};
+use symphonia::core::units::Time;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
@@ -35,6 +37,8 @@ pub struct Decodeur {
     /// `ouvrir`). Il est rendu tel quel au premier `suivant()` : le décoder pour inspecter
     /// le flux ne doit pas faire perdre son audio.
     en_attente: Option<Trames>,
+    /// La durée annoncée par le conteneur, quand il l'annonce.
+    duree: Option<Duration>,
 }
 
 /// Le prochain bloc décodé de la piste `piste`, ou `None` à la fin du flux.
@@ -168,10 +172,19 @@ impl Decodeur {
             });
         }
 
+        // La durée vient du conteneur : nombre de trames / fréquence. `n_frames` manque sur
+        // un MP3 sans en-tête Xing, et on ne la devine pas à partir de la taille du fichier
+        // — un débit variable rendrait l'estimation fausse de plusieurs dizaines de secondes.
+        let duree = p
+            .n_frames
+            .filter(|_| format.frequence > 0)
+            .map(|trames| Duration::from_secs_f64(trames as f64 / f64::from(format.frequence)));
+
         tracing::debug!(
             chemin = %chemin.display(),
             format = %format,
             format_declare = en_attente.is_none(),
+            duree_s = duree.map(|d| d.as_secs()),
             "fichier audio ouvert"
         );
 
@@ -182,12 +195,62 @@ impl Decodeur {
             format,
             chemin: chemin.to_path_buf(),
             en_attente,
+            duree,
         })
     }
 
     /// Le format du flux, tel que le conteneur le déclare.
     pub fn format(&self) -> FormatAudio {
         self.format
+    }
+
+    /// Le fichier que ce décodeur lit.
+    pub fn chemin(&self) -> &Path {
+        &self.chemin
+    }
+
+    /// La durée annoncée par le conteneur, quand il l'annonce.
+    ///
+    /// `None` est un cas réel et non une négligence : un MP3 sans en-tête Xing, un flux
+    /// Ogg tronqué. L'interface doit savoir afficher « durée inconnue » plutôt que zéro —
+    /// une barre de progression calée sur zéro est pire qu'absente.
+    pub fn duree(&self) -> Option<Duration> {
+        self.duree
+    }
+
+    /// Déplace la lecture à `position`, et rend la position **réellement atteinte**.
+    ///
+    /// Le retour n'est pas décoratif : symphonia se déplace à la trame de départ du paquet
+    /// qui contient `position`, donc l'arrivée est en général un peu avant la demande. Un
+    /// appelant qui afficherait la position demandée plutôt que l'atteinte verrait sa barre
+    /// de progression reculer d'elle-même à la première mise à jour.
+    ///
+    /// `SeekMode::Accurate` et non `Coarse` : le déplacement grossier se contente du point
+    /// d'index le plus proche, ce qui sur un FLAC sans table de recherche peut rater de
+    /// plusieurs secondes. Le coût est un décodage partiel du paquet d'arrivée, soit
+    /// quelques millisecondes.
+    pub fn aller_a(&mut self, position: Duration) -> Result<Duration, ErreurAudio> {
+        // Un bloc gardé de l'ouverture n'a plus rien à voir avec la nouvelle position.
+        self.en_attente = None;
+        let atteint = self
+            .lecteur
+            .seek(
+                SeekMode::Accurate,
+                SeekTo::Time {
+                    time: Time::from(position.as_secs_f64()),
+                    track_id: Some(self.piste),
+                },
+            )
+            .map_err(|e| ErreurAudio::FluxCorrompu(e.to_string()))?;
+        // Obligatoire après un déplacement : le décodeur garde l'état de la trame
+        // précédente, et décoder la suivante sans réinitialiser produit un craquement.
+        self.codec.reset();
+        if self.format.frequence == 0 {
+            return Ok(position);
+        }
+        Ok(Duration::from_secs_f64(
+            atteint.actual_ts as f64 / f64::from(self.format.frequence),
+        ))
     }
 
     /// Le bloc de trames suivant, ou `None` à la fin du fichier.

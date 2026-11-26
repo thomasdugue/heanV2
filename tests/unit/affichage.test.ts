@@ -2,7 +2,7 @@
 // ça qu'elles sont testées : une durée mal formatée ne fait échouer aucun autre test, elle
 // se lit juste faux à l'écran — et personne ne regarde deux fois « 3:7 ».
 import { describe, expect, it } from 'vitest';
-import { compte, duree, qualite } from '../../src/lib/ui/affichage';
+import { compte, duree, frequence, qualite, specsSource } from '../../src/lib/ui/affichage';
 
 describe('duree', () => {
   it('écrit les secondes sur deux chiffres', () => {
@@ -53,5 +53,35 @@ describe('compte', () => {
 
   it('accepte un pluriel irrégulier', () => {
     expect(compte(2, 'illisible', 'illisibles')).toBe('2 illisibles');
+  });
+});
+
+describe('frequence', () => {
+  it('écrit les kHz à la française, au plus une décimale', () => {
+    expect(frequence(44100)).toBe('44,1 kHz');
+    expect(frequence(48000)).toBe('48 kHz');
+    expect(frequence(192000)).toBe('192 kHz');
+    expect(frequence(88200)).toBe('88,2 kHz');
+  });
+
+  it('refuse de rendre un chiffre quand il n’y en a pas', () => {
+    // Zéro arrive réellement : avant la première lecture, l'état partagé est à zéro.
+    // Afficher « 0 kHz » laisserait croire à une mesure, alors qu'il n'y en a pas encore.
+    expect(frequence(0)).toBe('—');
+    expect(frequence(-1)).toBe('—');
+    expect(frequence(Number.NaN)).toBe('—');
+  });
+});
+
+describe('specsSource', () => {
+  it('écrit les deux champs de l’indicateur', () => {
+    expect(specsSource(192000, 24)).toBe('192 kHz / 24 bits');
+    expect(specsSource(44100, 16)).toBe('44,1 kHz / 16 bits');
+  });
+
+  it('se passe de la profondeur quand le conteneur ne la déclare pas', () => {
+    // Un MP3 n'a pas de profondeur d'origine : le backend envoie 0, et « 0 bits » serait
+    // une affirmation fausse là où il n'y a rien à dire.
+    expect(specsSource(44100, 0)).toBe('44,1 kHz');
   });
 });

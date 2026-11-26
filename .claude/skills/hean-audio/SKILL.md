@@ -8,12 +8,20 @@ description: Moteur audio Hean — pipeline CoreAudio, bit-perfect, hog mode, sa
 > n'existent pas encore ici. Le *savoir* est valide.
 > Référence complète : [`bootstrap/04-invariants/README.md`](../../../bootstrap/04-invariants/README.md).
 >
-> **Ce qui existe en V2** (phase 1, [ADR 0007](../../../docs/adr/0007-format-interne-audio-et-preuve-du-bit-perfect.md)) :
-> [`src-tauri/src/audio/`](../../../src-tauri/src/audio/) — le trait de backend, le décodage
-> symphonia, et un **backend de test qui écrit un WAV** au lieu de parler au HAL. Le
-> bit-perfect n'est plus une promesse : `src-tauri/tests/bit_perfect.rs` compare la sortie
-> **octet par octet** à un fichier écrit par ffmpeg. Ni le moteur CoreAudio, ni l'égaliseur,
-> ni le gapless ne sont portés.
+> **Ce qui existe en V2** : tout [`src-tauri/src/audio/`](../../../src-tauri/src/audio/) —
+> lire son `mod.rs` en premier, il dit l'ordre dans lequel le module a été bâti.
+> Le socle (phase 1, [ADR 0007](../../../docs/adr/0007-format-interne-audio-et-preuve-du-bit-perfect.md)) :
+> décodage symphonia, format interne `i32`, et un **backend de test qui écrit un WAV** au
+> lieu de parler au HAL — `src-tauri/tests/bit_perfect.rs` compare la sortie **octet par
+> octet** à un fichier écrit par ffmpeg.
+> **La sortie, portée le 2026-11-26** : `audio/coreaudio/` (périphériques, fréquence, mode
+> exclusif, AudioUnit, PLAT-1) et `audio/lecteur/` (file, pause, déplacement, enchaînement
+> d'album). **Le repli de fréquence est porté tel quel de V1, et il s'affiche** : fréquence
+> entrante, fréquence sortante, pas de badge bit-perfect. ⚠️ La formule « bit-perfect = pas de
+> resampling » du skill `hean-invariants` est plus absolue que la règle réelle, qui est
+> **« bit-perfect quand le DAC sait décoder, et le dire quand il ne sait pas »** — prise au
+> pied de la lettre elle ferait supprimer une fonction que Thomas veut.
+> Restent à porter : l'égaliseur, les touches media, et **la lecture d'un fichier du NAS**.
 
 
 # hean-audio — moteur audio & devices
@@ -47,8 +55,10 @@ File / SmbProgressiveFile → [Symphonia decoder] → i32 entrelacé, à l'éche
 - **Et l'intégrité d'un fichier ne se déduit PAS du décodeur** : mesuré, des trames abîmées
   ou un fichier tronqué passent en silence (symphonia saute les trames invalides). Seul un
   en-tête STREAMINFO incohérent est refusé. À vérifier autrement quand le NAS arrivera.
-- **Sample rate auto-switch**: `coreaudio_backend.rs` negotiates with the DAC via `kAudioDevicePropertyNominalSampleRate`
-- **Hog Mode**: `kAudioDevicePropertyHogMode` in `coreaudio_backend.rs` — exclusive device access
+- **Sample rate auto-switch**: `audio/coreaudio/frequence.rs` negotiates with the DAC via `kAudioDevicePropertyNominalSampleRate`. Le repli (`meilleure_frequence_supportee`, porté de `find_best_supported_rate`) choisit sur la liste des **huit fréquences standard** annoncées, comme V1 — pas sur les plages brutes. Conséquence connue, non corrigée faute de défaut mesuré : un MP3 en 32 kHz est replié à 44,1 kHz même sur un périphérique qui annonce une plage continue et saurait le servir nativement.
+- **L'écart se montre, il ne se cache pas** : `audio/coreaudio/negociation.rs` porte les deux chiffres jusqu'à `EtatLecture`, et `src/lib/ui/Lecture.svelte` les affiche. C'est l'équivalent de l'`AudioSpecs` de V1 (`audio_engine.rs:540`) et de `playback.js:862-903`. **Avant d'appeler un comportement de V1 un défaut, lire la chaîne entière — le mécanisme est en Rust, l'honnêteté du mécanisme est souvent en JS.**
+- **Hog Mode**: `kAudioDevicePropertyHogMode` dans `audio/coreaudio/exclusif.rs` — accès exclusif, refusé en AirPlay
+- **Compteur de famines** : chaque callback servi à vide est compté (`EtatDuFlux::famines`) et remonte jusqu'à l'écran. C'est la seule mesure de « ça ne coupe pas » ; V1 n'en avait aucune.
 - **Supported formats**: FLAC, WAV, AIFF, ALAC, MP3, AAC/M4A, OGG Vorbis
 - **Not supported**: WMA, DSD, Opus, MQA — extensions removed from scanner
 

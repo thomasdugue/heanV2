@@ -62,6 +62,23 @@ pavao = "0.2"
 # disque de l'app : ni dans la base, ni dans un JSON.
 security-framework = "3"
 
+# Sortie audio — CoreAudio direct, JAMAIS CPAL (ADR 0002). `coreaudio-sys` est le binding
+# brut du HAL : c'est le seul chemin vers les trois propriétés dont dépend le bit-perfect —
+# `kAudioDevicePropertyNominalSampleRate` (la fréquence du périphérique suit celle du
+# fichier), `kAudioDevicePropertyHogMode` (accès exclusif) et le pilotage d'un AudioUnit
+# `kAudioUnitSubType_HALOutput` (choix explicite du périphérique).
+#
+# ⚠️ `coreaudio-rs`, l'enveloppe sûre citée par l'ADR 0002, n'est PAS reprise : V1 la
+# déclarait mais son moteur de sortie ne l'importait nulle part — tout passait déjà par
+# `coreaudio-sys`. La garder serait une dépendance que personne n'appelle, donc un poids et
+# une affirmation fausse. Le choix de fond de l'ADR — CoreAudio direct plutôt que CPAL — est
+# tenu à l'identique.
+coreaudio-sys = "0.2"
+
+# `CFString`, pour lire le nom d'un périphérique : `kAudioObjectPropertyName` rend une
+# `CFStringRef` et rien d'autre ne la convertit en `String`.
+core-foundation = "0.10"
+
 # Normalisation Unicode (ADR 0009). Le SEUL usage légitime est `AlbumKey::new` : trois bugs
 # de V1 venaient d'une normalisation (trim + NFC) réécrite à plusieurs endroits.
 unicode-normalization = "0.1"

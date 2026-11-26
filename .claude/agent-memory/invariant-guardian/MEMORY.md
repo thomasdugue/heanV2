@@ -10,3 +10,5 @@
 - [Détecteur d'INV-04 en anglais](detecteur-inv-04-en-anglais.md) — le grep du trousseau ignore `mot_de_passe` : la faute en français lui est invisible.
 - [Zone audio : chemins Rust seulement](zone-audio-chemins-rust-seulement.md) — les fichiers frontend du lecteur sont de l'UI malgré leur nom
 - [Les listes de zones du harnais](les-listes-de-zones-du-harnais.md) — chaque garde-fou a la sienne ; on retourne une liste d'oublis, pas une liste de choix
+- [Un compteur sans lecteur](un-compteur-sans-lecteur.md) — un compteur d'anomalie n'est une trace que si quelqu'un le lit sur le chemin réel
+- [Repli de fréquence et interdit de resampling](repli-de-frequence-et-interdit-de-resampling.md) — le code replie, le skill et l'ADR 0007 §5 disent « refuser » : vérifier avant de juger

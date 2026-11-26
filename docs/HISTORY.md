@@ -1692,6 +1692,7 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   raisonnements le jour même. Les ADR 0001, 0003, 0004 et 0010 reposent dessus et restent
   intacts — on ne modifie pas un ADR. Deezer devient obligatoire, WiFi Sync sort du périmètre.
   Suite : **le son**, avec un jalon à 14 jours.
+
 - **2026-11-26** (trousseau) : **ADR 0015 tranché par Thomas — « un nom propre à la V2 ».**
   `SERVICE` ne vaut plus que `com.tdugue.hean.smb` ; le nom de V1 n'est plus lu, et rien n'est
   écrit ni supprimé sous lui — les deux entrées du trousseau de Thomas restent intactes.
@@ -1707,6 +1708,7 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   chiffré faux deux fois. Tenue par `chiffres-annonces.test.ts`. Second tour : « la fenêtre est
   la ligne » n'était tenu par aucune assertion (l'élargir laissait tout vert) et mon renvoi
   « §5 » était faux là où « §3 » était juste. D'où deux assertions, et une règle de plus.
+
 - **2026-11-26** (passe) : **le bit-perfect est un état affiché, pas une propriété permanente**
   — ADR 0018, tranché par Thomas en corrigeant une analyse fausse. Le repli de fréquence du DAC
   est voulu ; ce qui est interdit, c'est de rééchantillonner **sans le dire**. La formule
@@ -1718,3 +1720,19 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   côtés** — le mécanisme est en Rust, l'honnêteté du mécanisme est en JS. Deuxième faute du même
   jour et de la même forme (l'autre : un coût de mot de passe annoncé sans regarder le trousseau).
   Corollaire demandé par Thomas : vérifier ce qu'il dit de V1 comme n'importe quelle affirmation.
+
+- **2026-11-26** (le son sort) : **la sortie audio est portée** — les 1 993 lignes de
+  `coreaudio_backend.rs` + `coreaudio_stream.rs` de V1 redécoupées en 13 fichiers sous
+  400 lignes, le long des coutures de V1 (HAL, périphériques, fréquence, mode exclusif,
+  cache, routage, AudioUnit, callback), PLAT-1 compris. Hean joue une piste locale, un album
+  sans trou, pause, déplacement, volume, sortie, mode exclusif.
+  **Et une leçon payée dans la session même** : j'avais pris le repli de fréquence de V1 pour
+  un défaut et commencé à le « corriger » en refusant la lecture. C'est un comportement
+  **voulu** — V1 l'affiche (`audio_engine.rs:540` → `playback.js:862`, deux champs source et
+  sortie, classe `resampled` cyan et non rouge), ce que le Rust seul ne montre pas. D'où la
+  règle : **avant d'appeler un comportement de V1 un défaut, lire la chaîne entière, Rust ET
+  JS.** Le repli est donc porté tel quel, avec son indicateur. Deux écarts restent : le flux
+  est déclaré en **entier 32 bits** (ADR 0007 ; vérifié, l'AUHAL l'accepte), et **les trous
+  dans le son sont comptés** — après correction, car le compteur comptait aussi chaque fin
+  d'album et chaque déplacement, et un indicateur qui crie au loup se fait retirer.
+  **À la charge de Thomas** : `docs/PROTOCOLE-SON.md`. **Hors périmètre** : la lecture NAS.
