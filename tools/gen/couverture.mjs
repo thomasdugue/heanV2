@@ -11,7 +11,11 @@ const RACINE = resolve(import.meta.dirname, '../..');
 const lire = (p) => readFileSync(resolve(RACINE, p), 'utf8');
 
 // --- invariants ---
-const skill = lire('.claude/skills/hean-invariants/SKILL.md');
+// SKILL.md (tri + pièges de plateforme) et CATALOGUE.md (les 27 fiches), depuis le 2026-11-25.
+const skill =
+  lire('.claude/skills/hean-invariants/SKILL.md') +
+  '\n' +
+  lire('.claude/skills/hean-invariants/CATALOGUE.md');
 const invs = skill
   .split(/^### /m)
   .slice(1)
@@ -29,7 +33,7 @@ const compte = (p) => invs.filter((i) => i.pile === p).length;
 
 writeFileSync(
   resolve(RACINE, 'docs/generated/invariants.md'),
-  `# Invariants — ce qui protège quoi\n\n<!-- FICHIER GÉNÉRÉ — NE PAS ÉDITER. Source : .claude/skills/hean-invariants/SKILL.md. Régénérer : npm run gen -->\n\n` +
+  `# Invariants — ce qui protège quoi\n\n<!-- FICHIER GÉNÉRÉ — NE PAS ÉDITER. Source : .claude/skills/hean-invariants/SKILL.md + CATALOGUE.md. Régénérer : npm run gen -->\n\n` +
     `${invs.length} règles : ${compte('rayé')} rayées par construction, ${compte('test')} devenues des tests, ` +
     `${compte('irréductible')} irréductibles.\n` +
     `En V1, **3 sur 20** étaient couvertes par un test.\n\n` +

@@ -17,10 +17,17 @@ import { join, resolve } from 'node:path';
 
 const RACINE = resolve(import.meta.dirname, '..');
 const SKILL = '.claude/skills/hean-invariants/SKILL.md';
+// Les 27 fiches ont quitté SKILL.md pour CATALOGUE.md le 2026-11-25 : une session qui écrit
+// du code lisait 617 lignes pour des règles déjà tenues par des tests. SKILL.md garde le
+// tableau de tri et les pièges de plateforme — ce qu'aucun test ne prouvera. La source de
+// vérité, pour cette vérification, reste LES DEUX fichiers : en lire un seul laisserait
+// passer une fiche orpheline du côté non lu.
+const CATALOGUE = '.claude/skills/hean-invariants/CATALOGUE.md';
 const PILES = ['rayé', 'test', 'irréductible'];
 
 const erreurs = [];
-const skill = readFileSync(join(RACINE, SKILL), 'utf8');
+const skill =
+  readFileSync(join(RACINE, SKILL), 'utf8') + '\n' + readFileSync(join(RACINE, CATALOGUE), 'utf8');
 
 // --- 1. les invariants déclarés -------------------------------------------------------
 const invariants = new Map();
@@ -36,7 +43,7 @@ for (const bloc of skill.split(/^### /m).slice(1)) {
     pourquoi: champ('pourquoi'),
   });
 }
-if (invariants.size === 0) erreurs.push(`${SKILL} : aucun invariant trouvé — le format a changé`);
+if (invariants.size === 0) erreurs.push(`${SKILL} + ${CATALOGUE} : aucun invariant trouvé — le format a changé`);
 
 for (const [id, inv] of invariants) {
   if (!PILES.includes(inv.pile)) erreurs.push(`${id} : pile « ${inv.pile} » inconnue (${PILES.join(', ')})`);

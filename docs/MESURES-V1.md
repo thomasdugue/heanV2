@@ -144,8 +144,8 @@ https://github.com/thomasdugue/noirdesktop/releases/latest/download/latest.json
 elle aussi 404). Les logs comptent 23 erreurs `update endpoint did not respond with a successful
 status code`.
 
-**Conséquence** : aucun beta-testeur n'a jamais pu recevoir de mise à jour automatique depuis le
-lancement du 2026-05-01.
+**Conséquence** : l'auto-update n'a jamais fonctionné depuis le 2026-05-01. Sans conséquence réelle
+— la bêta n'a jamais été distribuée — mais le défaut, lui, est entier et se reposera en V2.
 
 **Leçon pour V2** — à ajouter aux invariants de release : *ne jamais pointer l'updater sur
 `/releases/latest` tant qu'on publie des prereleases.* Soit on publie en release normale, soit on
@@ -269,8 +269,8 @@ de `smb_buffer` qui ne nettoie pas, thumbnails à 11 %) ont un point commun : **
 silencieux en production.** Pas parce qu'ils sont subtils — le build de dev les annonce en clair —
 mais parce que le canal où ils s'annoncent n'existe pas chez l'utilisateur.
 
-Avec ~50 beta-testeurs et un Sentry qui ne remonte que les panics et les erreurs JS, un bug qui ne
-plante pas est un bug invisible.
+Avec un Sentry qui ne remonte que les panics et les erreurs JS, un bug qui ne plante pas est un bug
+invisible — et le jour où V2 aura des utilisateurs, c'est leur seul canal.
 
 ### Pour V2
 

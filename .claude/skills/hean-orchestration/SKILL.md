@@ -104,3 +104,9 @@ touche une de ces zones. Le reste tient à cette règle-ci, lue en début de ses
 La part de tâches déléguées **augmente** mois après mois, sans que le nombre de défauts qui
 atteignent Thomas augmente. Si les deux montent ensemble, la frontière a été franchie trop
 vite : on resserre, et on ajoute la vérification qui manquait.
+
+## Déléguer à un modèle moins coûteux
+
+**Seulement si son critère de réussite est écrit et exécutable AVANT** de lancer la tâche
+(ADR 0005) — sinon l'erreur se paie en temps de Thomas, pas en test rouge. Déplacé ici depuis
+`CLAUDE.md` le 2026-11-25 : c'est une règle d'orchestration, pas un choix de stack.

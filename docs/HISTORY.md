@@ -1538,6 +1538,7 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
 7. **Facultatif, si tu veux éprouver le filet** : éteins le NAS, et relance « Scanner cette source ».
    Tu dois obtenir une **erreur** — pas une bibliothèque qui retombe à 305 pistes. Rallume, rescanne,
    tout revient.
+
 - **2026-11-25** (fin de soirée) : **relecture du NAS par `invariant-guardian`, et ses cinq
   suites.** Verdict : AVERTISSEMENT — aucune règle cassée, mais **trois mécanismes 🔴 plus
   faibles que ce que leur texte annonçait**, plus un chemin mort. C'est exactement ce qu'un test
@@ -1676,49 +1677,33 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
     local, vert en CI) : un worktree **dans** la racine du projet n'est pas invisible pour les
     outils qui surveillent cette racine. À savoir pour toute session qui travaille pendant qu'une
     autre fait tourner l'app.
-- **2026-11-26** : **Thomas tranche l'ADR 0015 — « un nom propre à la V2 ».** Les mots de passe
-  SMB vivent désormais sous `com.tdugue.hean.smb`, et **sous ce nom seulement**. Le nom que V1
-  écrivait, `com.tdugue.noir.smb`, n'est plus lu : c'était la dernière chaîne du dépôt à dire
-  « noir », et l'ADR 0003 avait déjà payé ce raisonnement pour le dossier de données.
-  - **Le coût que l'ADR chiffrait était déjà payé quand la réponse est arrivée, et c'est
-    mesuré.** L'option B annonçait « Thomas retape son mot de passe une fois ». Il l'avait
-    retapé la veille, pendant le diagnostic de connexion — la saisie que les deux défauts de la
-    PR #21 lui avaient imposée. Son journal du 2026-11-26 à 01:01Z le dit : `mot de passe SMB
-    trouvé dans le trousseau service="com.tdugue.hean.smb"`, puis un scan différentiel de
-    **32 secondes, 0 ajoutée, 0 modifiée**, sans aucune saisie. Retirer le nom de V1 ne lui a
-    rien demandé. **À retenir plus que la décision elle-même** : ce coût a été chiffré faux
-    deux fois avant d'être mesuré — cinquante saisies (des testeurs qui n'existent pas), puis
-    une (déjà faite) — et les deux fois l'erreur penchait du même côté, celui qui fait paraître
-    « propre » plus cher qu'il ne l'est.
-  - **La décision est tenue par un test, pas par un commentaire.** `SERVICE` est désormais une
-    constante unique, et le test de son module vérifie deux choses : qu'elle vaut le nom de V2,
-    et **qu'elle ne contient pas « noir »**. La seconde n'est pas redondante : la première
-    interdit *ce* changement-là, la seconde interdit toute remise du nom de V1 sous quelque
-    forme que ce soit — sans elle, « ça marchait avant avec noir » est une correction d'une
-    minute que rien ne contredit. **Éprouvé par injection** : remettre `com.tdugue.noir.smb`
-    dans la constante fait rougir 2 tests sur 4, dont celui du message d'erreur, qui ne nomme
-    plus qu'un seul service.
-  - **Rien n'est supprimé du trousseau de Thomas.** Les deux entrées que V1 a laissées sous
-    `com.tdugue.noir.smb` — celle de la source vivante et l'orpheline d'une source recréée —
-    y restent, inertes. Effacer une entrée du trousseau de quelqu'un sans qu'il l'ait demandé
-    est exactement ce que l'ADR 0015 refusait de décider seul ; ça ne change pas parce que la
-    question voisine est tranchée. C'est à lui, dans *Accès au trousseau*, quand il veut.
-  - **L'ADR 0015 est modifié et non remplacé, et c'est dit dedans.** La règle d'immuabilité de
-    `CLAUDE.md` protège une décision *prise* ; celui-ci était à l'état **Proposée** — une
-    question posée, explicitement en attente. Y inscrire la réponse est ce pour quoi il a été
-    écrit. La prémisse fausse des « ~50 testeurs » et la recommandation qui en a changé
-    (de C à B) restent écrites : un document qui prétend avoir toujours su ce qu'il sait est un
-    document qu'on ne peut plus relire.
-  - **Trouvé en chemin, et laissé intact : un merge en cours dans le checkout principal de
-    Thomas.** Son `git checkout main && git pull` a échoué sur « needs merge » parce que la
-    racine du projet n'était pas sur `main` mais sur `claude/reduction-harnais` (PR #20),
-    avec une fusion de `main` en cours et trois conflits —
-    `docs/HISTORY.md`, `.claude/skills/hean-invariants/SKILL.md` et la mémoire de
-    `invariant-guardian`. Les horodatages des fichiers montraient une résolution **en train de
-    se faire** (dernière écriture 28 secondes avant mon relevé). Je n'y ai rien touché :
-    [ADR 0013](adr/0013-une-session-un-perimetre.md) — jamais deux sessions dans le même
-    fichier, celle qui le découvre s'arrête. Un `git merge --abort` aurait jeté la résolution
-    déjà faite de deux des trois fichiers. **La leçon n'est pas la collision, c'est ce qu'elle
-    révèle** : le dépôt n'a aucun moyen de dire à Thomas « ce checkout est occupé », et c'est
-    son terminal qui le lui a appris, par un message de git. Mentionné sans être corrigé — la
-    forme que prendrait un garde-fou n'appartient pas à cette session.
+
+- **2026-11-25** (nuit, réduction du harnais) : **26 000 lignes d'outils et de documents pour
+  5 530 d'application** — un audit mené par un modèle extérieur a mis le chiffre sur la table, et
+  Thomas a tranché (ADR 0017). Le harnais est **gelé** ; quatre chantiers planifiés passent en
+  « à rouvrir quand le son sort ». Les 27 fiches d'invariants quittent `SKILL.md` pour
+  `CATALOGUE.md` : le péage de lecture d'une session de code tombe de **617 à 222 lignes**, et le
+  bandeau de `check` de 95 à 27. Règle qui le justifie : **ce qu'un test applique ne s'écrit pas
+  pour être lu** — restent sous les yeux les pièges de plateforme, que rien ne prouvera jamais.
+  Deux plafonds entrent dans `./check` (entrée de journal ≤ 15 lignes, ADR ≤ 1 page), appliqués
+  à partir d'aujourd'hui seulement : recadrer les entrées passées falsifierait un relevé.
+  **Et une prémisse fausse a été effacée des documents actifs** : la bêta V1 n'a jamais été
+  distribuée, il n'y a aucun utilisateur. Les « ~50 testeurs » avaient déjà faussé deux
+  raisonnements le jour même. Les ADR 0001, 0003, 0004 et 0010 reposent dessus et restent
+  intacts — on ne modifie pas un ADR. Deezer devient obligatoire, WiFi Sync sort du périmètre.
+  Suite : **le son**, avec un jalon à 14 jours.
+- **2026-11-26** (trousseau) : **ADR 0015 tranché par Thomas — « un nom propre à la V2 ».**
+  `SERVICE` ne vaut plus que `com.tdugue.hean.smb` ; le nom de V1 n'est plus lu, et rien n'est
+  écrit ni supprimé sous lui — les deux entrées du trousseau de Thomas, l'orpheline comprise,
+  restent intactes. **Le coût annoncé était déjà payé** : il avait ressaisi son mot de passe la
+  veille pendant le diagnostic de connexion, donc il est sous le nom de V2 depuis, et son
+  journal de 01:01Z le prouve (`service="com.tdugue.hean.smb"`, scan de 32 s, 0 ajoutée).
+  Vérifié ensuite dans le trousseau par la session d'orchestration, attributs seuls.
+  **Troisième estimation de ce coût, première mesurée, et les deux fausses penchaient du même
+  côté** — celui qui fait paraître « propre » moins cher qu'il ne l'est à l'inverse ; le
+  raisonnement complet est dans l'ADR. Un test refuse que la constante contienne « noir » :
+  éprouvé par injection, 2 tests rouges sur 4. L'ADR passe de *Proposée* à *Acceptée* sans rien
+  perdre de son raisonnement — modifié et non remplacé parce qu'il était une question en
+  attente, et c'est écrit dedans. ⚠️ **Collision** : la même décision a été livrée deux fois,
+  en PR #22 et #23, et Thomas arbitre laquelle garder. Je me suis arrêté en la découvrant
+  (ADR 0013) ; c'est la troisième fois, et l'orchestration l'a reconnue de son fait.

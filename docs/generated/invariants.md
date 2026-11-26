@@ -1,12 +1,14 @@
 # Invariants — ce qui protège quoi
 
-<!-- FICHIER GÉNÉRÉ — NE PAS ÉDITER. Source : .claude/skills/hean-invariants/SKILL.md. Régénérer : npm run gen -->
+<!-- FICHIER GÉNÉRÉ — NE PAS ÉDITER. Source : .claude/skills/hean-invariants/SKILL.md + CATALOGUE.md. Régénérer : npm run gen -->
 
 27 règles : 6 rayées par construction, 19 devenues des tests, 2 irréductibles.
 En V1, **3 sur 20** étaient couvertes par un test.
 
 | # | Règle | Pile | Gravité | Ce qui la protège |
 |---|---|---|---|---|
+| INV-13 | Mosaïque 28×28 : positionnement absolu, jamais CSS Grid | 🪨 irréductible | 🟡 AVERTISSEMENT | manuelle — piège PLAT-5, détecté a posteriori par la régression visuelle |
+| INV-18 | dylibbundler doit être suivi du fix des LC_RPATH dupliqués | 🪨 irréductible | 🔴 BLOQUANT | manuelle — piège PLAT-6, vérifiable dans le pipeline de release (phase 6) |
 | INV-06 | Suppression de pistes = PERMANENTE | ✂️ rayé | 🔴 BLOQUANT | sans objet — architecture `une-seule-source-de-pistes.test.ts` |
 | INV-08 | METADATA_CACHE : UPDATE, jamais REMOVE | ✂️ rayé | 🔴 BLOQUANT | sans objet — SQLite, un seul écrivain, transactions (ADR 0002) |
 | INV-09 | start_background_scan() : re-application du cache de métadonnées | ✂️ rayé | 🔴 BLOQUANT | sans objet — SQLite, un seul écrivain, transactions (ADR 0002) |
@@ -32,5 +34,3 @@ En V1, **3 sur 20** étaient couvertes par un test.
 | INV-25 | La copie d'une migration est sur le disque avant que le témoin ne la certifie | 🧪 test | 🔴 BLOQUANT | architecture `migration-durable.test.ts` — l'ordre des quatre étapes irréversibles |
 | INV-26 | La migration ne supprime pas le dossier de V1, sauf son cache de téléchargement | 🧪 test | 🔴 BLOQUANT | architecture `migration-durable.test.ts` — l'appel de suppression ne doit pas reparaître |
 | INV-27 | Un scan ne conclut la disparition d'une piste que dans son périmètre | 🧪 test | 🔴 BLOQUANT | test perimetre.rs |
-| INV-13 | Mosaïque 28×28 : positionnement absolu, jamais CSS Grid | 🪨 irréductible | 🟡 AVERTISSEMENT | manuelle — piège PLAT-5, détecté a posteriori par la régression visuelle |
-| INV-18 | dylibbundler doit être suivi du fix des LC_RPATH dupliqués | 🪨 irréductible | 🔴 BLOQUANT | manuelle — piège PLAT-6, vérifiable dans le pipeline de release (phase 6) |

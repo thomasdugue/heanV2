@@ -1,97 +1,29 @@
 #!/usr/bin/env bash
 # ./check — LE point d'entrée unique des vérifications. Identique en local, en pre-commit et
-# en CI. Leçon V1 : l'agent test-runner devait connaître 4 commandes dans 3 répertoires, avec
-# des cas particuliers. Une seule chose à savoir, une seule chose à maintenir, et la CI ne
-# peut pas diverger du local.
+# en CI. Leçon V1 : l'agent test-runner devait connaître 4 commandes dans 3 répertoires.
 #
 #   ./check          toutes les vérifications
 #   ./check --fast   seulement les rapides (pre-commit) — pas de Rust, pas de régénération
 #
-# Reste à brancher, au fur et à mesure (voir bootstrap/06-setup-v2/HARNAIS.md) :
-#   [x] fixtures audio + backend « fake »   phase 1  (HARNAIS.md §1) — fait
-#   [x] property tests de normalisation     phase 2  (HARNAIS.md §4) — fait
-#   [ ] mode parité V1 ↔ V2                 phase 2  (HARNAIS.md §5)
-#   [ ] régression visuelle                 phase 4  (HARNAIS.md §7)
-#   [ ] conteneur Samba + injection panne    phase 5  (HARNAIS.md §12)
+# Une vérification qui manque s'ajoute ICI ; on ne crée pas une deuxième commande.
+# Mais depuis le 2026-11-25 (ADR 0017) le harnais est **gelé** : une vérification nouvelle
+# n'entre que si le défaut qu'elle attrape peut perdre des données ou du son, ou s'il est
+# arrivé deux fois. Le reste attend que l'application joue de la musique.
+#
+# Reste à brancher :
 #   [ ] budgets de performance              phase 5  (HARNAIS.md §8, chiffres de V1 à mesurer)
 #   [ ] appel réel sur l'endpoint updater   phase 6  (ENTRETIEN-DU-HARNAIS.md, audit)
-#   [ ] « une version plus récente de la chaîne Rust existe »  (audit hebdo — ADR 0008 :
-#       la contrepartie de l'épinglage, signalée en une ligne et non par un build rouge)
-#   [x] ajouter src-tauri/tests et src-tauri/examples aux ZONES de check-sizes  — fait
-#   [x] le même angle mort sur INV-06 (🔴) — voir ci-dessous                     — fait
-#   [ ] « un fichier de docs/generated/ s'annonce-t-il généré ? »                (2026-11-23)
-#   [ ] UNE liste des zones Rust vivantes, au lieu de cinq                       (2026-11-25)
+#   [ ] « une version plus récente de la chaîne Rust existe » (audit hebdo — ADR 0008)
 #
-#   - **La quatrième, née le 2026-11-25 du tour ci-dessus, et c'est une règle candidate.** Chaque
-#     garde-fou porte **sa propre liste de dossiers** : `check-sizes.sh`, les quatre règles Rust
-#     d'INV-06, `aucun-chemin-machine`, `references-de-tests`, `backend.test.ts`. Un dossier de
-#     code vivant qui naît entre donc dans trois listes sur cinq, et l'oubli est **invisible** —
-#     c'est « n'oublie pas de répéter ça partout », la forme de règle qu'INV-06 existe pour ne
-#     plus écrire, appliquée au harnais lui-même. Vu trois fois : `src-tauri/tests` le 2026-11-23,
-#     `src-tauri/examples` le 2026-11-25, et une **cinquième liste cachée dans un seul fichier**
-#     le même jour (le détecteur littéral gardait la sienne à trois lignes du corpus élargi).
-#     Mécanisme proposé : une seule liste des zones Rust vivantes, et un test qui rougit quand un
-#     dossier Rust suivi par git n'y est pas. ⚠️ Ce test doit nommer ce qu'il EXCLUT avec sa
-#     raison — `bootstrap/` est l'archive figée de V1 (ADR 0004) et `tools/passe-de-verite/` un
-#     crate détaché et jetable — sinon il retourne la liste au lieu de l'unifier, et c'est la
-#     faute écartée plus bas. Proposée par invariant-guardian en relecture du 2026-11-25 ;
-#     gravité suggérée 🟡, parce que le dommage est toujours indirect — un détecteur aveugle,
-#     jamais une donnée perdue — mais il désarme des règles 🔴. **Pas écrite comme invariant :
-#     c'est à Thomas de dire si elle en est un.**
+# Gelés le 2026-11-25, pas annulés — à rouvrir quand le son sort des enceintes :
+#   [~] mode parité V1 ↔ V2                 le vrai NAS et dix minutes de protocole manuel
+#   [~] régression visuelle                 font mieux, à ce stade, que le conteneur et les
+#   [~] conteneur Samba + injection panne    captures. Les trois coûtent plus qu'ils ne
+#   [~] « une seule liste des zones Rust »   rapportent avant la parité.
 #
-# Les trois nées le 2026-11-23 en fermant les trous d'extensions de check-sizes. Les deux
-# premières sont closes le 2026-11-25, avec la PR #8 qui crée `src-tauri/examples/` : la
-# condition écrite était « c'est à ce moment-là qu'il faut l'ajouter ». Le tour a été fait en
-# entier, et les listes de zones étaient **quatre** et non deux — `check-sizes.sh`, le volet
-# Rust d'INV-06, `aucun-chemin-machine` et `references-de-tests`. Le raisonnement ci-dessous
-# reste écrit : c'est lui qui dira quoi faire à la prochaine zone qui naîtra.
-#
-#   - Les ZONES de `check-sizes.sh` sont, elles aussi, une LISTE. `src-tauri/tests` y est entré
-#     le 2026-11-23 sur décision de Thomas — voir le commentaire des ZONES dans
-#     `tools/check-sizes.sh`, qui dit ce que l'oubli avait coûté. `src-tauri/examples/` y est
-#     entré le 2026-11-25 avec le dossier lui-même — `migrer.rs` fait 62 lignes, donc l'ajout
-#     était gratuit, et c'est exactement pourquoi il s'est fait ce jour-là.
-#     ⚠️ Le TITRE de la PR #13 annonçait « `src-tauri/tests` entre dans les garde-fous » sans la
-#     nuance : qui lit l'historique sans ouvrir les fichiers en conclut que la règle de taille
-#     les couvrait, ce qui est resté faux deux heures de plus. Son corps, lui, est exact et ne
-#     l'affirme pas. Un titre plus large que son périmètre est la même famille de défaut qu'une
-#     règle écrite en prose : il ne peut pas échouer.
-#     ⚠️ MAIS LE RACCOURCI NE MARCHE PAS : dériver le périmètre de `git ls-files '*.rs'`, comme
-#     proposé en relecture, ramène les **36 fichiers Rust de `bootstrap/`** — l'archive figée de
-#     V1 (ADR 0004), dont **13 dépassent 400 lignes**, le plus gros à **2 664**. Les « corriger »
-#     falsifierait le relevé historique. On troquerait donc une liste contre une autre. La
-#     leçon : **on retourne une liste quand elle énumère ce qu'on a oublié, pas quand elle
-#     énumère ce qu'on a choisi.** Celle des extensions décrivait un oubli ; celle des zones
-#     décrit une décision — où vit le code vivant, par opposition à l'archive. Donc on
-#     l'allonge, on ne la retourne pas.
-#   - **Le même angle mort sur une règle 🔴** : le volet Rust du détecteur d'INV-06
-#     (`tests/architecture/une-seule-source-de-pistes.test.ts`) ne scanne que `src-tauri/src` et
-#     `src-tauri/tests`. Du SQL sur la liste d'exclusion écrit dans `src-tauri/examples/`
-#     échapperait donc à INV-06. **Fermé le 2026-11-25** : le détecteur lit maintenant
-#     `src-tauri/examples` aussi, et ses quatre règles Rust avec lui. Relevé par
-#     invariant-guardian en relecture de la PR #8 ; vérifié avant comme après qu'il n'y avait
-#     rien de tel dans `migrer.rs`.
-#     ⚠️ ET LA PREMIÈRE TENTATIVE N'A PAS SUFFI, ce qui est la leçon la plus utile de la série :
-#     élargir le corpus du fichier a bien couvert trois règles, mais la quatrième — celle qui
-#     cherche le nom de la table en clair, donc la seule qui s'applique à un exemple, puisqu'un
-#     exemple est un autre crate et n'atteint ni `pub(crate)` ni `pub(super)` — gardait **sa
-#     propre liste de zones**, écrite à la main juste à côté. Une faute injectée dans
-#     `examples/migrer.rs` est donc restée invisible, et seule l'injection l'a dit. Deux listes
-#     pour un même périmètre, dont une seule élargie : le défaut qu'INV-06 décrit, reparu dans
-#     son propre détecteur. Les quatre règles passent maintenant par un seul corpus.
-#     ⚠️ ET NE PAS SE FIER AU FILET QU'ON CROIT AVOIR. L'entrée d'historique de la PR #13 dit
-#     que « `backend.test.ts` refuse déjà tout `.rs` hors des dossiers scannés (ADR 0011) »,
-#     donc qu'aucun garde-fou ne peut oublier `examples/`. Mesuré en simulant son arrivée avec
-#     du `excluded_paths` dedans : `backend.test.ts` rougit bien **une fois** — mais par le
-#     mécanisme de la note « muet » de sa dérogation, qui signale que le dossier vient
-#     d'apparaître, PAS la faute. Et `une-seule-source-de-pistes.test.ts` reste à **zéro test
-#     rouge** : la violation d'INV-06 passe en silence, complètement. Donc le filet existe, il
-#     ne dure qu'un instant, et il ne protège pas la règle qu'on croit. Ce signal unique est
-#     exactement le moment où « ces deux listes de zones sont à relire » — à ne pas éteindre
-#     sans faire le tour.
-#   - Rien ne vérifie qu'un fichier de `docs/generated/` **s'annonce réellement généré**, alors
-#     que `CLAUDE.md` l'affirme. Une phrase dans un document ne peut pas échouer : c'est
-#     précisément ce que ce harnais existe pour remplacer. Trouvé en éprouvant l'option D.
+# Décisions ouvertes nées du harnais : voir l'index des ADR. Le détail du raisonnement sur les
+# listes de zones est en mémoire de l'agent de relecture (`les-listes-de-zones-du-harnais`).
+
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 FAST=0; [ "${1:-}" = "--fast" ] && FAST=1
@@ -101,7 +33,11 @@ run() { echo "→ $1"; shift; "$@" || fail=1; echo; }
 echo "=== check heanV2 ==="; echo
 
 # Le harnais s'installe tout seul : V1 avait un cas particulier « si node_modules est absent ».
-if [ -f package.json ] && [ ! -d node_modules ]; then
+# ⚠️ « Absent » ne suffisait pas : un `node_modules` PÉRIMÉ passait au travers. Le 2026-11-25,
+# `fast-check` était arrivé dans `package.json` sans être installé localement, et `./check`
+# rendait ROUGE sur un test sans rapport avec le travail en cours — un faux rouge coûte la
+# confiance qu'on met dans les vrais. La CI ne le voyait pas : elle part d'un disque nu.
+if [ -f package.json ] && { [ ! -d node_modules ] || [ package-lock.json -nt node_modules/.package-lock.json ]; }; then
   echo "→ installation des dépendances (absentes)"
   npm ci --silent || npm install --silent || fail=1
   echo
@@ -117,6 +53,7 @@ run "décisions (ADR)"     node tools/check-adr.mjs
 run "chaîne d'outils"     bash tools/check-toolchain.sh
 run "fixtures audio"      bash tools/check-fixtures-audio.sh
 run "comptes annoncés"    node tools/check-comptes.mjs
+run "plafonds d'écriture" node tools/check-plafonds.mjs
 
 if [ -f package.json ]; then
   run "lint"          npm run --silent lint

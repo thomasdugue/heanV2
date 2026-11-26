@@ -11,7 +11,7 @@
 
 | Version | Où | Date | Statut |
 |---|---|---|---|
-| **Design « beta »** | `main` de noirdesktop, tag `v0.2.0-beta.1` | mai 2026 | Ce que les ~50 testeurs ont installé. **Pas la cible.** |
+| **Design « beta »** | `main` de noirdesktop, tag `v0.2.0-beta.1` | mai 2026 | Ce qui a été empaqueté et signé, mais jamais distribué. **Pas la cible.** |
 | **Redesign v3** | PR [#37](https://github.com/thomasdugue/noirdesktop/pull/37), branche `claude/kind-cerf-A9weP` | juin 2026 | Ouverte, jamais mergée. Portage du prototype Hean v4. **Visuellement cassée telle quelle** (voir plus bas). |
 | **Migration d'octobre** 🎯 | commit `e12a200` de `thomasdugue/design-migration-audit` (clone `noirdesktop-v1`) | 2026-10-29 | **LA CIBLE DE PARITÉ DE V2.** Le redesign v3 porté sur `main` d'octobre, avec la régression CSS corrigée. |
 

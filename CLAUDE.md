@@ -1,20 +1,20 @@
 # CLAUDE.md — heanV2
 
-> **Template.** À poser à la racine de heanV2 et à compléter au fur et à mesure. Les blocs
-> `⟦À TRANCHER⟧` attendent une décision (voir `heanv2-bootstrap/06-setup-v2/PLAN-DE-RECONSTRUCTION.md`,
-> phase 0). Les blocs `⟦À REMPLIR⟧` se remplissent quand le code existe.
->
-> Ce fichier est volontairement **court** : il est lu en entier à chaque session. Le détail vit dans
-> `.claude/skills/`. Si ce fichier dépasse ~150 lignes, c'est qu'il faut déplacer quelque chose dans
-> un skill. (Leçon V1 : le `CLAUDE.md` était devenu trop gros pour être lu intégralement, et
-> l'historique des sessions a dû en être extrait.)
+> Lu **en entier** à chaque session, donc tenu sous 150 lignes (vérifié) : le détail vit dans
+> `.claude/skills/`. Leçon V1 — son `CLAUDE.md` avait fini trop gros pour être lu jusqu'au bout.
+
+## Faits qui ne se redécouvrent pas
+
+**Aucun utilisateur.** La bêta V1 n'a **jamais** été distribuée. Les « ~50 testeurs » qu'annoncent
+`bootstrap/` et les ADR 0001, 0003, 0004 et 0010 n'ont jamais existé ([ADR 0017](docs/adr/0017-ce-que-thomas-a-tranche-le-25-novembre.md)).
+Conséquence : **aucune compatibilité descendante à tenir.** Changer un format, un identifiant ou un
+nom de service ne coûte qu'à Thomas, une fois.
 
 ## Décisions
 
-Toute décision structurante va dans [`docs/adr/`](docs/adr/) — un fichier numéroté, immuable, avec le
-contexte, les alternatives écartées **et pourquoi**. On ne modifie pas un ADR : on en écrit un nouveau
-qui le remplace. Leçon V1 : les « décisions actées » s'accumulaient dans un skill, on y perdait le
-*pourquoi*, donc la règle finissait par être supprimée par quelqu'un qui la trouvait arbitraire.
+Toute décision structurante va dans [`docs/adr/`](docs/adr/) — numérotée, **immuable**, avec les
+alternatives écartées **et pourquoi** (sans le pourquoi, la règle finit supprimée par quelqu'un qui
+la trouve arbitraire). On ne modifie pas un ADR : on en écrit un nouveau qui le remplace.
 
 ## Projet
 
@@ -38,14 +38,12 @@ Postmortem de V1 : `heanv2-bootstrap/05-postmortem/DETTE-TECHNIQUE-V1.md`.
 | Dossier de données | **`~/Library/Application Support/hean/`** + migration one-shot depuis `noir/` | nom cohérent, testeurs préservés |
 | Cible de parité visuelle | **le redesign v3, commit `e12a200`** (ADR [0004](docs/adr/0004-cible-de-parite.md)) — **pas** la beta distribuée | trois designs de Hean existent, deux étaient hors de `main` ; celui-ci est le seul complet et non cassé |
 | Entretien du harnais | **par mécanisme, jamais par discipline** (ADR [0005](docs/adr/0005-entretien-du-harnais-et-orchestration.md)) : généré > apparié > réclamé. Tout défaut qui atteint Thomas repart avec la vérification qui l'aurait vu | une phrase dans un document ne peut pas échouer ; un test, si |
-| Délégation à un modèle moins coûteux | **seulement si son critère de réussite est écrit et exécutable AVANT** de lancer la tâche (ADR [0005](docs/adr/0005-entretien-du-harnais-et-orchestration.md)) | sinon l'erreur se paie en temps de Thomas, pas en test rouge |
 
-**Svelte 5 uniquement.** Les runes (`$state`, `$derived`, `$effect`) et non les stores Svelte 4
-(`writable`, `$:`). Beaucoup d'exemples en ligne sont encore en Svelte 4 : si un doute, vérifier la
-doc officielle Svelte 5, ne pas mélanger les deux syntaxes.
+**Svelte 5 uniquement** : les runes (`$state`, `$derived`, `$effect`), jamais les stores Svelte 4
+(`writable`, `$:`). Beaucoup d'exemples en ligne sont encore en Svelte 4 — vérifier la doc officielle.
 
-**Reste à trancher** : la typographie (Geist Mono partout, ou + DM Sans pour les grands titres).
-Reportée, rien en phase 0 n'en dépend — [`ECARTS-DESIGN.md`](bootstrap/02-design/ECARTS-DESIGN.md) §2.
+**Ce qui reste à trancher** est tenu à jour dans [l'index des ADR](docs/adr/README.md), avec la
+phase que chaque question bloque.
 
 ## Skills — quoi charger avant de travailler
 
@@ -106,6 +104,13 @@ de pistes — ce qui fait disparaître « n'oublie pas de répéter ce filtre pa
   trouvé en chemin devient une ligne dans « Bugs connus » ou une décision ouverte, et Thomas décide.
   **Jamais deux sessions dans le même fichier** — celle qui le découvre s'arrête, elle n'écrase pas ;
   exception nommée : les journaux en ajout seul (`docs/HISTORY.md`, l'index des ADR).
+  **Jamais deux sessions qui écrivent ; autant qu'on veut qui lisent.**
+- **Porter d'abord, améliorer ensuite.** Redessiner un sous-système en le portant depuis V1 exige
+  un défaut **mesuré** (une ligne de [`docs/MESURES-V1.md`](docs/MESURES-V1.md)), pas une intuition.
+- **Un ADR n'existe que pour une décision de Thomas**, ou une qu'il pourrait vouloir annuler. Le
+  reste est un message de commit. **Une page maximum.**
+- **Les commentaires disent pourquoi, jamais quoi.** Un commentaire ne compile pas : rien ne le
+  contredit quand il devient faux.
 
 Les règles qui ne valent que pour le code — zone audio/UI, 400 lignes par fichier, échappement de
 toute donnée affichée, et les trois règles de performance — sont dans le skill
@@ -116,29 +121,24 @@ toute donnée affichée, et les trois règles de performance — sont dans le sk
 Source de vérité : [`.claude/skills/hean-invariants/SKILL.md`](.claude/skills/hean-invariants/SKILL.md).
 Tableau à jour, **généré** : [`docs/generated/invariants.md`](docs/generated/invariants.md).
 
-**27 règles** — les 20 de V1 (ses documents en annonçaient 19 : le compte était faux) plus sept
-nées du postmortem, des mesures de phase 1, de la passe de vérité (INV-23), de la relecture de la
-migration (INV-24, INV-25), d'une décision de Thomas (INV-26), du branchement du NAS (INV-27) :
+**27 règles**, les 20 de V1 plus sept nées depuis : 1. **Rayées (6)** — inexprimables par
+construction. 2. **Devenues des tests (19)**, dont **11 déjà actives** et **8 « planifiées »**,
+dette visible que `./check` recompte. 3. **Irréductibles (2 + 7 pièges de plateforme)** —
+CoreAudio, WebKit, dyld, Gatekeeper : aucun test ne les prouvera jamais, et ce sont les seules
+que le skill te fait encore lire.
 
-1. **Rayées (6)** — INV-06, 08, 09, 10, 14, 17 : inexprimables par construction (point d'entrée
-   unique, SQLite transactionnel, Svelte réactif, `compile_error!` sur un secret manquant).
-2. **Devenues des tests (19)** — dont **11 déjà actives** (INV-01, 03, 04, 07, 20, 21, 23, 24, 25, 26, 27) et **8 « planifiées »**,
-   c'est-à-dire une dette visible que `./check` recompte à chaque passage.
-3. **Irréductibles (2 + 7 pièges de plateforme)** — AirPlay/CoreAudio, singleton libsmbclient,
-   media keys, drag WebView, petits CSS Grid WebKit, LC_RPATH dyld, notarisation du DMG. Règles
-   écrites avec leur gravité : aucun test ne les prouvera jamais.
+## Protocole de session — deux formats
 
-## Protocole de session
+**Passe** — correction, ajustement, réglage. `./check --fast`, commit direct, pas d'ADR.
 
-**Début** : (1) lire ce fichier + le skill de la zone · (2) lancer l'agent `test-runner` — noter
-X pass / Y fail. Si des tests échouent **avant** de commencer, le signaler : on corrige d'abord.
+**Chantier** — une feature, un portage. `test-runner` au début (si c'est rouge **avant** toi, le
+dire et corriger d'abord) ; `invariant-guardian` sur le diff à la fin, un verdict BLOQUANT se corrige
+avant la PR ; `./check` entier ; PR. Un test qui passait et échoue = **régression**, à corriger avant
+de terminer.
 
-**Fin** : relancer `test-runner` et comparer au début, puis `invariant-guardian` sur le diff
-(un verdict BLOQUANT = corriger avant la PR). Un test qui passait et échoue = **régression**, à
-corriger avant de terminer. Mettre à jour « Bugs connus » ci-dessous, ajouter une entrée dans
-`docs/HISTORY.md`, et si une nouvelle règle est née, l'ajouter à `hean-invariants` **avec sa gravité**
-(+ une ligne au résumé ci-dessus). Un hook `Stop` le rappelle quand du code a changé sans que les
-invariants bougent.
+**Dans les deux cas** : lire ce fichier + le skill de la zone au début ; à la fin, « Bugs connus »
+à jour, une entrée de **15 lignes maximum** dans `docs/HISTORY.md` (vérifié), et toute règle née
+ajoutée à `hean-invariants` **avec sa gravité** (+ les comptes ci-dessus).
 
 ## Bugs connus
 

@@ -57,12 +57,13 @@ sélection de carousels (`localStorage`).
 ### 1. On garde `noir/` ou on passe à `hean/` ?
 
 Le produit s'appelle Hean depuis le printemps 2026 mais le dossier de données s'appelle toujours
-`noir`. Si V2 écrit dans `~/Library/Application Support/hean/`, **les beta-testeurs perdent leur
-bibliothèque, leurs playlists, leur historique et leurs sources NAS** — sauf migration explicite.
+`noir`. Si V2 écrit dans `~/Library/Application Support/hean/`, **la bibliothèque, les playlists,
+l'historique et les sources NAS restent derrière** — sauf migration explicite. Écrit à l'époque pour
+« les beta-testeurs » : il n'y en a jamais eu, et la seule bibliothèque en jeu est celle de Thomas.
 
 Options : (a) garder `noir/` (compat gratuite, nom incohérent), (b) passer à `hean/` avec une
-migration one-shot au premier lancement, (c) passer à `hean/` sans migration et l'assumer (la beta
-compte ~50 testeurs). **Mon avis : (b)**, la migration est une copie de fichiers et un rename, et
+migration one-shot au premier lancement, (c) passer à `hean/` sans migration et l'assumer.
+**Mon avis : (b)**, la migration est une copie de fichiers et un rename, et
 c'est le bon moment pour le faire.
 
 Le même arbitrage vaut pour le protocole `noir://`, l'identifiant de bundle (`com.tdugue.hean` est

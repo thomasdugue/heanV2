@@ -50,8 +50,9 @@ populaires), Noir Labs (plugins audio Ableton) et Native Instruments NOIRE. Dét
 `com.tdugue.noir` (identifiant historique, devenu `com.tdugue.hean`), protocole `noir://`, dossier de
 données `~/.local/share/noir/`, dépôt `noirdesktop`, worker `noir-feedback`, variables
 `NOIR_WORKER_URL` / `NOIR_WORKER_SECRET`. **Arbitrage à poser au départ de V2** : on renomme tout en
-`hean` (plus propre, mais casse la compatibilité des données des beta-testeurs) ou on garde les
-chemins historiques. Voir [`03-architecture/PERSISTANCE.md`](../03-architecture/PERSISTANCE.md).
+`hean` ou on garde les chemins historiques. **Tranché en V2 : `hean/`, avec migration one-shot**
+(ADR 0003, 0010, 0014). La « compatibilité des données des beta-testeurs » invoquée ici n'a jamais
+existé — la bêta V1 n'a pas été distribuée. Voir [`03-architecture/PERSISTANCE.md`](../03-architecture/PERSISTANCE.md).
 
 ## Modèle économique (contexte, pas une décision figée)
 
