@@ -53,7 +53,7 @@
   let sources = $state.raw<readonly SourceReseau[]>([]);
   let rapportReseau = $state<RapportDeScan | null>(null);
   let scanEnCours = $state<string | null>(null);
-  // L'état de la lecture est SONDÉ, pas poussé : `playback_state` toutes les 100 ms. Voir
+  // L'état de la lecture est SONDÉ, pas poussé : toutes les 100 ms, cadence estimée. Voir
   // `src-tauri/src/commands/lecture.rs` pour le pourquoi. Conséquence agréable : il n'y a
   // aucun état de lecture local à garder en phase avec le backend, donc rien à désynchroniser.
   let lecture = $state<EtatLecture | null>(null);
@@ -96,20 +96,20 @@
     void tenter(demarrer);
   });
 
-  // Le sondage de l'état de lecture. 100 ms : assez pour que la position avance de façon
-  // lisible, assez peu pour ne rien coûter. Il ne passe PAS par `tenter` — une erreur de
-  // sondage ne doit pas effacer le message affiché ni allumer l'indicateur d'occupation dix
-  // fois par seconde. L'`$effect` rend la fonction d'arrêt, que Svelte appelle à la
-  // destruction du composant.
+  // Le sondage de l'état de lecture. 100 ms, estimé et jamais mesuré : assez pour que la
+  // position avance de façon lisible, assez peu pour ne rien coûter. Il ne passe PAS par
+  // `tenter` — une erreur de sondage ne doit pas effacer le message affiché ni allumer
+  // l'indicateur d'occupation dix fois par seconde. L'`$effect` rend la fonction d'arrêt,
+  // que Svelte appelle à la destruction du composant.
   $effect(() => {
     let tic = 0;
     const relever = async (): Promise<void> => {
       try {
         // UN seul aller-retour : l'état porte la liste des sorties avec lui.
         lecture = await playbackState();
-        // Toutes les 2 s, on demande au moteur de RELIRE le matériel. Sans ça, brancher le
-        // DAC pendant que l'app tourne ne le ferait pas apparaître dans la liste — c'est
-        // l'étape 10 du protocole de test, et elle échouerait.
+        // Toutes les 2 s, cadence estimée, on demande au moteur de RELIRE le matériel.
+        // Sans ça, brancher le DAC pendant que l'app tourne ne le ferait pas apparaître
+        // dans la liste — c'est l'étape 10 du protocole de test, et elle échouerait.
         if (tic % 20 === 0) await refreshAudioDevices();
         tic += 1;
       } catch {
