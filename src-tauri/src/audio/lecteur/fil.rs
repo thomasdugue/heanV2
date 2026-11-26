@@ -73,6 +73,13 @@ pub(super) struct Fil {
     pub(super) ecrit: usize,
     pub(super) en_vol: VecDeque<EnVol>,
     pub(super) etape: Etape,
+    /// Les trous comptés par les flux **déjà fermés** de cette lecture.
+    ///
+    /// Un changement de fréquence en cours d'album rouvre le flux, et le compteur du nouveau
+    /// repart de zéro. Sans ce cumul, l'écran annoncerait « 0 trou » après une coupure
+    /// survenue avant le changement de piste — et la bibliothèque de Thomas est à 97 % en
+    /// FLAC de fréquences variées, donc le cas est la règle, pas l'exception.
+    pub(super) famines_des_flux_fermes: u64,
 }
 
 pub fn tourner(reception: Receiver<Commande>, etat: Arc<EtatPartage>) {
@@ -88,6 +95,7 @@ pub fn tourner(reception: Receiver<Commande>, etat: Arc<EtatPartage>) {
         ecrit: 0,
         en_vol: VecDeque::new(),
         etape: Etape::Repos,
+        famines_des_flux_fermes: 0,
     };
     loop {
         if matches!(fil.etape, Etape::Repos) {
@@ -297,7 +305,8 @@ impl Fil {
             }
         }
         if let Some(backend) = self.backend.as_ref() {
-            self.etat.famines.store(backend.famines(), Ordering::Relaxed);
+            let total = self.famines_des_flux_fermes + backend.famines();
+            self.etat.famines.store(total, Ordering::Relaxed);
         }
         // Les quatre conditions du bit-perfect, et elles sont toutes nécessaires : pas de
         // rééchantillonnage, volume exactement à 100 %, mode exclusif, et l'égaliseur plat
@@ -320,6 +329,9 @@ impl Fil {
     pub(super) fn fermer_le_flux(&mut self) {
         if let Some(backend) = self.backend.as_mut() {
             if backend.flux_ouvert() {
+                // Les trous du flux qui se ferme sont retenus : le compteur du prochain flux
+                // repart de zéro, et l'écran doit montrer le total de la lecture.
+                self.famines_des_flux_fermes += backend.famines();
                 backend.interrompre();
             }
         }

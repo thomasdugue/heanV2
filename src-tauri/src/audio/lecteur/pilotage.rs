@@ -85,6 +85,10 @@ impl Fil {
         // Un démarrage explicite referme le flux : la fréquence du DAC se renégocie, et la
         // piste demandée doit commencer tout de suite, pas après ce qui reste dans le tampon.
         self.fermer_le_flux();
+        // Et c'est une nouvelle lecture : le compte de trous repart de zéro, sinon celui de
+        // l'album précédent resterait affiché.
+        self.famines_des_flux_fermes = 0;
+        self.etat.famines.store(0, Ordering::Relaxed);
         self.etat.en_pause.store(false, Ordering::Relaxed);
         self.ouvrir_la_piste(index, Duration::ZERO)?;
         self.etape = Etape::Lecture;
