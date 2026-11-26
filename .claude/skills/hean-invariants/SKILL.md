@@ -1,6 +1,6 @@
 ---
 name: hean-invariants
-description: Règles « ne JAMAIS casser » de heanV2 — les pièges de plateforme qu'aucun test ne prouvera, et les règles de travail sur le code (zones, 400 lignes, échappement, performance). Charger AVANT toute modif de code et avant toute review de diff. Le catalogue des 27 fiches est dans CATALOGUE.md, à n'ouvrir que pour ajouter ou modifier une règle.
+description: Règles « ne JAMAIS casser » de heanV2 — les pièges de plateforme qu'aucun test ne prouvera, et les règles de travail sur le code (zones, 400 lignes, échappement, performance). Charger AVANT toute modif de code et avant toute review de diff. Le catalogue des 28 fiches est dans CATALOGUE.md, à n'ouvrir que pour ajouter ou modifier une règle.
 ---
 
 # hean-invariants — ce qui ne doit jamais casser (V2)
@@ -14,7 +14,7 @@ description: Règles « ne JAMAIS casser » de heanV2 — les pièges de platefo
 
 **Règle du partage : ce qu'un test applique ne s'écrit pas pour être lu.**
 
-Les 27 fiches d'invariants vivent dans [`CATALOGUE.md`](CATALOGUE.md). Tu n'as pas à les lire
+Les 28 fiches d'invariants vivent dans [`CATALOGUE.md`](CATALOGUE.md). Tu n'as pas à les lire
 pour écrire du code : elles sont tenues par des tests, et `./check` t'arrêtera si tu en casses
 une. Ouvre le catalogue pour **ajouter une règle, en modifier une, ou comprendre un refus**.
 
@@ -37,7 +37,7 @@ en **prose** : une phrase dans un document ne peut pas échouer. Un test, si.
 | Pile | Ce que ça veut dire | Combien |
 |---|---|---|
 | **rayé** | L'architecture de V2 rend la faute inexprimable. Plus de règle à retenir. | 6 |
-| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 19 |
+| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 20 |
 | **irréductible** | Comportement de CoreAudio, de WebKit ou de Gatekeeper. Aucun test ne le prouve. | 2 + 7 pièges |
 
 **La mesure du succès : la pile « irréductible » ne grossit pas, et la pile « test » se
@@ -197,6 +197,15 @@ censé voir.
   couverture ci-dessus. Un corpus lu sur le disque embarque ce qui traîne — un `.DS_Store`, un
   fichier de travail — donc il peut rougir chez Thomas et passer en CI : le défaut du 2026-11-22,
   vu de l'autre bout. Éprouvé : un fichier de 999 lignes non suivi par git est bien ignoré.
+- **Un détecteur qui argumente sa fenêtre doit interdire, par une assertion, la fenêtre qu'il a
+  écartée.** 🟡 Cinquième variante, et la première qui porte sur un **réglage** du détecteur
+  plutôt que sur son corpus ou son vocabulaire. La fenêtre est la partie qu'on élargit **de
+  bonne foi** — « mais le commentaire juste au-dessus dit mesuré » — et aucun auto-test ne peut
+  la voir, puisqu'ils tiennent tous sur une seule ligne de texte. Mesuré le 2026-11-26 sur
+  INV-28, dont les lignes d'argumentation (« la fenêtre est la ligne ») n'étaient tenues par
+  rien : l'élargir au bloc ou à ±2 lignes laissait les quatre assertions **vertes**, et la
+  règle retombait dans l'état exact qui l'avait fait naître. Deux lignes d'assertion ont suffi.
+  Relevé par `invariant-guardian`, qui a rejoué les mutations plutôt que de me croire.
 - ⚠️ **Nettoyer l'injection : arbre propre avant, ou copie.** `git checkout <fichier>` pour
   retirer une faute injectée **efface aussi le travail non commité du même fichier**. Payé le
   2026-11-22 : deux modifications perdues, repérées seulement parce qu'un renvoi s'était remis
