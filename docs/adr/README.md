@@ -46,6 +46,7 @@ décisions sous le même numéro ont coûté une heure et huit renvois à corrig
 | [0015](0015-nom-de-service-keychain-pour-les-mots-de-passe-smb.md) | Nom de service Keychain pour les mots de passe SMB — **la question est posée à Thomas** | Proposée |
 | [0016](0016-la-part-reseau-de-la-bibliotheque.md) | La part réseau de la bibliothèque : SMB lu directement, et un scan par périmètre | Acceptée |
 | [0017](0017-ce-que-thomas-a-tranche-le-25-novembre.md) | Ce que Thomas a tranché le 25 novembre : pas d'utilisateurs, le son d'abord, et le harnais se gèle | Acceptée |
+| [0018](0018-une-frequence-que-le-dac-ne-sait-pas-jouer.md) | Une fréquence que le DAC ne sait pas jouer : refuser la lecture et le dire, plutôt que rééchantillonner en silence | Acceptée |
 
 **Décisions encore ouvertes**, à transformer en ADR dès qu'elles sont prises :
 

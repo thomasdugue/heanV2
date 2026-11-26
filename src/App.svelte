@@ -7,17 +7,37 @@
   // écrite ici serait du travail à jeter — et pire, elle donnerait l'impression que le
   // design est « commencé » alors qu'il ne l'est pas.
   //
-  // Ce qu'elle ne fait pas : jouer. Le moteur de la phase 1 décode un fichier et sait
-  // écrire un WAV, mais la sortie vers la carte son — le backend CoreAudio — n'est pas
-  // écrite (voir `src-tauri/src/audio/mod.rs`, « ce que ce module ne contient pas encore »).
-  // Un bouton qui passerait par `afplay` ferait sortir du son sans rien prouver du moteur ;
-  // Thomas a tranché le 2026-11-23 : pas de son provisoire. Le clic choisit donc une piste
-  // et montre ce que Hean jouera, et la fenêtre le dit en clair.
-  import { appVersion, type RapportDeScan, type SourceReseau, type Track } from './ipc/client';
+  // ELLE JOUE, depuis le 2026-11-26. Un clic sur une piste lance l'album entier à partir
+  // d'elle, par le backend CoreAudio. Ce qui reste hors de portée est nommé, et ce n'est pas
+  // un oubli : **une piste du NAS ne se joue pas encore** (il faudrait toucher à
+  // `src-tauri/src/network/`, hors du périmètre de la session — ADR 0013), et l'égaliseur,
+  // les touches media et le plein écran ne sont pas portés.
+  import {
+    appVersion,
+    audioDevices,
+    playbackNext,
+    playbackPause,
+    playbackPrevious,
+    playbackResume,
+    playbackSeek,
+    playbackState,
+    playbackStop,
+    playTracks,
+    refreshAudioDevices,
+    setAudioDevice,
+    setExclusiveMode,
+    setVolume,
+    type EtatLecture,
+    type PeripheriqueAudio,
+    type RapportDeScan,
+    type SourceReseau,
+    type Track,
+  } from './ipc/client';
   // `bibliotheque` vient du dépôt et pas de `etat.ts` : le dépôt est LE point d'entrée du
   // frontend sur la bibliothèque, et il réexporte l'état pour ça.
   import { bibliotheque, creerDepot } from './lib/library/repository';
   import Dossiers from './lib/ui/Dossiers.svelte';
+  import Lecture from './lib/ui/Lecture.svelte';
   import Pistes from './lib/ui/Pistes.svelte';
   import Reseau from './lib/ui/Reseau.svelte';
   import { compte, duree, qualite } from './lib/ui/affichage';
@@ -37,6 +57,11 @@
   let sources = $state.raw<readonly SourceReseau[]>([]);
   let rapportReseau = $state<RapportDeScan | null>(null);
   let scanEnCours = $state<string | null>(null);
+  // L'état de la lecture est SONDÉ, pas poussé : `playback_state` toutes les 100 ms. Voir
+  // `src-tauri/src/commands/lecture.rs` pour le pourquoi. Conséquence agréable : il n'y a
+  // aucun état de lecture local à garder en phase avec le backend, donc rien à désynchroniser.
+  let lecture = $state<EtatLecture | null>(null);
+  let peripheriques = $state.raw<readonly PeripheriqueAudio[]>([]);
   let version = $state<string | null>(null);
   let erreur = $state<string | null>(null);
   let occupe = $state(true);
@@ -65,6 +90,7 @@
 
   async function demarrer(): Promise<void> {
     version = await appVersion();
+    await refreshAudioDevices();
     await depot.charger();
     dossiers = await depot.dossiers();
     sources = await depot.sourcesReseau();
@@ -75,9 +101,64 @@
     void tenter(demarrer);
   });
 
+  // Le sondage de l'état de lecture. 100 ms : assez pour que la position avance de façon
+  // lisible, assez peu pour ne rien coûter. Il ne passe PAS par `tenter` — une erreur de
+  // sondage ne doit pas effacer le message affiché ni allumer l'indicateur d'occupation dix
+  // fois par seconde. L'`$effect` rend la fonction d'arrêt, que Svelte appelle à la
+  // destruction du composant.
+  $effect(() => {
+    const relever = async (): Promise<void> => {
+      try {
+        lecture = await playbackState();
+        const liste = await audioDevices();
+        if (liste.length !== peripheriques.length) peripheriques = liste;
+      } catch {
+        // Le backend n'a pas répondu : on garde le dernier état connu plutôt que de vider
+        // l'affichage. Une barre qui saute à zéro sur un sondage raté serait un faux signal.
+      }
+    };
+    void relever();
+    const minuteur = setInterval(() => void relever(), 100);
+    return () => clearInterval(minuteur);
+  });
+
   // V012 vu d'ici : la vue s'abonne et se recopie, sans condition. L'`$effect` rend la
   // fonction de désabonnement, que Svelte appelle à la destruction du composant.
   $effect(() => depot.surChangement(relire));
+
+  /**
+   * Un ordre de lecture. Les commandes générées rendent `Promise<null>` et `tenter` attend
+   * `Promise<void>` : l'adaptation se fait ici une fois, et pas à chaque appel.
+   */
+  function ordre(action: () => Promise<unknown>): void {
+    void tenter(async () => {
+      await action();
+    });
+  }
+
+  /**
+   * Un clic sur une piste joue **l'album à partir d'elle**, et pas la piste seule : c'est
+   * l'enchaînement sans trou qui est le jalon de Thomas, et il ne se vérifie qu'avec une
+   * file. La file est la liste affichée, dans l'ordre affiché.
+   *
+   * Les pistes du NAS sont écartées ici : leur lecture demande de toucher au module réseau,
+   * hors du périmètre de cette session. Les laisser passer donnerait « fichier illisible »,
+   * une erreur juste pour une mauvaise raison.
+   */
+  function jouer(piste: Track): void {
+    choisie = piste;
+    const locales = pistes.filter((p) => !p.path.startsWith('smb://'));
+    const depart = locales.findIndex((p) => p.path === piste.path);
+    if (depart < 0) {
+      erreur = 'Les pistes du NAS ne se jouent pas encore : la lecture réseau reste à porter.';
+      return;
+    }
+    ordre(() => playTracks(locales.map((p) => p.path), depart));
+  }
+
+  function lectureOuPause(): void {
+    ordre(() => (lecture?.en_pause === true ? playbackResume() : playbackPause()));
+  }
 
   function ajouterUnDossier(chemin: string): void {
     void tenter(async () => {
@@ -145,28 +226,31 @@
     surScan={scannerUneSource}
   />
 
-  <section>
-    <h2>Lecture</h2>
-    <!-- La phrase la plus importante de cette fenêtre : dire ce qui n'existe pas encore,
-         pour que son absence ne soit pas prise pour une panne. -->
-    <p>
-      <strong>Le son n’est pas encore branché</strong> — et ce n’est pas un bug à signaler.
-      Le moteur sait lire un fichier et en sortir les échantillons exacts, mais la dernière
-      étape, l’envoi vers la carte son, reste à écrire. Un clic choisit une piste et montre
-      ce que Hean jouera.
-    </p>
-    {#if choisie}
+  <Lecture
+    etat={lecture}
+    {peripheriques}
+    surLectureOuPause={lectureOuPause}
+    surArret={() => ordre(() => playbackStop())}
+    surPrecedente={() => ordre(() => playbackPrevious())}
+    surSuivante={() => ordre(() => playbackNext())}
+    surDeplacement={(ms) => ordre(() => playbackSeek(ms))}
+    surVolume={(v) => ordre(() => setVolume(v))}
+    surPeripherique={(id) => ordre(() => setAudioDevice(id))}
+    surModeExclusif={(actif) => ordre(() => setExclusiveMode(actif))}
+  />
+
+  {#if choisie}
+    <section>
+      <h2>Piste choisie</h2>
       <p>
-        Choisi : <strong>{choisie.titre}</strong> — {choisie.artiste} · {choisie.album} ·
+        <strong>{choisie.titre}</strong> — {choisie.artiste} · {choisie.album} ·
         {duree(choisie.duree_ms)} · {choisie.format}{qualite(choisie.bits, choisie.echantillonnage) === ''
           ? ''
           : ` · ${qualite(choisie.bits, choisie.echantillonnage)}`}
       </p>
       <p>{choisie.path}</p>
-    {:else}
-      <p>Aucune piste choisie.</p>
-    {/if}
-  </section>
+    </section>
+  {/if}
 
   <section>
     <h2>Bibliothèque</h2>
@@ -176,7 +260,7 @@
       <p>La bibliothèque est vide. Ajoute un dossier ci-dessus, puis scanne.</p>
     {:else}
       <p>{compte(pistes.length, 'piste')}.</p>
-      <Pistes {pistes} choisie={choisie?.path ?? null} surChoix={(p) => (choisie = p)} />
+      <Pistes {pistes} choisie={choisie?.path ?? null} surChoix={jouer} />
     {/if}
   </section>
 

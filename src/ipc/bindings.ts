@@ -61,6 +61,33 @@ export const commands = {
 	 *  — donc l'affichage de la bibliothèque continue de répondre.
 	 */
 	scanNetworkSource: (sourceId: string, options?: InvokeOptions) => __TAURI_INVOKE<RapportDeScan>("scan_network_source", { sourceId }, options),
+	/**  Remplace la file de lecture et démarre à `depart`. */
+	playTracks: (chemins: string[], depart: number, options?: InvokeOptions) => __TAURI_INVOKE<null>("play_tracks", { chemins, depart }, options),
+	playbackPause: (options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_pause", undefined, options),
+	playbackResume: (options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_resume", undefined, options),
+	playbackStop: (options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_stop", undefined, options),
+	playbackSeek: (positionMs: number, options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_seek", { positionMs }, options),
+	playbackNext: (options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_next", undefined, options),
+	playbackPrevious: (options?: InvokeOptions) => __TAURI_INVOKE<null>("playback_previous", undefined, options),
+	/**
+	 *  Le volume, de 0 à 1. **Seul 1,0 exactement est bit-perfect** (ADR 0007) : toute autre
+	 *  valeur fait multiplier chaque échantillon, donc arrondir.
+	 */
+	setVolume: (volume: number | null, options?: InvokeOptions) => __TAURI_INVOKE<null>("set_volume", { volume }, options),
+	audioDevices: (options?: InvokeOptions) => __TAURI_INVOKE<PeripheriqueAudio[]>("audio_devices", undefined, options),
+	setAudioDevice: (id: number, options?: InvokeOptions) => __TAURI_INVOKE<null>("set_audio_device", { id }, options),
+	/**
+	 *  Le mode exclusif : Hean réserve le DAC, aucune autre application ne peut y mélanger du
+	 *  son. C'est l'une des quatre conditions du bit-perfect. **Refusé en AirPlay.**
+	 */
+	setExclusiveMode: (actif: boolean, options?: InvokeOptions) => __TAURI_INVOKE<null>("set_exclusive_mode", { actif }, options),
+	/**
+	 *  Relit la liste des périphériques. La liste elle-même remonte par `playback_state` : c'est
+	 *  le fil de lecture qui parle au HAL, et lui seul.
+	 */
+	refreshAudioDevices: (options?: InvokeOptions) => __TAURI_INVOKE<null>("refresh_audio_devices", undefined, options),
+	/**  L'état de la lecture, interrogé par la fenêtre toutes les 100 ms. */
+	playbackState: (options?: InvokeOptions) => __TAURI_INVOKE<EtatLecture_Serialize>("playback_state", undefined, options),
 };
 
 /* Types */
@@ -100,6 +127,97 @@ export type Edition_Serialize = {
 	annee: number | null,
 	piste: number | null,
 	genre: string | null,
+};
+
+/**  Tout ce que la fenêtre a besoin de savoir sur la lecture en cours. */
+export type EtatLecture = EtatLecture_Serialize | EtatLecture_Deserialize;
+
+/**  Tout ce que la fenêtre a besoin de savoir sur la lecture en cours. */
+export type EtatLecture_Deserialize = {
+	en_lecture: boolean,
+	en_pause: boolean,
+	position_ms: number,
+	/**
+	 *  Zéro quand le conteneur ne déclare pas de durée (un MP3 sans en-tête Xing). À
+	 *  afficher comme « durée inconnue », pas comme zéro seconde.
+	 */
+	duree_ms: number,
+	index: number,
+	total: number,
+	volume: number | null,
+	/**
+	 *  Nombre de trous dans le son depuis le début de la lecture. **Zéro est la seule valeur
+	 *  acceptable** : c'est la mesure de « ça ne coupe pas », et V1 n'en avait aucune.
+	 */
+	famines: number,
+	bit_perfect: boolean,
+	/**
+	 *  Les deux conditions que Hean peut constater séparément. « Pas bit-perfect » sans dire
+	 *  laquelle manque ne se corrige pas.
+	 */
+	sans_reechantillonnage: boolean,
+	mode_exclusif: boolean,
+	piste?: string | null,
+	peripherique: string,
+	/**
+	 *  Ce qu'il y a à dire à Thomas : un refus de lecture, un avertissement AirPlay. C'est
+	 *  le canal qui manquait entièrement à V1 (`docs/MESURES-V1.md` §8).
+	 */
+	message?: string | null,
+};
+
+/**  Tout ce que la fenêtre a besoin de savoir sur la lecture en cours. */
+export type EtatLecture_Serialize = {
+	en_lecture: boolean,
+	en_pause: boolean,
+	position_ms: number,
+	/**
+	 *  Zéro quand le conteneur ne déclare pas de durée (un MP3 sans en-tête Xing). À
+	 *  afficher comme « durée inconnue », pas comme zéro seconde.
+	 */
+	duree_ms: number,
+	index: number,
+	total: number,
+	volume: number | null,
+	/**
+	 *  Nombre de trous dans le son depuis le début de la lecture. **Zéro est la seule valeur
+	 *  acceptable** : c'est la mesure de « ça ne coupe pas », et V1 n'en avait aucune.
+	 */
+	famines: number,
+	bit_perfect: boolean,
+	/**
+	 *  Les deux conditions que Hean peut constater séparément. « Pas bit-perfect » sans dire
+	 *  laquelle manque ne se corrige pas.
+	 */
+	sans_reechantillonnage: boolean,
+	mode_exclusif: boolean,
+	piste: string | null,
+	peripherique: string,
+	/**
+	 *  Ce qu'il y a à dire à Thomas : un refus de lecture, un avertissement AirPlay. C'est
+	 *  le canal qui manquait entièrement à V1 (`docs/MESURES-V1.md` §8).
+	 */
+	message: string | null,
+};
+
+/**  Un périphérique de sortie, tel que l'interface le montre. */
+export type PeripheriqueAudio = {
+	id: number,
+	nom: string,
+	par_defaut: boolean,
+	/**
+	 *  Les fréquences standard annoncées, pour l'affichage. La décision de jouer, elle,
+	 *  interroge le matériel (voir `audio::coreaudio::frequence::est_servie`).
+	 */
+	frequences: number[],
+	frequence_actuelle: number,
+	canaux_max: number,
+	/**
+	 *  Un AirPlay ne peut **jamais** être bit-perfect (PLAT-1) : l'interface doit pouvoir le
+	 *  dire avant que Thomas le choisisse, pas après.
+	 */
+	airplay: boolean,
+	bluetooth: boolean,
 };
 
 /**
