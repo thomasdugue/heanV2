@@ -9,6 +9,10 @@
 > Chaque ligne est une feature que V2 doit avoir pour être « à l'identique ».
 > Cocher au fur et à mesure du portage.
 >
+> 🔸 **124 features ou une cible réduite ?** La question est posée depuis l'audit du 2026-11-25 et
+> **Thomas l'a explicitement reportée jusqu'à ce que le son sorte des enceintes** (ADR 0017).
+> Jusque-là, ce fichier reste la cible et personne ne retire de ligne de son propre chef.
+>
 > ⚠️ **Révisé le 2026-11-21 (soir).** Les 124 features sont justes — elles viennent du code. Mais
 > **la cible de parité visuelle a changé** : ce n'est plus `02508ea` ni la beta distribuée, c'est le
 > commit `e12a200` (redesign v3 porté sur main). Les colonnes « Réf. V1 » restent valables ; le
@@ -67,7 +71,7 @@ Légende colonne **Risque** : 🔴 difficile / plateforme hostile · 🟠 piége
 | B08 | Bulk edit (N tracks) | Modal Artist / Album / Year / Genre, placeholder « mixed values », refresh inconditionnel de la vue | 🟠 | `panels.js` |
 | B09 | Suppression permanente | `excluded_paths` dans `config.json`, filtré à **chaque** point d'entrée de chargement/scan | 🔴 | invariant 6 |
 | B10 | Normalisation des genres | Mapping / nettoyage des genres bruts | 🟢 | `lib.rs` |
-| B11 | Enrichissement genres | `trigger_genre_enrichment` via Deezer, events de progression, réversible (`reset_genre_enrichment`) | 🟠 | `lib.rs` |
+| B11 | Enrichissement genres | `trigger_genre_enrichment` via Deezer, events de progression, réversible (`reset_genre_enrichment`). **Obligatoire** — Thomas, 2026-11-25 (ADR 0017) | 🟠 | `lib.rs` |
 | B12 | Groupement albums / artistes | 1 album = 1 entrée, clé `normalizeKey()` (trim + NFC) ; `artist.albums` est un **Array** | 🔴 | invariant 1, V014 |
 | B13 | Lookup O(1) | `library.tracksByPath` Map, reconstruite après chaque scan/suppression | 🟢 | `library.js` |
 | B14 | Stats de bibliothèque | `get_library_stats` : total tracks, répartition par format, taille | 🟢 | `lib.rs` |
@@ -86,7 +90,7 @@ Légende colonne **Risque** : 🔴 difficile / plateforme hostile · 🟠 piége
 | C02 | Protocole `noir://` | Sert covers + audio depuis le disque ; path canonicalisé + boundary-check ; range requests ; `Cache-Control: immutable` | 🟠 | `lib.rs` |
 | C03 | Thumbnails générés au scan | 80×80 JPEG dans `thumbnails/`, `generate_thumbnails_batch` | 🟢 | `lib.rs` |
 | C04 | Covers internet | MusicBrainz + CoverArtArchive, rate-limited, cache `internet_not_found_cache.json` (TTL 30 j) | 🟠 | `lib.rs` |
-| C05 | Images d'artistes | Deezer (+ WikiMedia), `fetch_artist_image` | 🟠 | `lib.rs` |
+| C05 | Images d'artistes | Deezer (+ WikiMedia), `fetch_artist_image`. **Obligatoire** — Thomas, 2026-11-25 (ADR 0017) | 🟠 | `lib.rs` |
 | C06 | Lazy loading | IntersectionObserver + file d'attente ; **l'`<img>` doit être dans le DOM avant l'appel** (`isConnected`) | 🔴 | invariant covers |
 | C07 | Révélation progressive | Les covers apparaissent au fur et à mesure du chargement, sans faire sauter la grille | 🟢 | `views.js` |
 | C08 | Extraction de couleur | Canvas 64×64 → k-means 5 couleurs → `pickAmbientColor()` (score saturation × brightness) | 🟠 | `fullscreen-player.js` |
@@ -229,6 +233,6 @@ partent en ZIP streamés. Le cahier des charges de l'étape suivante est déjà 
 
 → [`../05-postmortem/chantier-wifi-sync/README.md`](../05-postmortem/chantier-wifi-sync/README.md)
 
-**Décision à prendre** (elle n'est pas prise) : WiFi Sync entre-t-il dans le périmètre de V2, et à
-quelle phase ? Il est indépendant du reste — il n'a besoin que de la bibliothèque et des covers —
-donc il peut arriver tard sans bloquer quoi que ce soit.
+**Tranché par Thomas le 2026-11-25 : WiFi Sync ne doit pas être dans le périmètre** (ADR 0017).
+Ce n'est pas un report à une phase tardive, c'est une sortie. Le chantier reste décrit pour
+mémoire ; aucune planification ne le reprend.

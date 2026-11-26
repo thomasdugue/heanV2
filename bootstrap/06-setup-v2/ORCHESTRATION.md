@@ -121,7 +121,7 @@ Pas parce que c'est difficile — parce qu'**un test vert n'y prouve rien**.
 | Zone | Pourquoi aucun test ne suffit |
 |---|---|
 | **Le moteur audio** (CoreAudio, RingBuffer, callback temps réel) | Un défaut de bit-perfect ne fait échouer aucun test : ça joue, et un peu moins bien. L'oreille de Thomas est le seul juge, et la boucle de retour est trop lente pour un exécutant |
-| **La migration des données** | Une migration ratée, c'est la bibliothèque de 50 testeurs. Le test passe sur des fixtures ; la réalité a des chemins NFD et des caches à demi écrits |
+| **La migration des données** | Une migration ratée, c'est la bibliothèque de Thomas — la seule qui existe. Le test passe sur des fixtures ; la réalité a des chemins NFD et des caches à demi écrits |
 | **Le pipeline de release** | Signature, notarisation, bundling des dylibs. Ça ne casse pas en CI : ça casse chez l'utilisateur, à l'installation |
 | **Tout ce qui touche à un secret ou au Keychain** | Une erreur ne se voit pas. Elle se découvre |
 | **Le choix de ce qu'on construit** | Ce n'est pas une tâche technique. C'est celle de Thomas |

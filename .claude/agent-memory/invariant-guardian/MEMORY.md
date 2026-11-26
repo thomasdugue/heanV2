@@ -8,3 +8,5 @@
 - [Dérogation examples/ à INV-21](derogation-examples-inv-21.md) — réglée (ADR 0011, note « muet » retirée) ; ce qu'il reste à vérifier sur HORS_SCAN.
 - [Périmètre de check-sizes](perimetre-de-check-sizes.md) — trous fermés le 2026-11-25 ; qui rougira le premier (migration/mod.rs, 400/400).
 - [Détecteur d'INV-04 en anglais](detecteur-inv-04-en-anglais.md) — le grep du trousseau ignore `mot_de_passe` : la faute en français lui est invisible.
+- [Zone audio : chemins Rust seulement](zone-audio-chemins-rust-seulement.md) — les fichiers frontend du lecteur sont de l'UI malgré leur nom
+- [Les listes de zones du harnais](les-listes-de-zones-du-harnais.md) — chaque garde-fou a la sienne ; on retourne une liste d'oublis, pas une liste de choix
