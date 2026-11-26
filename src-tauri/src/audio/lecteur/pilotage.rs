@@ -128,8 +128,9 @@ impl Fil {
                 }
             }
             let exclusif = backend.mode_exclusif();
-            let nom = backend
-                .info_active()
+            let active = backend.info_active();
+            let id_actif = active.as_ref().map(|i| i.id).unwrap_or(0);
+            let nom = active
                 .map(|i| i.nom)
                 .unwrap_or_else(|| "sortie inconnue".to_owned());
             let volume = etat.volume();
@@ -137,6 +138,7 @@ impl Fil {
             backend.definir_volume(volume);
             backend.definir_pause(en_pause);
             etat.mode_exclusif.store(exclusif, Ordering::Relaxed);
+            etat.peripherique_id.store(id_actif, Ordering::Relaxed);
             if let Ok(mut p) = etat.peripherique.lock() {
                 *p = nom;
             }
@@ -269,12 +271,15 @@ impl Fil {
         let backend = self.backend()?;
         backend.rafraichir_peripheriques()?;
         let liste = backend.liste_peripheriques();
-        let nom = backend.info_active().map(|i| i.nom);
+        let active = backend.info_active();
         if let Ok(mut p) = etat.peripheriques.lock() {
             *p = liste;
         }
-        if let (Some(nom), Ok(mut p)) = (nom, etat.peripherique.lock()) {
-            *p = nom;
+        if let Some(active) = active {
+            etat.peripherique_id.store(active.id, Ordering::Relaxed);
+            if let Ok(mut p) = etat.peripherique.lock() {
+                *p = active.nom;
+            }
         }
         Ok(())
     }

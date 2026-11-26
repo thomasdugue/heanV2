@@ -68,6 +68,9 @@ pub struct EtatLecture {
     pub mode_exclusif: bool,
     pub piste: Option<String>,
     pub peripherique: String,
+    /// L'identifiant de la sortie active : c'est par lui que l'interface sait quelle ligne
+    /// de sa liste est sélectionnée. Par le nom, deux DAC identiques seraient confondus.
+    pub peripherique_id: u32,
     /// Ce qu'il y a à dire à Thomas : un refus de lecture, un avertissement AirPlay. C'est
     /// le canal qui manquait entièrement à V1 (`docs/MESURES-V1.md` §8).
     pub message: Option<String>,
@@ -234,6 +237,7 @@ pub fn playback_state(etat: State<'_, Lecture>) -> EtatLecture {
             .lock()
             .map(|p| p.clone())
             .unwrap_or_default(),
+        peripherique_id: e.peripherique_id.load(Relaxed),
         message: e.message.lock().ok().and_then(|m| m.clone()),
     }
 }

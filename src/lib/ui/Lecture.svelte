@@ -119,7 +119,7 @@
     <label>
       sortie
       <select
-        value={String(peripheriques.find((p) => p.nom === etat?.peripherique)?.id ?? '')}
+        value={String(etat?.peripherique_id ?? '')}
         onchange={(e) => surPeripherique(Number(e.currentTarget.value))}
       >
         {#each peripheriques as p (p.id)}

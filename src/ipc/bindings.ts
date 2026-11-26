@@ -160,6 +160,11 @@ export type EtatLecture_Deserialize = {
 	piste?: string | null,
 	peripherique: string,
 	/**
+	 *  L'identifiant de la sortie active : c'est par lui que l'interface sait quelle ligne
+	 *  de sa liste est sélectionnée. Par le nom, deux DAC identiques seraient confondus.
+	 */
+	peripherique_id: number,
+	/**
 	 *  Ce qu'il y a à dire à Thomas : un refus de lecture, un avertissement AirPlay. C'est
 	 *  le canal qui manquait entièrement à V1 (`docs/MESURES-V1.md` §8).
 	 */
@@ -193,6 +198,11 @@ export type EtatLecture_Serialize = {
 	mode_exclusif: boolean,
 	piste: string | null,
 	peripherique: string,
+	/**
+	 *  L'identifiant de la sortie active : c'est par lui que l'interface sait quelle ligne
+	 *  de sa liste est sélectionnée. Par le nom, deux DAC identiques seraient confondus.
+	 */
+	peripherique_id: number,
 	/**
 	 *  Ce qu'il y a à dire à Thomas : un refus de lecture, un avertissement AirPlay. C'est
 	 *  le canal qui manquait entièrement à V1 (`docs/MESURES-V1.md` §8).

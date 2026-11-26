@@ -86,6 +86,10 @@ pub struct EtatPartage {
     pub piste: Mutex<Option<String>>,
     /// Le nom du périphérique de sortie.
     pub peripherique: Mutex<String>,
+    /// Son identifiant. L'interface s'en sert pour savoir quelle ligne de sa liste est
+    /// sélectionnée : le faire par le NOM casserait avec deux périphériques homonymes, et
+    /// deux DAC identiques en sont un cas parfaitement ordinaire.
+    pub peripherique_id: AtomicU32,
     /// La dernière chose à dire à Thomas : un refus de lecture, un avertissement AirPlay.
     /// Pas une erreur technique à avaler en silence — c'est le canal qui manquait à V1.
     pub message: Mutex<Option<String>>,
