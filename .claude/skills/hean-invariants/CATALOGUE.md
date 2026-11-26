@@ -428,10 +428,10 @@ dette **visible**, que `./check` recompte à chaque passage.
 ### INV-28 — Un chiffre montré à l'utilisateur dit sur place s'il est mesuré ou estimé
 - pile : test
 - gravité : 🟡 AVERTISSEMENT
-- couverture : test chiffres-annonces.test.ts
+- couverture : architecture `chiffres-annonces.test.ts`
 - pourquoi : **règle de Thomas, née le 2026-11-26 de trois cas en une soirée.** L'interface
   annonçait « environ deux minutes » pour le premier scan réseau ; le vrai a duré
-  **36 minutes** ([ADR 0016](../../../docs/adr/0016-la-part-reseau-de-la-bibliotheque.md) §5),
+  **36 minutes** ([ADR 0016](../../../docs/adr/0016-la-part-reseau-de-la-bibliotheque.md) §3),
   et l'estimation était fausse d'un facteur 17 parce qu'elle comptait le débit là où le coût
   est la latence. Le même soir, l'[ADR 0015](../../../docs/adr/0015-nom-de-service-keychain-pour-les-mots-de-passe-smb.md)
   chiffrait le coût de l'option B à « une saisie de mot de passe », **deux fois de suite**,

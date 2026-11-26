@@ -197,6 +197,15 @@ censé voir.
   couverture ci-dessus. Un corpus lu sur le disque embarque ce qui traîne — un `.DS_Store`, un
   fichier de travail — donc il peut rougir chez Thomas et passer en CI : le défaut du 2026-11-22,
   vu de l'autre bout. Éprouvé : un fichier de 999 lignes non suivi par git est bien ignoré.
+- **Un détecteur qui argumente sa fenêtre doit interdire, par une assertion, la fenêtre qu'il a
+  écartée.** 🟡 Cinquième variante, et la première qui porte sur un **réglage** du détecteur
+  plutôt que sur son corpus ou son vocabulaire. La fenêtre est la partie qu'on élargit **de
+  bonne foi** — « mais le commentaire juste au-dessus dit mesuré » — et aucun auto-test ne peut
+  la voir, puisqu'ils tiennent tous sur une seule ligne de texte. Mesuré le 2026-11-26 sur
+  INV-28, dont les lignes d'argumentation (« la fenêtre est la ligne ») n'étaient tenues par
+  rien : l'élargir au bloc ou à ±2 lignes laissait les quatre assertions **vertes**, et la
+  règle retombait dans l'état exact qui l'avait fait naître. Deux lignes d'assertion ont suffi.
+  Relevé par `invariant-guardian`, qui a rejoué les mutations plutôt que de me croire.
 - ⚠️ **Nettoyer l'injection : arbre propre avant, ou copie.** `git checkout <fichier>` pour
   retirer une faute injectée **efface aussi le travail non commité du même fichier**. Payé le
   2026-11-22 : deux modifications perdues, repérées seulement parce qu'un renvoi s'était remis

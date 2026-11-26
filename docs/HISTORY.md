@@ -1696,14 +1696,14 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   `SERVICE` ne vaut plus que `com.tdugue.hean.smb` ; le nom de V1 n'est plus lu, et rien n'est
   écrit ni supprimé sous lui — les deux entrées du trousseau de Thomas restent intactes.
   **Le coût annoncé était déjà payé** : son mot de passe était sous le nom de V2 depuis la
-  veille, et son journal de 01:01Z le prouve (scan de 32 s, 0 ajoutée, aucune saisie).
+  veille, et son journal de 01:01Z le prouve (scan différentiel de 32 s, aucune saisie).
   Troisième estimation de ce coût, première mesurée ; les deux fausses penchaient du même côté.
-  **`invariant-guardian` a corrigé deux de mes affirmations** : mon assertion anti-« noir »
-  suivait un `assert_eq!` sur la même valeur, donc inatteignable, et je l'annonçais éprouvée ;
-  « la dernière chaîne à dire noir » était faux — deux autres le disent, obligées. Il a vu
-  aussi que le bras « lu mais vide » n'était éprouvé par rien (INV-04 🔴) et que la sonde SMB
-  fabriquait un mot de passe vide, donc dix échecs d'authentification d'affilée sur le NAS.
+  **`invariant-guardian`, deux fois.** Premier tour : mon assertion anti-« noir » suivait un
+  `assert_eq!` sur la même valeur, donc inatteignable alors que je l'annonçais éprouvée ; « la
+  dernière chaîne à dire noir » était faux ; le bras « lu mais vide » n'était éprouvé par rien
+  (INV-04 🔴) ; la sonde fabriquait un mot de passe vide, donc une dizaine d'échecs d'auth.
   **INV-28, règle de Thomas** (🟡) : un chiffre montré à l'utilisateur dit sur place s'il est
-  mesuré ou estimé. Née de trois cas du soir — « deux minutes » annoncées pour un scan de
-  36 min, et ce coût chiffré faux deux fois. Tenue par `chiffres-annonces.test.ts`, née rouge
-  sur deux vraies lignes de `Reseau.svelte`. ⚠️ PR #22 et #23 en double, #22 fermée.
+  mesuré ou estimé — née de « deux minutes » annoncées pour un scan de 36 min, et de ce coût
+  chiffré faux deux fois. Tenue par `chiffres-annonces.test.ts`. Second tour : « la fenêtre est
+  la ligne » n'était tenu par aucune assertion (l'élargir laissait tout vert) et mon renvoi
+  « §5 » était faux là où « §3 » était juste. D'où deux assertions, et une règle de plus.

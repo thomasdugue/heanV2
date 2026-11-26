@@ -34,4 +34,4 @@ En V1, **3 sur 20** étaient couvertes par un test.
 | INV-25 | La copie d'une migration est sur le disque avant que le témoin ne la certifie | 🧪 test | 🔴 BLOQUANT | architecture `migration-durable.test.ts` — l'ordre des quatre étapes irréversibles |
 | INV-26 | La migration ne supprime pas le dossier de V1, sauf son cache de téléchargement | 🧪 test | 🔴 BLOQUANT | architecture `migration-durable.test.ts` — l'appel de suppression ne doit pas reparaître |
 | INV-27 | Un scan ne conclut la disparition d'une piste que dans son périmètre | 🧪 test | 🔴 BLOQUANT | test perimetre.rs |
-| INV-28 | Un chiffre montré à l'utilisateur dit sur place s'il est mesuré ou estimé | 🧪 test | 🟡 AVERTISSEMENT | test chiffres-annonces.test.ts |
+| INV-28 | Un chiffre montré à l'utilisateur dit sur place s'il est mesuré ou estimé | 🧪 test | 🟡 AVERTISSEMENT | architecture `chiffres-annonces.test.ts` |

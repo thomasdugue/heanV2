@@ -3,10 +3,10 @@
   // Nu, comme le reste de la coquille — le design est la phase 4 (ADR 0004).
   //
   // Ce que cet écran doit dire et que les autres n'ont pas à dire : **un scan réseau dure
-  // des dizaines de minutes**. Il lit l'en-tête de chaque fichier : 36 min mesurées pour
-  // 3 137 pistes le 2026-11-25, là où l'ADR 0016 §5 en avait estimé deux — facteur 17, le
-  // coût étant la latence et non le débit. Une attente annoncée est une attente ; une
-  // attente non annoncée est une panne.
+  // des dizaines de minutes**. Il lit l'en-tête de chaque fichier : 36 min mesurées le
+  // 2026-11-25 sur les 3 116 pistes trouvées, là où l'ADR 0016 §3 avait estimé ~2 min. Le
+  // coût est la latence — ~690 ms par fichier mesurés contre ~41 ms estimés — et non le
+  // débit. Une attente annoncée est une attente ; une attente non annoncée est une panne.
   import type { RapportDeScan, SourceReseau } from '../../ipc/client';
   import { compte } from './affichage';
 
