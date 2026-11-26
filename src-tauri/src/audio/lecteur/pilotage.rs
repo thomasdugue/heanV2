@@ -95,8 +95,7 @@ impl Fil {
 
     /// Ouvre une piste, prépare la sortie si le format change, et l'inscrit comme en vol.
     pub(super) fn ouvrir_la_piste(&mut self, index: usize, depart: Duration) -> Result<(), ErreurAudio> {
-        let chemin = self.file[index].clone();
-        let mut decodeur = Decodeur::ouvrir(&chemin)?;
+        let mut decodeur = Decodeur::ouvrir(&self.file[index])?;
         let format = decodeur.format();
         let mut debut_ms = 0;
         if !depart.is_zero() {
@@ -148,23 +147,29 @@ impl Fil {
             tracing::debug!(obtenu = %obtenu, "flux renégocié");
         }
 
-        let duree_ms = decodeur
-            .duree()
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
+        self.inscrire_la_piste(index, decodeur, debut_ms);
+        Ok(())
+    }
+
+    /// Inscrit une piste déjà ouverte comme celle que le décodeur lit, et la met « en vol ».
+    ///
+    /// Séparé d'[`Self::ouvrir_la_piste`] pour l'enchaînement sans trou : là, le décodeur a
+    /// déjà été ouvert pour comparer son format à celui du flux, et le rouvrir doublerait
+    /// l'entrée/sortie à chaque passage de piste.
+    pub(super) fn inscrire_la_piste(&mut self, index: usize, decodeur: Decodeur, debut_ms: u64) {
+        let duree_ms = decodeur.duree().map(|d| d.as_millis() as u64).unwrap_or(0);
         self.en_vol.push_back(EnVol {
             debut: self.ecrit,
             fin: None,
             debut_ms,
             index,
             duree_ms,
-            chemin,
+            chemin: decodeur.chemin().to_path_buf(),
         });
         self.index_decode = index;
         self.decodeur = Some(decodeur);
         self.reste.clear();
         self.deja_pris = 0;
-        Ok(())
     }
 
     /// Déplacement dans la piste **qu'on entend**, et non celle que le décodeur lit.

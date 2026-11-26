@@ -18,6 +18,7 @@
 //! | [`flux`] | la vie de l'AudioUnit | `coreaudio_stream.rs` |
 //! | [`rendu`] | le callback temps réel | idem |
 //! | [`routage`] | quel périphérique joue, et PLAT-1 | `set_output_device`, `check_device_change` |
+//! | [`verdict`] | l'état du bit-perfect après négociation | **neuf** : V1 ne distinguait pas |
 //! | [`backend`] | l'implémentation de `BackendAudio` | `impl AudioBackend for CoreAudioBackend` |
 //!
 //! # Ce qui a changé par rapport à V1, et seulement ça
@@ -49,6 +50,8 @@ pub mod peripheriques;
 pub mod rendu;
 pub mod routage;
 pub mod tampon;
+pub mod verdict;
 
-pub use backend::{BackendCoreAudio, Verdict};
+pub use backend::BackendCoreAudio;
+pub use verdict::Verdict;
 pub use peripheriques::InfoPeripherique;

@@ -205,16 +205,16 @@ impl Fil {
             self.etape = Etape::FinDeFile;
             return;
         }
-        // L'ENCHAÎNEMENT SANS TROU : si le format est identique, on ouvre la piste suivante
-        // et on continue de pousser dans le MÊME tampon. Il ne se passe rien, donc il n'y a
-        // rien à entendre. Sinon, il faut laisser le tampon se vider avant de renégocier.
-        let format_suivant = Decodeur::ouvrir(&self.file[suivante]).map(|d| d.format());
-        match format_suivant {
-            Ok(format) if Some(format) == self.format_du_flux => {
-                if let Err(e) = self.ouvrir_la_piste(suivante, Duration::ZERO) {
-                    self.etat.dire(e.to_string());
-                    self.etape = Etape::FinDeFile;
-                }
+        // L'ENCHAÎNEMENT SANS TROU : si le format est identique, on continue de pousser dans
+        // le MÊME tampon. Il ne se passe rien, donc il n'y a rien à entendre. Sinon, il faut
+        // laisser le tampon se vider avant de renégocier la fréquence du DAC.
+        //
+        // Le fichier n'est ouvert qu'UNE fois, et le décodeur est réutilisé : connaître le
+        // format demande de l'ouvrir, et le rouvrir ensuite doublerait l'entrée/sortie à
+        // chaque passage de piste — invisible en local, pas sur le NAS.
+        match Decodeur::ouvrir(&self.file[suivante]) {
+            Ok(decodeur) if Some(decodeur.format()) == self.format_du_flux => {
+                self.inscrire_la_piste(suivante, decodeur, 0);
             }
             Ok(_) => self.etape = Etape::AttenteDeVidange(suivante),
             Err(e) => {
@@ -283,14 +283,19 @@ impl Fil {
         self.etat.bit_perfect.store(bit_perfect, Ordering::Relaxed);
     }
 
-    /// Referme le flux sans rendre le matériel : le périphérique reste à nous entre deux
-    /// pistes.
+    /// Referme le flux **immédiatement**, en jetant ce qui attendait.
+    ///
+    /// `interrompre` et non `terminer` : `terminer` attend la vidange du tampon, donc jusqu'à
+    /// cinq secondes. C'est ce qu'on veut à la fin d'un album — entendre les dernières
+    /// secondes — et c'est un défaut partout ailleurs : quand Thomas clique une autre piste,
+    /// il attendrait la fin de la précédente avant d'entendre la sienne. Les deux endroits
+    /// qui veulent la vidange l'obtiennent autrement, et sans bloquer : les étapes
+    /// `AttenteDeVidange` et `FinDeFile` attendent dans la boucle, où les commandes
+    /// continuent d'arriver, et appellent ceci une fois le tampon déjà vide.
     pub(super) fn fermer_le_flux(&mut self) {
         if let Some(backend) = self.backend.as_mut() {
             if backend.flux_ouvert() {
-                if let Err(e) = backend.terminer() {
-                    tracing::warn!(erreur = %e, "fermeture du flux en erreur");
-                }
+                backend.interrompre();
             }
         }
         self.decodeur = None;

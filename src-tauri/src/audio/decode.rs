@@ -204,6 +204,11 @@ impl Decodeur {
         self.format
     }
 
+    /// Le fichier que ce décodeur lit.
+    pub fn chemin(&self) -> &Path {
+        &self.chemin
+    }
+
     /// La durée annoncée par le conteneur, quand il l'annonce.
     ///
     /// `None` est un cas réel et non une négligence : un MP3 sans en-tête Xing, un flux

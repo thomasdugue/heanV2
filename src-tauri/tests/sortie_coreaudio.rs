@@ -7,10 +7,11 @@
 //! y échouerait pour cause d'absence de matériel serait un rouge permanent, et un rouge
 //! permanent finit désarmé — la famille de défaut que l'ADR 0005 refuse par principe.
 //!
-//! Elles se lancent donc à la main, sur une machine qui a une carte son :
+//! Elles se lancent donc à la main, sur une machine qui a une carte son. Le bloc de
+//! lancement complet est dans `docs/PROTOCOLE-SON.md` ; depuis la racine du dépôt :
 //!
 //! ```bash
-//! cd /Users/tsunami25/Documents/Thomas/heanV2 && cargo test --manifest-path src-tauri/Cargo.toml --test sortie_coreaudio -- --ignored --nocapture
+//! cargo test --manifest-path src-tauri/Cargo.toml --test sortie_coreaudio -- --ignored
 //! ```
 //!
 //! # Elles ne produisent aucun son et ne changent aucun réglage
@@ -30,18 +31,20 @@ fn les_peripheriques_de_sortie_se_listent_avec_un_nom() {
     cache.rafraichir().expect("rafraîchir le cache");
     let liste = cache.liste();
     assert!(!liste.is_empty(), "aucun périphérique de sortie trouvé");
-    for p in &liste {
-        assert!(!p.nom.trim().is_empty(), "périphérique {} sans nom", p.id);
-        println!(
-            "  {} (id {}) — {} Hz, {} canaux, propose {}{}",
-            p.nom,
-            p.id,
-            p.frequence_actuelle,
-            p.canaux_max,
-            p.frequences_en_clair(),
-            if p.est_airplay() { " [AirPlay]" } else { "" }
-        );
-    }
+    // Pas de `println!` : INV-21 (🔴) vaut aussi dans `src-tauri/tests/`, et la liste des
+    // sorties est de toute façon sous les yeux de Thomas dans l'app — c'est l'étape 1 du
+    // protocole. Ce que ce test ajoute, c'est que chacune a bien un nom lisible.
+    let sans_nom: Vec<String> = liste
+        .iter()
+        .filter(|p| p.nom.trim().is_empty())
+        .map(|p| p.id.to_string())
+        .collect();
+    assert!(
+        sans_nom.is_empty(),
+        "périphériques sans nom (identifiants : {}) — `kAudioObjectPropertyName` ne rend \
+         plus ce qu'on croit",
+        sans_nom.join(", ")
+    );
     assert!(
         liste.iter().any(|p| p.par_defaut),
         "aucun périphérique marqué par défaut"
@@ -54,7 +57,6 @@ fn la_frequence_du_peripherique_par_defaut_se_lit_et_fait_partie_de_ses_plages()
     let id = peripheriques::peripherique_par_defaut().expect("périphérique par défaut");
     let hz = frequence::frequence_du_peripherique(id).expect("lire la fréquence");
     assert!(hz > 0, "fréquence nulle");
-    println!("  fréquence actuelle : {hz} Hz");
     assert!(
         frequence::est_servie(id, hz).expect("lire les plages"),
         "le périphérique tourne à {hz} Hz mais ne l'annonce pas dans ses plages : \
@@ -80,13 +82,17 @@ fn le_hal_accepte_un_flux_declare_en_entier_32_bits() {
     let format = FormatAudio::nouveau(hz, 2, Profondeur::Bits24);
     let (_producteur, consommateur) = tampon::nouveau(4096);
     let flux = Flux::ouvrir(Some(id), format, consommateur);
-    match flux {
-        Ok(f) => println!("  flux ouvert en {} — accepté par l'AUHAL", f.format()),
-        Err(e) => panic!(
-            "l'AUHAL a refusé un flux en entier signé 32 bits : {e}\n\
+    let flux = flux.unwrap_or_else(|e| {
+        panic!(
+            "l'AUHAL a refusé un flux en entier signé 32 bits à {hz} Hz : {e}\n\
              → tout le moteur de sortie en dépend (ADR 0007). Si ce refus est reproductible, \
              c'est la déclaration de format de `audio/coreaudio/flux.rs` qu'il faut revoir, \
              PAS le format interne."
-        ),
-    }
+        )
+    });
+    assert_eq!(
+        flux.format().frequence,
+        hz,
+        "le flux ne s'est pas ouvert à la fréquence demandée"
+    );
 }
