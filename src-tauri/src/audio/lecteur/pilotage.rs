@@ -112,8 +112,6 @@ impl Fil {
         if self.format_du_flux != Some(format) {
             // Une poignée propre sur l'état partagé : `self.backend()` emprunte `self`, et
             // `Arc` est fait pour ça.
-            // Une poignée propre sur l'état partagé : `self.backend()` emprunte `self`, et
-            // `Arc` est fait pour ça.
             let etat = Arc::clone(&self.etat);
             let backend = self.backend()?;
             let obtenu = backend.preparer(format)?;
@@ -154,6 +152,23 @@ impl Fil {
             tracing::debug!(obtenu = %obtenu, "flux renégocié");
         }
 
+        // UNE LECTURE QUI NE LAISSE AUCUNE TRACE NE SE DIAGNOSTIQUE PAS. Le 2026-11-26,
+        // Thomas a dit « je n'entends pas de son » et le journal n'avait rien à montrer : ni
+        // succès, ni échec, pas même la preuve que le moteur avait été appelé. Cette ligne
+        // sépare les deux questions — « est-ce que ça a été demandé ? » et « est-ce que ça a
+        // été joué, et à quelle fréquence ? » — et c'est la première qu'on se pose.
+        tracing::info!(
+            fichier = %self.file[index]
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy(),
+            source_hz = format.frequence,
+            bits = format.profondeur.bits(),
+            sortie_hz = self.etat.sortie_hz.load(Ordering::Relaxed),
+            sans_reechantillonnage = self.etat.sans_reechantillonnage.load(Ordering::Relaxed),
+            depart_ms = debut_ms,
+            "piste ouverte"
+        );
         self.inscrire_la_piste(index, decodeur, debut_ms);
         Ok(())
     }

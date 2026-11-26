@@ -257,6 +257,13 @@ impl BackendAudio for BackendCoreAudio {
                 flux.demarrer()?;
             }
             self.demarre = true;
+            // Le seul endroit qui prouve que l'AudioUnit TOURNE. Sans lui, « je n'entends
+            // pas de son » ne se distingue pas de « la sortie n'a jamais démarré », et les
+            // deux ne se corrigent pas au même endroit.
+            tracing::info!(
+                sortie_hz = self.negociation.map(|n| n.sortie_hz).unwrap_or(0),
+                "sortie démarrée"
+            );
         }
         Ok(pris)
     }
