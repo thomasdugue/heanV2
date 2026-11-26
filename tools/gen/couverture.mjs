@@ -11,7 +11,7 @@ const RACINE = resolve(import.meta.dirname, '../..');
 const lire = (p) => readFileSync(resolve(RACINE, p), 'utf8');
 
 // --- invariants ---
-// SKILL.md (tri + pièges de plateforme) et CATALOGUE.md (les 27 fiches), depuis le 2026-11-25.
+// SKILL.md (tri + pièges de plateforme) et CATALOGUE.md (les 28 fiches), depuis le 2026-11-25.
 const skill =
   lire('.claude/skills/hean-invariants/SKILL.md') +
   '\n' +

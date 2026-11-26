@@ -1,4 +1,4 @@
-# Catalogue des invariants — les 27 fiches
+# Catalogue des invariants — les 28 fiches
 
 <!-- Lu par `tools/check-invariants.mjs`, `tools/check-comptes.mjs` et `tools/gen/couverture.mjs`,
      conjointement avec SKILL.md. Garder le format `### INV-NN` + les quatre champs. -->
@@ -424,6 +424,32 @@ dette **visible**, que `./check` recompte à chaque passage.
   Né le 2026-11-25 en branchant la part réseau (ADR 0016 §2). Les deux volets sont éprouvés
   dans la même base, avec les deux provenances mélangées : un test qui n'en mettrait qu'une
   passerait au vert avec ou sans la règle.
+
+### INV-28 — Un chiffre montré à l'utilisateur dit sur place s'il est mesuré ou estimé
+- pile : test
+- gravité : 🟡 AVERTISSEMENT
+- couverture : architecture `chiffres-annonces.test.ts`
+- pourquoi : **règle de Thomas, née le 2026-11-26 de trois cas en une soirée.** L'interface
+  annonçait « environ deux minutes » pour le premier scan réseau ; le vrai a duré
+  **36 minutes** ([ADR 0016](../../../docs/adr/0016-la-part-reseau-de-la-bibliotheque.md) §3),
+  et l'estimation était fausse d'un facteur 17 parce qu'elle comptait le débit là où le coût
+  est la latence. Le même soir, l'[ADR 0015](../../../docs/adr/0015-nom-de-service-keychain-pour-les-mots-de-passe-smb.md)
+  chiffrait le coût de l'option B à « une saisie de mot de passe », **deux fois de suite**,
+  avant qu'un relevé du trousseau ne le mesure à **zéro**.
+  Ce que les trois cas ont en commun n'est pas l'erreur — un chiffre faux se corrige — mais
+  qu'**en lisant, on ne pouvait pas savoir que le chiffre n'avait jamais été mesuré**. Un
+  chiffre dont l'origine est muette se recopie, et il se recopie avec autorité : « environ
+  deux minutes » est passé du calcul de l'ADR au commentaire du composant puis au texte
+  affiché, sans que personne mente à aucune étape.
+  🟡 et non 🔴 : rien n'est perdu, rien n'est illisible. Mais le dommage est réel et il porte
+  sur la confiance — une fenêtre qui ne bouge pas pendant une demi-heure quand on a promis
+  deux minutes **est** une panne, pour qui la regarde. C'est le raisonnement d'INV-21 déplacé
+  vers l'utilisateur : un défaut qui ne se signale pas coûte plus que lui-même.
+  **La fenêtre est la ligne**, et le détecteur se contourne en écrivant « mesuré » sans avoir
+  mesuré : les deux choix sont argumentés en tête du test, avec les formes essayées avant.
+  Corollaire pour les documents, qui n'a pas de détecteur et n'en aura pas : un nombre qu'on
+  n'a pas mesuré s'écrit **estimé**, avec la méthode d'estimation — c'est elle qui a permis de
+  voir, après coup, que les 41 ms par fichier venaient d'un calcul de débit.
 
 ---
 

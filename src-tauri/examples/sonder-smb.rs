@@ -58,14 +58,33 @@ fn main() {
     println!("chemin   : {}", source.chemin_distant);
     println!("user     : {:?}  invité={}  domaine={:?}", source.utilisateur, source.invite, source.domaine);
 
-    let mdp = match identifiants::mot_de_passe(&source.id) {
-        Ok(m) => {
-            println!("mot de passe : trouvé au trousseau, {} caractères", m.chars().count());
-            m
-        }
-        Err(e) => {
-            println!("mot de passe : ABSENT — {e}");
-            String::new()
+    // INV-04 (🔴) vaut jusque dans un outil de diagnostic, et ici plus qu'ailleurs : les
+    // essais ci-dessous envoient le **vrai** nom d'utilisateur. Avec un mot de passe vide,
+    // c'est une dizaine d'authentifications ratées d'affilée sur le compte de Thomas, donc le
+    // risque de verrouillage qu'INV-04 existe pour empêcher — dans le seul outil du dépôt qui
+    // parle au vrai NAS. Une sonde qui verrouille le compte qu'elle diagnostique est pire que
+    // pas de sonde. Relevé par `invariant-guardian` le 2026-11-26 : le repli était
+    // `String::new()`, que le détecteur d'architecture ne voit pas puisqu'il ne cherche que
+    // le littéral `unwrap_or_default()`.
+    let mdp = if source.invite {
+        String::new() // une source invité n'envoie pas d'identifiants du tout : `u` est vide
+    } else {
+        match identifiants::mot_de_passe(&source.id) {
+            Ok(m) => {
+                println!("mot de passe : trouvé au trousseau, {} caractères", m.chars().count());
+                m
+            }
+            Err(e) => {
+                println!("mot de passe : ABSENT — {e}");
+                println!(
+                    "\nLa sonde s'arrête ici, exprès. Essayer le compte « {} » avec un mot de\n\
+                     passe vide, c'est une dizaine d'authentifications ratées d'affilée sur le\n\
+                     NAS, donc un risque de verrouillage du compte. Saisir le mot de passe dans\n\
+                     Hean, puis relancer la sonde.",
+                    source.utilisateur
+                );
+                return;
+            }
         }
     };
     let u = if source.invite { String::new() } else { source.utilisateur.clone() };
