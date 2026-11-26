@@ -45,10 +45,11 @@ observations utiles qui ne valident aucune étape de la liste.
 | **9** — le 192 kHz perd le badge | `repli de fréquence : l'AUHAL rééchantillonne` · `source_hz=192000 sortie_hz=96000` · `bit_perfect=false`, sur trois fichiers |
 | *(aucun numéro)* — changer de sortie | `sortie changée, défaut système synchronisé id=86`, et la piste réouverte à `depart_ms=6315` : la position est conservée. **Ne saute pas l'étape 11** : elle dit « un 24/192 joue sur le DAC, et le DAC passe vraiment à 192 kHz », et elle n'a pas été faite |
 | *(aucun numéro)* — le matériel est rendu | la fréquence d'origine est remise à **chaque** fermeture de flux, et pas seulement en quittant l'app. **Ne saute pas l'étape 14** : elle demande que ton DAC retrouve sa fréquence, et aucun DAC n'a été branché |
+| **8** — l'album s'enchaîne sans trou | `piste enchaînée dans le même flux fichier=07 - Supernature.flac`, et **rien** derrière : ni fréquence réglée, ni flux rouvert, ni sortie redémarrée — le tampon n'a pas été touché. Jugé sans trou à l'oreille par Thomas |
 | **3** — zéro trou | aucun avertissement sur **huit** fermetures de flux, rééchantillonnage compris. Reste à tenir trois minutes d'affilée sur une seule piste |
 
-Restent, et elles demandent tes oreilles : **4** (pause), **5** (déplacement), **7** (volume),
-**8** (album enchaîné). Et **aucune étape du bloc DAC (10 à 14) n'est passée** : le repli à
+Restent, et elles demandent tes oreilles : **4** (pause), **5** (déplacement) et **7**
+(volume). Et **aucune étape du bloc DAC (10 à 14) n'est passée** : le repli à
 96 kHz de l'étape 9 s'est fait sur une **sortie intégrée** qui plafonne là, pas sur un DAC —
 le journal nomme `id=86`, soit « Écouteurs externes ». **Hean n'a encore jamais piloté ton
 DAC** : c'est la partie qui reste entièrement à éprouver.
