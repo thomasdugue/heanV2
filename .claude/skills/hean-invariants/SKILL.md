@@ -145,6 +145,19 @@ censé voir.
 - **Et un test porté doit contenir une assertion.** Le corollaire, sans quoi la règle
   précédente se contourne sans le vouloir : `it('V005 — …', () => {})` serait compté porté
   **et** vert. Tenu par `contrat-complet.test.ts`.
+- **Un détecteur de mots doit parler la langue du code qu'il lit.** Quatrième variante, et la
+  plus bête — donc celle qui durera le plus longtemps si elle n'est pas écrite. Le détecteur
+  d'INV-04 (🔴) ne retenait une ligne que si elle portait `password|keychain|credential|secret` :
+  **que de l'anglais**, dans un projet dont tout le code est en français. Le jour où le vrai
+  module du trousseau est arrivé — `network/identifiants.rs`, `mot_de_passe()`,
+  `lire_du_trousseau()` — **aucun de ses appels n'était vu**, et la faute de V1 réécrite en
+  français (`identifiants::mot_de_passe(&source.id).unwrap_or_default()`) passait au vert.
+  Pire : l'assertion « il voit la matière réelle » ajoutée le même jour **passait aussi**, parce
+  qu'elle injectait la faute sur `security_framework::passwords::get_generic_password` — un nom
+  d'API tierce, donc anglais. Elle prouvait que le détecteur voit la bibliothèque, pas qu'il voit
+  **les appelants**, qui sont le site réaliste de la faute. Deux conséquences écrites : la liste
+  de mots porte les deux langues, et **une injection se fait chez l'appelant**, pas à la
+  frontière d'une dépendance. Relevé par `invariant-guardian` le 2026-11-25.
 - **Un auto-test ne remplace pas la matière réelle.** Un auto-test prouve que le détecteur voit
   la faute **qu'on lui a inventée**. Il ne prouve pas qu'il voit le code **réel** : les deux
   assertions ne se remplacent pas. Payé sur INV-06, dont le détecteur cherchait `\bTrack\b` là où

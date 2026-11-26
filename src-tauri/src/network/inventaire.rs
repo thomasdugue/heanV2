@@ -117,7 +117,19 @@ pub fn inventorier(
     deja: &DejaConnu,
 ) -> Result<Inventaire, Erreur> {
     let depart = uri::depart(source);
-    let racine = smb.lister(&depart)?;
+    // **Le message compte autant que l'échec, et ça s'est payé le 2026-11-25.** Quand la
+    // racine ne se liste pas, `libsmbclient` rend un `opendir` nul et `pavao` le traduit par
+    // « server returned a bad file descriptor » — une phrase qui ne dit **ni** que l'accès a
+    // été refusé, **ni** que le chemin pourrait ne pas exister. Thomas a saisi son mot de
+    // passe quatre fois devant ce message. La cause n'est pas récupérable depuis pavao, donc
+    // on ne la devine pas : on **nomme les trois possibilités**, dans l'ordre où il faut les
+    // vérifier, et on dit ce qui a quand même été joint.
+    let racine = smb.lister(&depart).map_err(|cause| Erreur::Racine {
+        hote: source.hote.clone(),
+        partage: source.partage.clone(),
+        chemin: depart.clone(),
+        cause: cause.to_string(),
+    })?;
     let mut inv = Inventaire {
         entrees: Vec::new(),
         illisibles: 0,

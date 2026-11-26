@@ -1539,6 +1539,145 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
    Tu dois obtenir une **erreur** — pas une bibliothèque qui retombe à 305 pistes. Rallume, rescanne,
    tout revient.
 
+- **2026-11-25** (fin de soirée) : **relecture du NAS par `invariant-guardian`, et ses cinq
+  suites.** Verdict : AVERTISSEMENT — aucune règle cassée, mais **trois mécanismes 🔴 plus
+  faibles que ce que leur texte annonçait**, plus un chemin mort. C'est exactement ce qu'un test
+  ne voit pas, et les trois sont du même genre : le code était juste, les garde-fous ne
+  l'étaient pas. `./check` vert : 189 tests Rust, 97 tests d'architecture et unitaires.
+  - **Le détecteur d'INV-04 (🔴) ne parlait pas la langue du code, et son auto-test le cachait.**
+    Il ne retenait une ligne que si elle portait `password|keychain|credential|secret` — **que de
+    l'anglais** — dans un projet dont le module du trousseau s'appelle `identifiants.rs` et sa
+    fonction `mot_de_passe()`. La faute de V1 réécrite en français passait donc au vert.
+    **Et l'assertion « il voit la matière réelle », ajoutée le matin même, passait aussi** : elle
+    injectait la faute sur `security_framework::passwords::get_generic_password`, dont le nom
+    d'API tierce contient `password`. Elle prouvait que le détecteur voit la bibliothèque, pas
+    qu'il voit **les appelants** — qui sont le site réaliste de la faute, et où un `?` remplacé
+    par `.unwrap_or_default()` ferait tenter au NAS une connexion anonyme. Corrigé des deux
+    côtés : la liste de mots porte les deux langues, et l'injection porte sur l'appel de
+    `network/mod.rs`. La leçon est entrée dans le skill : **un détecteur de mots doit parler la
+    langue du code qu'il lit, et une injection se fait chez l'appelant.**
+  - **`pub(super) conn` avait élargi la surface d'écriture de `tracks` sans que rien ne le voie.**
+    Trois règles Rust surveillaient le littéral `excluded_paths`, la clé de V1 et l'appel à
+    `lignes::inserer` ; aucune ne voyait un `DELETE FROM tracks` écrit via `self.conn` dans un
+    autre fichier de `library/`. Il n'y avait pas de faute — vérifié — mais la liste de deux
+    fichiers autorisés n'était épinglée par rien. **Quatrième règle Rust ajoutée** : le nom de
+    table ne se nomme que dans `repository.rs` et `lignes.rs`, avec son auto-test (une requête,
+    pas une phrase) et son assertion de matière réelle. Le découpage reste bon ; c'est sa
+    contrepartie qui manquait.
+  - **INV-27 était éprouvée, son CÂBLAGE ne l'était pas** — et c'est la leçon d'INV-24, reparue
+    dans le test qui venait de faire naître INV-27. `scanner_le_nas` réassemblait les trois temps
+    à la main, parce que `scanner_une_source` fabriquait son client et lisait le trousseau en
+    interne. Donc `Perimetre::Source(uri::prefixe(…))` et `Conclusion::depuis(…)` n'étaient
+    couverts par rien : écrire le préfixe **sans son slash final**, ou `Conclusion::Complete` en
+    dur, faisait disparaître des pistes et **les huit tests restaient verts**. `scanner_avec`
+    prend maintenant la fabrique du partage, et les tests appellent **la** fonction. Vérifié par
+    injection, pas par raisonnement : le préfixe sans slash fait rougir **cinq** tests, et
+    `Conclusion::Complete` en dur fait rougir celui du dossier refusé.
+  - **Une source en accès invité ne pouvait jamais être scannée.** Le mot de passe était lu
+    inconditionnellement, alors que `client.rs` ignore utilisateur et mot de passe quand
+    `invite` est vrai : la source échouait sur « aucun mot de passe pour la source … — l'ouvrir
+    dans Hean et le saisir à nouveau », un message qui envoie chercher au mauvais endroit pour
+    une donnée dont personne n'avait besoin. `mot_de_passe_si_necessaire` est une fonction et non
+    deux lignes dans une fermeture **pour qu'elle s'éprouve** : la fermeture, elle, fabrique un
+    vrai client SMB.
+  - **Et le trou de `tests/ux/` : cinq tests tournaient sans que personne ne lise leur verdict.**
+    `check-comportements.mjs` ne lisait l'état que des titres citant un `Vxxx`/`Wxxx`, et
+    `vitest.config.ts` n'inclut de `tests/ux/` que `contrat-complet.test.ts`. Les cinq tests de
+    `reseau.test.ts` — le mot de passe qui descend sans remonter, la condition V004 partagée
+    entre les deux chemins de scan, l'identifiant dérivé — pouvaient donc **tous rougir sans
+    faire bouger `./check`**. C'est le trou qui a fait naître ce script, reparu **dans ce
+    script**. Troisième moitié de sa règle : un test de `tests/ux/` qui ne cite aucun
+    comportement est un test ordinaire, il doit passer. Éprouvé par injection.
+  - **Ce que la relecture a confirmé sans rien à signaler** : PLAT-2 (un seul verrou de process,
+    `pavao` importé dans un seul fichier, l'ancien client relâché avant d'en créer un neuf),
+    INV-03, INV-21, INV-23, la règle de zone, les 400 lignes, et les comptes d'invariants.
+  - **Une note de contexte qui dépasse cette branche** : le *pourquoi* d'INV-21, INV-25 et INV-26
+    est en partie écrit sur « chez ~50 testeurs », un chiffre qui ne correspond à rien. Les
+    règles ne bougent pas — leur mode de défaut est le même pour un seul utilisateur — mais si
+    cette remise à plat se fait, **ces trois textes doivent la recevoir sans perdre leur
+    pourquoi** : c'est précisément comme ça qu'une règle finit par paraître arbitraire, puis
+    supprimée. Signalé, pas corrigé ici.
+- **2026-11-25** (nuit) : **le premier scan réel du NAS, et les deux défauts qu'il a révélés.**
+  Thomas lance l'app, saisit son mot de passe, clique « Scanner cette source » — et obtient
+  « server returned a bad file descriptor ». Il ressaisit son mot de passe. **Quatre fois.**
+  Les deux défauts sont du même genre : le code marchait, et personne ne pouvait le savoir.
+  - **Ce que la sonde a établi avant toute hypothèse.** `src-tauri/examples/sonder-smb.rs`,
+    écrit pour l'occasion et gardé : il lit le mot de passe par le même chemin que l'app (donc
+    sans jamais l'afficher — il n'en dit que la longueur) et essaie une matrice de
+    combinaisons. Verdict : **la connexion marchait**. `list_dir("/LOSSLESS/complete")` au
+    niveau du partage rend **419 entrées**, `list_dirplus` aussi, avec ou sans domaine. Donc ni
+    le mot de passe du trousseau, ni le chemin, ni le format d'URI n'étaient en cause — ce que
+    trois heures de lecture de code n'auraient pas dit.
+  - **Défaut n° 1 (🔴) — la connexion en cache ignorait les identifiants.** `avec()` réutilisait
+    la connexion dès que **l'hôte et le partage** correspondaient. Donc la première saisie
+    fautive ouvrait une session refusée par le NAS, et **corriger le mot de passe ne changeait
+    rien** : la connexion fautive restait dans le `static` pour toute la durée de l'application.
+    L'empreinte des six champs d'identité (hôte, partage, utilisateur, domaine, invité, mot de
+    passe) entre maintenant dans la question « est-ce la bonne connexion ? ». Et une connexion
+    qui a échoué **deux** fois ne reste plus en cache : sans ça, l'opération suivante repayait
+    une tentative perdue avant de reconnecter.
+  - **Et c'est INV-03 qui l'a masqué, ce qui est la leçon la plus désagréable de la soirée.**
+    La reprise sur connexion neuve jetait la session fautive et en ouvrait une bonne — donc le
+    scan **finissait par passer, au coup d'après**. Un garde-fou 🔴 a rattrapé un défaut sans le
+    signaler : il a transformé « ça ne marche pas » en « ça marche une fois sur deux », qui est
+    plus difficile à diagnostiquer que la panne franche. Le `WARN` par tentative perdue était
+    bien écrit dans le journal, et il n'a pas suffi à faire voir la cause. **Une reprise qui
+    réussit en silence mérite d'être comptée, pas seulement journalisée** — noté comme règle
+    candidate, pas écrit comme invariant : c'est à Thomas de dire si ça en est un.
+  - **Défaut n° 2 — le message d'erreur.** `libsmbclient` ne dit pas *pourquoi* un `opendir`
+    échoue, et `pavao` traduit tous les cas par « server returned a bad file descriptor ». Rien
+    là-dedans ne distingue un mot de passe refusé d'un droit manquant ou d'un dossier disparu —
+    d'où les quatre saisies. La règle appliquée depuis : **quand la cause n'est pas récupérable,
+    on ne la devine pas, on nomme les possibilités dans l'ordre où il faut les vérifier**, et on
+    dit que le NAS a répondu pour que personne ne cherche du côté du réseau. C'est
+    `network::erreur::Erreur::Racine`, et c'est **éprouvé par un test** : un message d'erreur est
+    une fonctionnalité, il s'écrit et se vérifie comme telle.
+  - **Trois fichiers ont atteint 400 lignes dans la même passe**, et chaque découpage suivait une
+    frontière qui existait déjà : la reprise d'INV-03 part dans `reprise.rs` (elle ne connaît ni
+    SMB ni le réseau, c'est ce qui la rend testable), et les erreurs dans `erreur.rs` (parce que
+    l'une d'elles a coûté une soirée, et qu'un message pareil mérite sa place). La limite a fait
+    son travail une troisième fois.
+  - **LE SCAN EST PASSÉ : 3 421 pistes, dont 3 116 distantes et 305 locales.** Lancé à
+    21:58:56, commité à 22:34:57 — **36 minutes**, soit **~690 ms par fichier** là où cet ADR
+    estimait 41 ms. Formats : 3 320 FLAC, 81 MP3, 18 ALAC, 1 WAV, 1 AAC.
+    **L'estimation était fausse d'un facteur 17, et la raison vaut mieux que le chiffre** : elle
+    comptait le **débit** (1 Mio à 36 Mo/s) là où le coût réel est la **latence**. Un en-tête de
+    1 Mio n'est pas un transfert, c'est un aller-retour — ouvrir, lire, fermer — et une centaine
+    de fichiers lus en entier par dessus. « Combien d'octets ? » ne prédit rien sur un NAS ;
+    « combien d'allers-retours ? » si. L'ADR 0016 §3 porte désormais la mesure : il le demandait
+    lui-même (« c'est elle qu'il faudra écrire ici »), et **seul ce chiffre y a changé** — la
+    décision est intacte. C'est la seule retouche d'un ADR accepté de cette session, et elle est
+    signalée ici pour que Thomas puisse l'écarter.
+  - **Les 21 fichiers que V2 n'a pas su lire sont un SOUS-ENSEMBLE des 42 que V1 ratait.**
+    Vérifié en croisant la base de V2 avec le `network_scan_cache.json` de V1 : **zéro** fichier
+    que V1 lisait et que V2 rate, et **21 fichiers que V1 ratait et que V2 lit** — exactement
+    des `.m4a` et des `.mp3`, c'est-à-dire les formats que V2 lit **en entier** là où V1 se
+    contentait de 512 Kio d'en-tête. La règle de l'ADR 0016 §3 a donc un effet mesurable, et
+    dans le bon sens. Les 21 qui restent sont une grappe de doublons de téléchargement (« 01 -
+    Manchild (4).flac », « 01 Manchild (3).flac »…) que **deux lecteurs différents, dans deux
+    bibliothèques différentes, refusent** : ce sont des fichiers abîmés sur le NAS, pas un
+    défaut de lecture. Ça se dit à Thomas, ça ne se corrige pas dans le code.
+    ⚠️ **Et il reste un écart d'UNE piste locale**, antérieur à cette session : `MESURES-V1.md`
+    §1 compte 306 fichiers locaux, la base de V2 en a 305. 3 443 − 3 421 = 22 = 21 distants +
+    ce 1. Non élucidé, non touché.
+  - **Et une limite de conception que ce scan réel met en évidence, sans qu'elle soit un
+    défaut de ce soir** : tout l'inventaire est appliqué en **une seule transaction, à la
+    fin**. C'est ce qui garantit qu'une bibliothèque n'est jamais à moitié écrite — et ce qui
+    fait qu'une coupure réseau à la 3 000ᵉ piste perd les vingt minutes précédentes. Avec un
+    scan de deux minutes la question ne se posait pas ; avec un scan mesuré à **plus de vingt
+    minutes**, elle se pose. Deux pistes, à trancher et non à improviser : appliquer par lots
+    (un dossier, un commit), ou garder la transaction unique et ajouter une reprise. Noté comme
+    décision ouverte, parce que le choix change ce que « la bibliothèque n'est jamais à moitié
+    écrite » veut dire.
+  - **Mon `./check` a rechargé la page de Thomas pendant son scan.** Son serveur Vite surveille
+    toute la racine du projet, worktrees de session compris, et ma reconstruction y a réécrit
+    `dist/index.html`. Le scan Rust a continué — il vit dans le backend, et la transaction
+    n'arrive qu'à la fin — mais sa fenêtre a perdu l'affichage. **C'est la même famille que la
+    garde de `tests/architecture/_lecture.ts` sur les dépôts imbriqués** (`./check` rouge en
+    local, vert en CI) : un worktree **dans** la racine du projet n'est pas invisible pour les
+    outils qui surveillent cette racine. À savoir pour toute session qui travaille pendant qu'une
+    autre fait tourner l'app.
+
 - **2026-11-25** (nuit, réduction du harnais) : **26 000 lignes d'outils et de documents pour
   5 530 d'application** — un audit mené par un modèle extérieur a mis le chiffre sur la table, et
   Thomas a tranché (ADR 0017). Le harnais est **gelé** ; quatre chantiers planifiés passent en

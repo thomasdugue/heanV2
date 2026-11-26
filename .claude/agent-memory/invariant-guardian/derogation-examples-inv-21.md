@@ -1,30 +1,28 @@
 ---
 name: derogation-examples-inv-21
-description: La dérogation src-tauri/examples/ à INV-21 (2026-11-23) a été écrite sans ADR alors que la règle en exige un, et elle fera rougir backend.test.ts au merge de la branche de migration — à trancher par Thomas
+description: État de la dérogation src-tauri/examples/ à INV-21 — réglée par l'ADR 0011 et en vigueur depuis le 2026-11-25 ; ce qu'il reste à vérifier à chaque diff qui touche HORS_SCAN
 metadata:
   type: project
 ---
 
-`tests/architecture/backend.test.ts` porte depuis le 2026-11-23 une liste `HORS_SCAN` des
-fichiers Rust exemptés d'INV-21 : `src-tauri/build.rs` et **`src-tauri/examples/`**.
+`tests/architecture/backend.test.ts` porte une liste `HORS_SCAN` des fichiers Rust exemptés
+d'INV-21 : `src-tauri/build.rs` et `src-tauri/examples/`.
 
-**Deux points ouverts, tous deux pour Thomas :**
+**Les deux points que je signalais sont réglés** (vérifié le 2026-11-25) :
 
-1. Le texte d'INV-21 dans le skill dit « **Toute exception passera par un ADR** » et cette
-   phrase est inchangée, deux lignes au-dessus de la nouvelle exception. L'entrée
-   `docs/HISTORY.md` du même jour écrit « Aucun ADR : rien de structurant n'a été tranché
-   ici ». Il faut donc soit un ADR, soit amender la phrase — pas les deux versions.
-2. `src-tauri/examples/migrer.rs` existe sur la branche `claude/migration-noir-hean`
-   (commit `8eaa6e4`) avec ~7 `println!`/`eprintln!`, et **pas** sur `main`. Au merge, le
-   test « chaque dérogation est en vigueur ou dite muette » **rougira volontairement** pour
-   faire retirer la note `muet`. C'est voulu, pas une régression : ne pas le diagnostiquer
-   comme un défaut du merge.
+1. L'exception à une règle 🔴 a son ADR : `docs/adr/0011-derogation-inv-21-pour-les-exemples.md`,
+   tranché par Thomas le 2026-11-23. La phrase « toute exception passera par un ADR » du skill
+   est donc tenue, pas contournée.
+2. La note `muet` de la dérogation `examples/` a été retirée à l'arrivée de
+   `examples/migrer.rs` : le test « en vigueur ou dite muette » a rougi au bon moment et a
+   demandé le retrait. Le mécanisme a servi pour de vrai.
 
-**Why:** la dérogation est raisonnable sur le fond (un exemple lancé à la main n'est pas
-dans le binaire livré, donc il ne peut pas rendre l'app aveugle chez un testeur, ce que la
-règle protège) — mais c'est une exception à une règle 🔴, et le projet refuse qu'une règle
-soit amendée en silence.
-**How to apply:** à tout diff qui touche `HORS_SCAN`, vérifier que la dérogation reste
-bornée au dossier (`startsWith` avec slash final) et que `examples/` ne contient que des
-binaires lancés à la main — si l'app elle-même appelait cette logique, l'exemption
-redeviendrait un angle mort. Voir [[verifier-les-assertions-de-matiere-reelle]].
+**Why:** la dérogation tient sur une propriété de Cargo (un exemple n'est pas dans le binaire
+livré, donc il ne peut pas rendre l'app aveugle chez un testeur), pas sur la bonne conduite de
+qui l'écrit — c'est ce qui la rend acceptable sur une règle 🔴.
+**How to apply:** à tout diff qui touche `HORS_SCAN`, vérifier (a) qu'un motif de dossier finit
+par `/` et un motif de fichier est exact (`couvrePar` — un `startsWith` généralisé ferait
+couvrir `build.rs2.rs`), (b) que le nouveau dossier n'est pas appelé par l'app elle-même, (c)
+que la liste `RUST()` de `backend.test.ts` (src + tests) et celle de
+`une-seule-source-de-pistes.test.ts` (src + tests + **examples**) restent cohérentes : elles
+diffèrent volontairement, et c'est un endroit où « simplifier » rouvrirait un angle mort.

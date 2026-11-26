@@ -7,7 +7,9 @@
 //!
 //! ```text
 //! identifiants.rs   le mot de passe, dans le trousseau macOS (INV-04, ADR 0015)
-//! client.rs         libsmbclient, derrière UN verrou de process (PLAT-2) + INV-03
+//! client.rs         libsmbclient, derrière UN verrou de process (PLAT-2)
+//! reprise.rs        INV-03 : une opération qui échoue se retente sur une connexion neuve
+//! erreur.rs         ce que l'utilisateur lit quand SMB refuse, et ne dit pas pourquoi
 //! uri.rs            smb://{id}/{partage}/{chemin} — le format hérité de V1
 //! entete.rs         combien d'octets lire, et pour quels formats c'est légitime
 //! inventaire.rs     le parcours différentiel — sans verrou de bibliothèque
@@ -26,8 +28,10 @@
 
 pub mod client;
 pub mod entete;
+pub mod erreur;
 pub mod identifiants;
 pub mod inventaire;
+pub mod reprise;
 pub mod reprise_v1;
 pub mod uri;
 
@@ -68,6 +72,57 @@ pub fn scanner_une_source(
     bibliotheque: &Mutex<Depot>,
     source_id: &str,
 ) -> Result<RapportDeScan, Erreur> {
+    scanner_avec(bibliotheque, source_id, |source| {
+        Ok(Box::new(client::ClientSmb::nouveau(
+            source,
+            mot_de_passe_si_necessaire(source)?,
+        )))
+    })
+}
+
+/// Le mot de passe d'une source, **ou la chaîne vide si elle est en accès invité**.
+///
+/// Lu ICI et pas au démarrage : V009 — aucun dialogue de trousseau au lancement. Un échec
+/// remonte une erreur, jamais un mot de passe vide (INV-04).
+///
+/// **Et pas du tout pour une source invité.** Lire le trousseau sans égard pour
+/// `source.invite` rendait une source `is_guest` **impossible à scanner** : elle échouait sur
+/// « aucun mot de passe pour la source … — l'ouvrir dans Hean et le saisir à nouveau »,
+/// c'est-à-dire un message qui envoie chercher au mauvais endroit, pour un mot de passe que
+/// `client.rs` n'emploie même pas quand `invite` est vrai. Chemin mort relevé par
+/// `invariant-guardian`, et `network::reprise_v1` sait reprendre de telles sources depuis V1.
+///
+/// C'est une fonction et non deux lignes dans la fermeture ci-dessus pour qu'elle
+/// s'éprouve : la fermeture, elle, fabrique un vrai client SMB, donc la tester voudrait dire
+/// toucher un réseau.
+fn mot_de_passe_si_necessaire(source: &crate::library::SourceReseau) -> Result<String, Erreur> {
+    if source.invite {
+        // Pas d'appel au trousseau du tout : il n'y a rien à y chercher, et le chercher
+        // quand même déclencherait un dialogue macOS pour rien.
+        return Ok(String::new());
+    }
+    Ok(identifiants::mot_de_passe(&source.id)?)
+}
+
+/// Le même scan, mais le **partage est fabriqué par l'appelant**. C'est la couture qui rend
+/// la séquence de production éprouvable.
+///
+/// **Pourquoi elle existe, et c'est la leçon d'INV-24.** Les tests d'INV-27 réassemblaient
+/// les trois temps à la main, parce que `scanner_une_source` fabrique son client et lit le
+/// trousseau en interne. Résultat : la règle était éprouvée, mais son **câblage** ne l'était
+/// pas — quelqu'un qui écrirait `Perimetre::Source(source_id.to_string())` sans le slash
+/// final, ou `Conclusion::Complete` en dur, ferait disparaître les pistes d'une source
+/// voisine ou celles d'un partage momentanément refusé, **et tous les tests resteraient
+/// verts**. « Un test qui saute une étape de la séquence réelle n'éprouve pas le produit. »
+/// Relevé par invariant-guardian.
+///
+/// La fabrique est appelée **après** les vérifications de l'étape 1 et **hors** du verrou :
+/// c'est ce qui fait qu'une source inconnue ou désactivée ne demande aucun mot de passe.
+pub fn scanner_avec<'a>(
+    bibliotheque: &Mutex<Depot>,
+    source_id: &str,
+    partage: impl FnOnce(&crate::library::SourceReseau) -> Result<Box<dyn client::Smb + 'a>, Erreur>,
+) -> Result<RapportDeScan, Erreur> {
     let perimetre = Perimetre::Source(uri::prefixe(source_id));
 
     // --- 1. verrou court -------------------------------------------------------------
@@ -84,11 +139,8 @@ pub fn scanner_une_source(
     };
 
     // --- 2. sans verrou --------------------------------------------------------------
-    // Le mot de passe est lu ICI et pas au démarrage : V009 — aucun dialogue de trousseau
-    // au lancement. Un échec remonte une erreur, jamais un mot de passe vide (INV-04).
-    let mot_de_passe = identifiants::mot_de_passe(&source.id)?;
-    let smb = client::ClientSmb::nouveau(&source, mot_de_passe);
-    let inventaire = inventaire::inventorier(&smb, &source, &deja)?;
+    let smb = partage(&source)?;
+    let inventaire = inventaire::inventorier(smb.as_ref(), &source, &deja)?;
 
     // --- 3. verrou court -------------------------------------------------------------
     let mut rapport = {
@@ -166,6 +218,32 @@ mod tests {
         let e = scanner_une_source(&b, "src").expect_err("doit échouer");
         assert!(matches!(e, Erreur::SourceDesactivee(_)), "{e}");
         assert!(e.to_string().contains("faux-nas"), "{e}");
+    }
+
+    /// Une source en accès **invité** ne demande aucun mot de passe, et c'était un chemin
+    /// mort : elle échouait sur « aucun mot de passe pour la source … » alors que `client.rs`
+    /// n'emploie ni utilisateur ni mot de passe quand `invite` est vrai. Le message envoyait
+    /// chercher au mauvais endroit, pour une donnée dont personne n'avait besoin.
+    #[test]
+    fn une_source_invite_ne_demande_aucun_mot_de_passe() {
+        let mut s = source(true);
+        s.invite = true;
+        s.utilisateur = String::new();
+        s.id = "source-invite-sans-rien-au-trousseau-test".into();
+        assert_eq!(
+            super::mot_de_passe_si_necessaire(&s).expect("une source invité n'a rien à chercher"),
+            ""
+        );
+    }
+
+    /// Et une source qui n'est **pas** en invité va bien chercher — et échoue proprement
+    /// quand il n'y a rien, au lieu de rendre une chaîne vide (INV-04).
+    #[test]
+    fn une_source_non_invite_va_chercher_et_echoue_proprement() {
+        let mut s = source(true);
+        s.id = "source-non-invite-sans-rien-au-trousseau-test".into();
+        let e = super::mot_de_passe_si_necessaire(&s).expect_err("rien au trousseau");
+        assert!(matches!(e, Erreur::Identifiants(_)), "{e}");
     }
 
     /// Et l'ordre des étapes se voit : une source **active** sans mot de passe au trousseau
