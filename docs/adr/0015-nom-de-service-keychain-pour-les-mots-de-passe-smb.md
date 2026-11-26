@@ -39,10 +39,32 @@ lire aucun mot de passe : `security find-generic-password` sans `-w` ne rend que
 
 Trois entrées, dont deux inertes. **La date de création est la preuve matérielle du coût nul** :
 l'entrée sous le nom de V2 existait trois minutes avant le début du grand scan du 2026-11-25
-(21:58:56Z), donc bien avant que la question ne soit posée à Thomas. La modification de
-01:07:35Z est postérieure au scan différentiel de 01:01 et n'est **pas expliquée** — une saisie
-de plus de sa part, probablement ; notée sans être interprétée, parce qu'un relevé qui comble
-ses trous par une hypothèse cesse d'être un relevé.
+(21:58:56Z), donc bien avant que la question ne soit posée à Thomas.
+
+**Les deux horodatages de cette entrée sont tous les deux expliqués par le journal**, et pas par
+une hypothèse. `enregistrer()` est le seul chemin d'écriture du dépôt et il journalise ; le
+journal de `npm run tauri dev` de Thomas porte, à la seconde près :
+
+- `21:55:38.013Z … mot de passe SMB **enregistré** dans le trousseau` — la création. Suivie de
+  trois autres à 21:56:12, 21:58:15 et 21:58:53, chacune suivie d'un échec `bad file
+  descriptor` : ce sont **les quatre saisies** que les deux défauts de la PR #21 lui ont
+  imposées, et le journal les compte.
+- `2026-11-26T01:07:35.247Z … mot de passe SMB **enregistré** dans le trousseau` — la
+  modification. Donc une vraie écriture, c'est-à-dire un clic sur « Enregistrer » avec un champ
+  non vide, et non un effet de bord.
+
+**Une hypothèse plausible a été écartée par cette mesure**, et elle méritait de l'être : l'ACL
+d'une entrée du trousseau étant liée à la signature du binaire, un clic sur « Toujours
+autoriser » modifie l'entrée sans qu'aucun mot de passe soit écrit — la section « ce qui n'est
+pas vérifié » ci-dessous le prévoyait, et la chronologie y collait (lecture à 01:01:16, six
+minutes avant). Le journal dit `enregistré`, pas `trouvé` : le mécanisme existe, mais ce n'est
+pas lui qui a agi ici. C'est la quatrième fois de la soirée qu'une hypothèse sur ce système est
+démentie par une mesure, et la quatrième fois que la mesure coûtait moins cher que le débat.
+
+Ce qui reste inconnu est **pourquoi** il a cliqué à 01:07:35 — l'app venait de redémarrer trois
+fois en deux minutes (01:05:58, 01:06:44, 01:07:08), parce que `identifiants.rs` changeait dans
+sa racine de projet pendant que deux sessions y travaillaient. Son geste lui appartient ; le
+relevé s'arrête là où le journal s'arrête.
 
 Ce qui se généralise, et qui vaut plus que cette décision-ci : le coût de l'option B a été
 chiffré faux **deux fois** avant d'être mesuré — d'abord à cinquante saisies (des testeurs qui
