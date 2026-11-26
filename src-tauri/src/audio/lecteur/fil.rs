@@ -249,11 +249,31 @@ impl Fil {
             // le format demande de l'ouvrir, et le rouvrir ensuite doublerait
             // l'entrée/sortie à chaque passage de piste — invisible en local, pas sur le NAS.
             match Decodeur::ouvrir(&self.file[suivante]) {
+                // LES DEUX ISSUES S'ENTENDENT PAREIL, ET NE SE CORRIGENT PAS AU MÊME
+                // ENDROIT : un silence au passage de piste est un défaut dans la première
+                // branche et le comportement normal dans la seconde. Sans ces deux lignes,
+                // le seul chemin que l'étape 8 du protocole éprouve ne laisse aucune trace,
+                // et un enchaînement réussi ne se distingue pas d'une vidange légitime.
                 Ok(decodeur) if Some(decodeur.format()) == self.format_du_flux => {
+                    tracing::info!(
+                        fichier = %self.file[suivante]
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy(),
+                        "piste enchaînée dans le même flux"
+                    );
                     self.inscrire_la_piste(suivante, decodeur, 0);
                     return;
                 }
-                Ok(_) => {
+                Ok(autre) => {
+                    tracing::info!(
+                        fichier = %self.file[suivante]
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy(),
+                        format = %autre.format(),
+                        "format différent : le tampon se vide avant de renégocier la sortie"
+                    );
                     self.declarer_fin_de_flux();
                     self.etape = Etape::AttenteDeVidange(suivante);
                     return;

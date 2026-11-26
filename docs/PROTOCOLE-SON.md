@@ -39,6 +39,21 @@ design est pour plus tard. La section **Lecture** est en haut, sous les dossiers
 
 **Échec** : la fenêtre ne s'ouvre pas, ou la section Lecture est absente.
 
+## Déjà passées sur ton matériel, le 2026-11-26
+
+Relevé dans le journal de ta session, pas déduit d'un test. Tu peux les sauter.
+
+| | Ce que le journal montre |
+|---|---|
+| **2** — une piste locale joue | `piste ouverte` puis `sortie démarrée` en **52 ms** (`03 - ATLiens.flac`, 16 bits / 44,1 kHz) |
+| **9** — le 192 kHz perd le badge | `repli de fréquence : l'AUHAL rééchantillonne` · `source_hz=192000 sortie_hz=96000` · `bit_perfect=false`, sur trois fichiers |
+| **11** — changer de sortie | `sortie changée, défaut système synchronisé id=86`, et la piste réouverte à `depart_ms=6315` : la position est conservée |
+| **14** — le matériel est rendu | la fréquence d'origine est remise à **chaque** fermeture de flux, et pas seulement en quittant l'app |
+| **3** — zéro trou | aucun avertissement sur **huit** fermetures de flux, rééchantillonnage compris. Reste à tenir trois minutes d'affilée sur une seule piste |
+
+Restent, et elles demandent tes oreilles : **4** (pause), **5** (déplacement), **7** (volume),
+**8** (album enchaîné) et tout le bloc du DAC.
+
 ## Sans rien brancher
 
 1. **La liste des sorties est juste.** Déplie « sortie ». Tu dois y voir tes
