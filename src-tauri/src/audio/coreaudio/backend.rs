@@ -286,20 +286,15 @@ impl BackendAudio for BackendCoreAudio {
                 );
             }
         }
-        let famines = self.famines();
-        let tampons_inattendus = self.tampons_inattendus();
+        // Les compteurs d'anomalie sont journalisés par `journaliser_les_anomalies`, que le
+        // fil de lecture appelle sur le chemin réel. **Pas ici** : `terminer` n'est jamais
+        // appelé sur ce backend en production — le fil passe par `interrompre` — donc un
+        // `warn!` posé ici serait une trace morte, c'est-à-dire l'illusion d'une couverture.
+        // Vérifié : les seuls `.terminer()` du dépôt sont dans `wav_backend` et
+        // `src-tauri/tests/bit_perfect.rs`. Relevé par `invariant-guardian`.
         self.fermer_le_flux();
         self.routage
             .rendre_le_materiel(&mut self.frequences_dorigine);
-        if famines > 0 {
-            tracing::warn!(famines, "la lecture a eu des trous : le décodeur n'a pas suivi");
-        }
-        if tampons_inattendus > 0 {
-            tracing::warn!(
-                tampons_inattendus,
-                "CoreAudio a donné des tampons désentrelacés : notre hypothèse de format est                  fausse, et ces callbacks ont été servis en silence"
-            );
-        }
         Ok(())
     }
 }

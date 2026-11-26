@@ -21,6 +21,16 @@ use crate::audio::chain::{Chaine, Volume};
 /// Octets d'un échantillon sur le flux : on sort en entier 32 bits (ADR 0007).
 pub(super) const OCTETS_PAR_ECHANTILLON: u32 = 4;
 
+/// Combien de callbacks l'amortissement d'après-purge couvre au plus.
+///
+/// ⚠️ **Il était illimité avant, et c'était un angle mort.** L'amortissement durait jusqu'au
+/// premier callback entièrement servi : un déplacement suivi d'un décodeur qui patine
+/// plusieurs secondes — disque qui se réveille, réseau lent — comptait donc **zéro** trou.
+/// Or « j'ai sauté dans la piste et ça a craqué » est précisément ce que Thomas vérifiera en
+/// premier. 64 callbacks font environ 700 ms à 44,1 kHz : au-delà, ce n'est plus la purge qui
+/// explique le vide, c'est un vrai problème. Relevé par `invariant-guardian`.
+const CALLBACKS_DAMORTISSEMENT: u32 = 64;
+
 /// Trames que le tampon de travail du callback peut traiter d'un coup. CoreAudio demande
 /// typiquement 512 trames, 4 096 au pire ; 16 384 laisse quatre fois la marge et coûte
 /// 128 Ko. Au-delà, le callback sort du silence et compte à part plutôt que d'allouer sur le
@@ -97,11 +107,10 @@ pub(super) struct DonneesDuCallback {
     pub(super) etat: Arc<EtatDuFlux>,
     /// Pré-alloué une fois pour toutes : le callback ne doit jamais allouer.
     pub(super) travail: Vec<i32>,
-    /// Vrai depuis une purge et jusqu'au premier callback entièrement servi : le tampon a
-    /// été vidé exprès, donc les callbacks à vide qui suivent sont attendus et non comptés.
-    /// Un seul callback d'amortissement ne suffirait pas — après un déplacement, le décodeur
-    /// met plusieurs dizaines de millisecondes à refaire de l'avance.
-    pub(super) amorti: bool,
+    /// Callbacks d'amortissement restants après une purge : le tampon a été vidé exprès,
+    /// donc les callbacks à vide qui suivent sont attendus et non comptés. **Borné** (voir
+    /// [`CALLBACKS_DAMORTISSEMENT`]) : un amortissement illimité cacherait un vrai trou.
+    pub(super) amorti: u32,
 }
 
 /// Le callback de rendu. **Fil temps réel : aucune allocation, aucun verrou, aucun log.**
@@ -142,7 +151,7 @@ pub(super) unsafe extern "C" fn rendre(
         // sont ceux d'avant le saut. `vider` ne fait qu'avancer deux compteurs — rien qui
         // puisse bloquer le fil temps réel.
         donnees.consommateur.vider();
-        donnees.amorti = true;
+        donnees.amorti = CALLBACKS_DAMORTISSEMENT;
         faire_silence(tampons);
         return 0;
     }
@@ -170,8 +179,12 @@ pub(super) unsafe extern "C" fn rendre(
     let lus = donnees.consommateur.tirer(&mut donnees.travail[..attendus]);
     if lus >= attendus {
         // Le tampon a de l'avance : ce qui précédait est rattrapé.
-        donnees.amorti = false;
-    } else if !donnees.amorti && !donnees.etat.fin_de_flux.load(Ordering::Relaxed) {
+        donnees.amorti = 0;
+    } else if donnees.amorti > 0 {
+        // Encore dans la fenêtre d'après-purge : attendu, donc pas compté. Mais le crédit
+        // s'épuise, et ce qui dépasse sera compté comme un vrai trou.
+        donnees.amorti -= 1;
+    } else if !donnees.etat.fin_de_flux.load(Ordering::Relaxed) {
         // Un vrai trou : le décodeur n'a pas suivi, et ça s'entend.
         donnees.etat.famines.fetch_add(1, Ordering::Relaxed);
     }

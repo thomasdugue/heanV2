@@ -162,10 +162,17 @@ impl Routage {
         let vers_airplay = self.cache.info(id).is_some_and(InfoPeripherique::est_airplay);
         // La question est « le défaut système EST-IL un AirPlay ? », et non « est-ce que je
         // viens d'un AirPlay ? » — voir l'avertissement en tête de fichier.
+        //
+        // Et elle se pose **au HAL**, pas au cache. Passer par le cache ferait dépendre un
+        // invariant 🔴 de sa fraîcheur : macOS attribue un nouvel identifiant à chaque
+        // réactivation d'un AirPlay (voir `cache.rs`), donc un défaut système absent du cache
+        // répondrait « ce n'est pas un AirPlay », et on écrirait — ce qui tue la session.
+        // L'asymétrie tranche d'elle-même : ici l'écriture est **cosmétique** (voir plus bas),
+        // son effet de bord est 🔴, donc en cas de doute on n'écrit pas.
         let defaut_systeme_est_airplay = peripheriques::peripherique_par_defaut()
-            .ok()
-            .and_then(|defaut| self.cache.info(defaut))
-            .is_some_and(InfoPeripherique::est_airplay);
+            .is_ok_and(|defaut| {
+                peripheriques::type_de_transport(defaut) == peripheriques::TRANSPORT_AIRPLAY
+            });
 
         if self.mode_exclusif {
             let _ = exclusif::desactiver_mode_exclusif(self.dernier);

@@ -195,6 +195,11 @@ pub fn canaux_max(id: AudioObjectID) -> u16 {
     let disponibles =
         (octets.len() - std::mem::size_of::<AudioBufferList>()) / taille_tampon + 1;
     let combien = combien_annonces.min(disponibles);
+    if combien == 0 {
+        // Le HAL n'annonce aucun tampon. Rendre 0 contredirait le commentaire de cette
+        // fonction, qui promet 2 quand la propriété n'est pas exploitable.
+        return 2;
+    }
     // Décalage du premier `AudioBuffer` dans la structure : il suit le `mNumberBuffers`,
     // après le remplissage d'alignement que le compilateur insère.
     let decalage = std::mem::offset_of!(AudioBufferList, mBuffers);

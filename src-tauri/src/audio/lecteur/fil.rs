@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::{Commande, EtatPartage};
 use crate::audio::backend::BackendAudio;
@@ -28,6 +28,17 @@ use crate::audio::format::FormatAudio;
 /// Le repos de la boucle quand elle n'a rien à faire : le tampon est plein, ou on attend
 /// qu'il se vide. 5 ms laisse la position se publier à 200 Hz sans occuper un cœur.
 const REPOS: Duration = Duration::from_millis(5);
+
+/// Échéance des deux états d'attente. Le tampon fait 5 s, donc une vidange normale prend au
+/// plus 5 s ; 15 s veut dire que le périphérique ne consomme plus du tout — DAC débranché,
+/// session AirPlay tombée.
+///
+/// ⚠️ **Il n'y en avait aucune, et c'était un figement silencieux.** `AttenteDeVidange` et
+/// `FinDeFile` attendaient `en_attente() == 0` sans borne : la lecture restait bloquée entre
+/// deux pistes, barre de progression immobile, sans message ni ligne de journal. Le *fil*,
+/// lui, ne bloquait pas — d'où la formule trompeuse que portait ce fichier : vraie du fil,
+/// fausse du produit. Relevé par `invariant-guardian`.
+const ECHEANCE_DATTENTE: Duration = Duration::from_secs(15);
 
 /// Une piste poussée dans le flux courant, et où elle s'y trouve.
 ///
@@ -80,6 +91,8 @@ pub(super) struct Fil {
     /// survenue avant le changement de piste — et la bibliothèque de Thomas est à 97 % en
     /// FLAC de fréquences variées, donc le cas est la règle, pas l'exception.
     pub(super) famines_des_flux_fermes: u64,
+    /// Depuis quand on attend que le tampon se vide. `None` hors des états d'attente.
+    pub(super) attente_depuis: Option<Instant>,
 }
 
 pub fn tourner(reception: Receiver<Commande>, etat: Arc<EtatPartage>) {
@@ -96,6 +109,7 @@ pub fn tourner(reception: Receiver<Commande>, etat: Arc<EtatPartage>) {
         en_vol: VecDeque::new(),
         etape: Etape::Repos,
         famines_des_flux_fermes: 0,
+        attente_depuis: None,
     };
     loop {
         if matches!(fil.etape, Etape::Repos) {
@@ -137,7 +151,9 @@ impl Fil {
             Etape::Repos => false,
             Etape::Lecture => self.decoder_et_pousser(),
             Etape::AttenteDeVidange(index) => {
-                if self.backend.as_ref().is_some_and(|b| b.en_attente() > 0) {
+                if self.backend.as_ref().is_some_and(|b| b.en_attente() > 0)
+                    && !self.attente_expiree()
+                {
                     return false;
                 }
                 // Le tampon est vide : on peut refermer le flux et renégocier sans couper
@@ -153,7 +169,9 @@ impl Fil {
                 true
             }
             Etape::FinDeFile => {
-                if self.backend.as_ref().is_some_and(|b| b.en_attente() > 0) {
+                if self.backend.as_ref().is_some_and(|b| b.en_attente() > 0)
+                    && !self.attente_expiree()
+                {
                     return false;
                 }
                 self.tout_fermer();
@@ -251,70 +269,32 @@ impl Fil {
         }
     }
 
+    /// Vrai quand l'attente de vidange a dépassé son échéance. Le dit une fois, en nommant
+    /// ce qui est abandonné : une attente qui renonce en silence est un figement déguisé.
+    fn attente_expiree(&mut self) -> bool {
+        let depuis = *self.attente_depuis.get_or_insert_with(Instant::now);
+        if depuis.elapsed() < ECHEANCE_DATTENTE {
+            return false;
+        }
+        let restant = self.backend.as_ref().map(|b| b.en_attente()).unwrap_or(0);
+        tracing::warn!(
+            restant,
+            secondes = ECHEANCE_DATTENTE.as_secs(),
+            "le périphérique ne consomme plus : la fin de ce qui était décodé est abandonnée"
+        );
+        self.etat.dire(
+            "La sortie audio ne répond plus — la fin de la piste est perdue. Vérifie que le périphérique est toujours branché.",
+        );
+        self.attente_depuis = None;
+        true
+    }
+
     /// Dit au flux qu'il n'y aura plus de trames : les callbacks qui restent tombent à vide
     /// légitimement, et ne doivent pas être comptés comme des trous dans le son.
     fn declarer_fin_de_flux(&self) {
         if let Some(backend) = self.backend.as_ref() {
             backend.declarer_fin_de_flux();
         }
-    }
-
-    pub(super) fn position_ms(&self) -> u64 {
-        let (Some(audible), Some(format), Some(backend)) =
-            (self.en_vol.front(), self.format_du_flux, self.backend.as_ref())
-        else {
-            return 0;
-        };
-        let par_seconde = format.frequence as usize * format.canaux as usize;
-        if par_seconde == 0 {
-            return 0;
-        }
-        let ecoule = backend.total_lu().saturating_sub(audible.debut);
-        audible.debut_ms + (ecoule as u64 * 1000 / par_seconde as u64)
-    }
-
-    fn publier(&mut self) {
-        // Retirer de la file les pistes entièrement sorties du tampon : la première qui
-        // reste est celle qu'on entend.
-        loop {
-            let sortie = match (self.en_vol.front(), self.backend.as_ref()) {
-                (Some(p), Some(b)) => p.fin.is_some_and(|fin| b.total_lu() >= fin),
-                _ => false,
-            };
-            if !sortie || self.en_vol.len() <= 1 {
-                break;
-            }
-            self.en_vol.pop_front();
-        }
-
-        let position = self.position_ms();
-        if let Some(audible) = self.en_vol.front() {
-            self.etat.index.store(audible.index, Ordering::Relaxed);
-            self.etat.duree_ms.store(audible.duree_ms, Ordering::Relaxed);
-            let plafond = if audible.duree_ms > 0 {
-                position.min(audible.duree_ms)
-            } else {
-                position
-            };
-            self.etat.position_ms.store(plafond, Ordering::Relaxed);
-            if let Ok(mut p) = self.etat.piste.lock() {
-                let chemin = audible.chemin.display().to_string();
-                if p.as_deref() != Some(chemin.as_str()) {
-                    *p = Some(chemin);
-                }
-            }
-        }
-        if let Some(backend) = self.backend.as_ref() {
-            let total = self.famines_des_flux_fermes + backend.famines();
-            self.etat.famines.store(total, Ordering::Relaxed);
-        }
-        // Les quatre conditions du bit-perfect, et elles sont toutes nécessaires : pas de
-        // rééchantillonnage, volume exactement à 100 %, mode exclusif, et l'égaliseur plat
-        // — ce dernier est vrai par construction tant qu'il n'existe pas (ADR 0007).
-        let bit_perfect = self.etat.sans_reechantillonnage.load(Ordering::Relaxed)
-            && self.etat.volume().est_unite()
-            && self.etat.mode_exclusif.load(Ordering::Relaxed);
-        self.etat.bit_perfect.store(bit_perfect, Ordering::Relaxed);
     }
 
     /// Referme le flux **immédiatement**, en jetant ce qui attendait.
@@ -332,6 +312,10 @@ impl Fil {
                 // Les trous du flux qui se ferme sont retenus : le compteur du prochain flux
                 // repart de zéro, et l'écran doit montrer le total de la lecture.
                 self.famines_des_flux_fermes += backend.famines();
+                // Les compteurs se lisent ICI, sur le chemin que la production emprunte
+                // vraiment — et non dans `BackendAudio::terminer`, que rien n'appelle sur ce
+                // backend.
+                backend.journaliser_les_anomalies();
                 backend.interrompre();
             }
         }
@@ -341,6 +325,7 @@ impl Fil {
         self.deja_pris = 0;
         self.ecrit = 0;
         self.en_vol.clear();
+        self.attente_depuis = None;
     }
 
     pub(super) fn tout_fermer(&mut self) {

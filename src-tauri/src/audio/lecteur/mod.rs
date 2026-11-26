@@ -29,6 +29,7 @@
 
 mod fil;
 mod pilotage;
+mod publication;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};

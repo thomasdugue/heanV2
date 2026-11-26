@@ -100,6 +100,39 @@ impl BackendCoreAudio {
         }
     }
 
+    /// Journalise les trois compteurs d'anomalie qui ne sont pas nuls.
+    ///
+    /// ⚠️ **À appeler sur un chemin que la production emprunte vraiment.** Les deux premiers
+    /// compteurs n'étaient lus que dans `BackendAudio::terminer`, que rien n'appelle sur ce
+    /// backend : un `fetch_add` et un getter ne font pas une trace, et des lecteurs tous
+    /// situés dans une fonction morte sont pires que pas de compteur — le défaut reste muet
+    /// **et** on croit le contraire. Même famille qu'INV-21 (🔴). Relevé par
+    /// `invariant-guardian`.
+    pub fn journaliser_les_anomalies(&self) {
+        let famines = self.famines();
+        if famines > 0 {
+            tracing::warn!(famines, "la lecture a eu des trous : le décodeur n'a pas suivi");
+        }
+        let desentrelaces = self.tampons_inattendus();
+        if desentrelaces > 0 {
+            tracing::warn!(
+                tampons_inattendus = desentrelaces,
+                "CoreAudio a donné des tampons désentrelacés : notre hypothèse de format est fausse, et ces callbacks ont été servis en silence"
+            );
+        }
+        let trop_grandes = self
+            .etat
+            .as_ref()
+            .map(|e| e.demandes_trop_grandes.load(Ordering::Relaxed))
+            .unwrap_or(0);
+        if trop_grandes > 0 {
+            tracing::warn!(
+                demandes_trop_grandes = trop_grandes,
+                "CoreAudio a demandé plus de trames que le tampon de travail n'en tient : ces callbacks ont été servis en silence, et TRAMES_MAX_PAR_CALLBACK est à relever"
+            );
+        }
+    }
+
     /// Callbacks où CoreAudio n'a pas donné un tampon entrelacé unique. Doit rester à zéro.
     pub fn tampons_inattendus(&self) -> u64 {
         self.etat

@@ -98,10 +98,31 @@ design est pour plus tard. La section **Lecture** est en haut, sous les dossiers
     ou basculer sur les haut-parleurs ; les deux sont acceptables à ce stade.
     **Échec** : l'app se ferme, se fige, ou le son continue sur un périphérique muet.
 
+13bis. **Un déplacement juste après un saut ne doit pas ajouter de trou.** Tire la barre de
+   position, laisse jouer dix secondes, regarde le compteur.
+   **Échec** : le compteur monte. Le temps de reconstituer l'avance après un saut est normal
+   et n'est pas compté ; au-delà d'environ sept dixièmes de seconde, c'en est un vrai.
+
 14. **En quittant, le DAC retrouve sa fréquence d'origine.** Note la fréquence du DAC dans
     Configuration audio et MIDI **avant** de lancer Hean, puis vérifie après l'avoir quitté.
     **Échec** : le DAC reste à 192 kHz. Hean ne doit pas laisser ton matériel dans un état
     que tu n'as pas demandé.
+
+## Les deux pièges que je ne peux pas déclencher ici
+
+Ils demandent de débrancher ou de changer de sortie au mauvais moment, et c'est justement là
+que V1 se cassait.
+
+17. **Changer la sortie dans les Réglages Son de macOS PENDANT une piste.** Le son continue
+   sur l'ancienne sortie — c'est le comportement actuel, et c'est assumé : suivre ce
+   changement en cours de piste n'est pas porté. Ce que l'app ne doit **pas** faire, c'est
+   afficher le nom de la nouvelle sortie pendant que l'ancienne joue.
+   **Échec** : le nom affiché change alors que le son ne bouge pas. Ce serait un indicateur
+   qui mentirait sur la sortie, après en avoir menti sur la fréquence.
+
+18. **Débrancher le DAC entre deux pistes d'un album.** Attends au plus quinze secondes.
+   **Échec** : la lecture reste figée indéfiniment, barre immobile, sans message. Tu dois
+   voir « La sortie audio ne répond plus — la fin de la piste est perdue. »
 
 ## Si tu as un AirPlay sous la main
 

@@ -134,7 +134,7 @@ impl Flux {
             canaux: format.canaux as usize,
             etat: Arc::clone(&etat),
             travail: vec![0i32; TRAMES_MAX_PAR_CALLBACK * format.canaux as usize],
-            amorti: false,
+            amorti: 0,
         });
 
         let rappel = AURenderCallbackStruct {

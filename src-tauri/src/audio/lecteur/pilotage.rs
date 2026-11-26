@@ -27,6 +27,14 @@ impl Fil {
             Commande::Jouer { file, depart } => {
                 self.file = file;
                 self.etat.total.store(self.file.len(), Ordering::Relaxed);
+                // C'est ICI qu'une nouvelle lecture commence, et nulle part ailleurs : le
+                // compte de trous repart donc de zéro ici. Le mettre dans `demarrer_a`
+                // — comme je l'avais fait — le remettait aussi à zéro sur « piste suivante »,
+                // alors qu'un enchaînement automatique, lui, conservait le total. L'écran dit
+                // « depuis le début » : une asymétrie entre le manuel et l'automatique est le
+                // genre de détail qui fait douter du chiffre.
+                self.famines_des_flux_fermes = 0;
+                self.etat.famines.store(0, Ordering::Relaxed);
                 self.demarrer_a(depart)
             }
             Commande::Pause => {
@@ -85,10 +93,6 @@ impl Fil {
         // Un démarrage explicite referme le flux : la fréquence du DAC se renégocie, et la
         // piste demandée doit commencer tout de suite, pas après ce qui reste dans le tampon.
         self.fermer_le_flux();
-        // Et c'est une nouvelle lecture : le compte de trous repart de zéro, sinon celui de
-        // l'album précédent resterait affiché.
-        self.famines_des_flux_fermes = 0;
-        self.etat.famines.store(0, Ordering::Relaxed);
         self.etat.en_pause.store(false, Ordering::Relaxed);
         self.ouvrir_la_piste(index, Duration::ZERO)?;
         self.etape = Etape::Lecture;
@@ -192,6 +196,16 @@ impl Fil {
             });
         }
 
+        // Le décodeur peut être absent : en fin de file, il a été relâché dès la dernière
+        // trame décodée, et il reste jusqu'à cinq secondes de son à jouer. Un déplacement à
+        // ce moment-là réouvre la piste plutôt que de remonter « aucun périphérique de
+        // sortie audio » — un message faux, qui arrêtait la lecture par-dessus le marché.
+        if self.decodeur.is_none() {
+            self.fermer_le_flux();
+            self.ouvrir_la_piste(index, depart)?;
+            self.etape = Etape::Lecture;
+            return Ok(());
+        }
         let atteint = self
             .decodeur
             .as_mut()
@@ -273,10 +287,23 @@ impl Fil {
         backend.rafraichir_peripheriques()?;
         let liste = backend.liste_peripheriques();
         let active = backend.info_active();
+        // ⚠️ Le nom publié ne change PAS tant qu'un flux est ouvert, et c'est le point.
+        // `info_active()` lit le défaut système **vivant** : si Thomas change de sortie dans
+        // les Réglages Son de macOS pendant une piste, l'AudioUnit continue de jouer sur
+        // l'ancien périphérique — elle a été ouverte avec son identifiant — alors que
+        // l'écran afficherait déjà le nouveau nom, avec les fréquences de l'ancien et
+        // peut-être le badge bit-perfect. Un indicateur qui nomme une sortie qui ne joue pas
+        // est un indicateur qui ment. Tant qu'un flux joue, c'est `ouvrir_la_piste` qui a
+        // publié le bon nom, et lui seul.
+        //
+        // Suivre un changement de défaut système en cours de piste demanderait de rouvrir le
+        // flux ; V1 le faisait par sondage (`check_device_change`). Ce n'est pas fait ici, et
+        // c'est écrit plutôt que supposé.
+        let flux_ouvert = backend.flux_ouvert();
         if let Ok(mut p) = etat.peripheriques.lock() {
             *p = liste;
         }
-        if let Some(active) = active {
+        if let (false, Some(active)) = (flux_ouvert, active) {
             etat.peripherique_id.store(active.id, Ordering::Relaxed);
             if let Ok(mut p) = etat.peripherique.lock() {
                 *p = active.nom;
