@@ -1694,16 +1694,16 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   Suite : **le son**, avec un jalon à 14 jours.
 - **2026-11-26** (trousseau) : **ADR 0015 tranché par Thomas — « un nom propre à la V2 ».**
   `SERVICE` ne vaut plus que `com.tdugue.hean.smb` ; le nom de V1 n'est plus lu, et rien n'est
-  écrit ni supprimé sous lui — les deux entrées du trousseau de Thomas, l'orpheline comprise,
-  restent intactes. **Le coût annoncé était déjà payé** : il avait ressaisi son mot de passe la
-  veille pendant le diagnostic, donc il est sous le nom de V2 depuis, et son journal de 01:01Z
-  le prouve (scan de 32 s, 0 ajoutée, aucune saisie). Troisième estimation de ce coût, première
-  mesurée, et les deux fausses penchaient du même côté ; l'ADR passe de *Proposée* à *Acceptée*
-  sans rien perdre — modifié et non remplacé, parce qu'il était une question en attente.
-  **`invariant-guardian` a corrigé deux de mes affirmations.** Mon assertion anti-« noir »
-  était placée **après** un `assert_eq!` sur la même valeur, donc inatteignable, et j'annonçais
-  l'avoir éprouvée : remise en premier, l'injection la fait rougir avec son message. Et « la
-  dernière chaîne du dépôt à dire noir » était faux — deux autres le disent, obligées (le
-  dossier de V1 s'appelle `noir`). Il a aussi vu que le bras « lu mais vide » n'était éprouvé
-  par rien (INV-04 🔴) : `interpreter()` l'isole, trois cas testés, injection rouge. Et que la
-  sonde SMB fabriquait un mot de passe vide. ⚠️ Collision : PR #22 et #23 font ceci en double.
+  écrit ni supprimé sous lui — les deux entrées du trousseau de Thomas restent intactes.
+  **Le coût annoncé était déjà payé** : son mot de passe était sous le nom de V2 depuis la
+  veille, et son journal de 01:01Z le prouve (scan de 32 s, 0 ajoutée, aucune saisie).
+  Troisième estimation de ce coût, première mesurée ; les deux fausses penchaient du même côté.
+  **`invariant-guardian` a corrigé deux de mes affirmations** : mon assertion anti-« noir »
+  suivait un `assert_eq!` sur la même valeur, donc inatteignable, et je l'annonçais éprouvée ;
+  « la dernière chaîne à dire noir » était faux — deux autres le disent, obligées. Il a vu
+  aussi que le bras « lu mais vide » n'était éprouvé par rien (INV-04 🔴) et que la sonde SMB
+  fabriquait un mot de passe vide, donc dix échecs d'authentification d'affilée sur le NAS.
+  **INV-28, règle de Thomas** (🟡) : un chiffre montré à l'utilisateur dit sur place s'il est
+  mesuré ou estimé. Née de trois cas du soir — « deux minutes » annoncées pour un scan de
+  36 min, et ce coût chiffré faux deux fois. Tenue par `chiffres-annonces.test.ts`, née rouge
+  sur deux vraies lignes de `Reseau.svelte`. ⚠️ PR #22 et #23 en double, #22 fermée.

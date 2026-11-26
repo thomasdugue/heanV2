@@ -121,8 +121,8 @@ toute donnée affichée, et les trois règles de performance — sont dans le sk
 Source de vérité : [`.claude/skills/hean-invariants/SKILL.md`](.claude/skills/hean-invariants/SKILL.md).
 Tableau à jour, **généré** : [`docs/generated/invariants.md`](docs/generated/invariants.md).
 
-**27 règles**, les 20 de V1 plus sept nées depuis : 1. **Rayées (6)** — inexprimables par
-construction. 2. **Devenues des tests (19)**, dont **11 déjà actives** et **8 « planifiées »**,
+**28 règles**, les 20 de V1 plus huit nées depuis : 1. **Rayées (6)** — inexprimables par
+construction. 2. **Devenues des tests (20)**, dont **12 déjà actives** et **8 « planifiées »**,
 dette visible que `./check` recompte. 3. **Irréductibles (2 + 7 pièges de plateforme)** —
 CoreAudio, WebKit, dyld, Gatekeeper : aucun test ne les prouvera jamais, et ce sont les seules
 que le skill te fait encore lire.
