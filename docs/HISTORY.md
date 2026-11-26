@@ -1676,3 +1676,49 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
     local, vert en CI) : un worktree **dans** la racine du projet n'est pas invisible pour les
     outils qui surveillent cette racine. À savoir pour toute session qui travaille pendant qu'une
     autre fait tourner l'app.
+- **2026-11-26** : **Thomas tranche l'ADR 0015 — « un nom propre à la V2 ».** Les mots de passe
+  SMB vivent désormais sous `com.tdugue.hean.smb`, et **sous ce nom seulement**. Le nom que V1
+  écrivait, `com.tdugue.noir.smb`, n'est plus lu : c'était la dernière chaîne du dépôt à dire
+  « noir », et l'ADR 0003 avait déjà payé ce raisonnement pour le dossier de données.
+  - **Le coût que l'ADR chiffrait était déjà payé quand la réponse est arrivée, et c'est
+    mesuré.** L'option B annonçait « Thomas retape son mot de passe une fois ». Il l'avait
+    retapé la veille, pendant le diagnostic de connexion — la saisie que les deux défauts de la
+    PR #21 lui avaient imposée. Son journal du 2026-11-26 à 01:01Z le dit : `mot de passe SMB
+    trouvé dans le trousseau service="com.tdugue.hean.smb"`, puis un scan différentiel de
+    **32 secondes, 0 ajoutée, 0 modifiée**, sans aucune saisie. Retirer le nom de V1 ne lui a
+    rien demandé. **À retenir plus que la décision elle-même** : ce coût a été chiffré faux
+    deux fois avant d'être mesuré — cinquante saisies (des testeurs qui n'existent pas), puis
+    une (déjà faite) — et les deux fois l'erreur penchait du même côté, celui qui fait paraître
+    « propre » plus cher qu'il ne l'est.
+  - **La décision est tenue par un test, pas par un commentaire.** `SERVICE` est désormais une
+    constante unique, et le test de son module vérifie deux choses : qu'elle vaut le nom de V2,
+    et **qu'elle ne contient pas « noir »**. La seconde n'est pas redondante : la première
+    interdit *ce* changement-là, la seconde interdit toute remise du nom de V1 sous quelque
+    forme que ce soit — sans elle, « ça marchait avant avec noir » est une correction d'une
+    minute que rien ne contredit. **Éprouvé par injection** : remettre `com.tdugue.noir.smb`
+    dans la constante fait rougir 2 tests sur 4, dont celui du message d'erreur, qui ne nomme
+    plus qu'un seul service.
+  - **Rien n'est supprimé du trousseau de Thomas.** Les deux entrées que V1 a laissées sous
+    `com.tdugue.noir.smb` — celle de la source vivante et l'orpheline d'une source recréée —
+    y restent, inertes. Effacer une entrée du trousseau de quelqu'un sans qu'il l'ait demandé
+    est exactement ce que l'ADR 0015 refusait de décider seul ; ça ne change pas parce que la
+    question voisine est tranchée. C'est à lui, dans *Accès au trousseau*, quand il veut.
+  - **L'ADR 0015 est modifié et non remplacé, et c'est dit dedans.** La règle d'immuabilité de
+    `CLAUDE.md` protège une décision *prise* ; celui-ci était à l'état **Proposée** — une
+    question posée, explicitement en attente. Y inscrire la réponse est ce pour quoi il a été
+    écrit. La prémisse fausse des « ~50 testeurs » et la recommandation qui en a changé
+    (de C à B) restent écrites : un document qui prétend avoir toujours su ce qu'il sait est un
+    document qu'on ne peut plus relire.
+  - **Trouvé en chemin, et laissé intact : un merge en cours dans le checkout principal de
+    Thomas.** Son `git checkout main && git pull` a échoué sur « needs merge » parce que la
+    racine du projet n'était pas sur `main` mais sur `claude/reduction-harnais` (PR #20),
+    avec une fusion de `main` en cours et trois conflits —
+    `docs/HISTORY.md`, `.claude/skills/hean-invariants/SKILL.md` et la mémoire de
+    `invariant-guardian`. Les horodatages des fichiers montraient une résolution **en train de
+    se faire** (dernière écriture 28 secondes avant mon relevé). Je n'y ai rien touché :
+    [ADR 0013](adr/0013-une-session-un-perimetre.md) — jamais deux sessions dans le même
+    fichier, celle qui le découvre s'arrête. Un `git merge --abort` aurait jeté la résolution
+    déjà faite de deux des trois fichiers. **La leçon n'est pas la collision, c'est ce qu'elle
+    révèle** : le dépôt n'a aucun moyen de dire à Thomas « ce checkout est occupé », et c'est
+    son terminal qui le lui a appris, par un message de git. Mentionné sans être corrigé — la
+    forme que prendrait un garde-fou n'appartient pas à cette session.

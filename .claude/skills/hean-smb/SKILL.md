@@ -14,8 +14,10 @@ description: Sous-système NAS/SMB de Hean — pavao/libsmbclient singleton, URI
 ```
 src-tauri/src/network/
 ├── mod.rs           scanner_une_source() — la forme en TROIS TEMPS (voir ci-dessous)
-├── identifiants.rs  Keychain : cascade com.tdugue.hean.smb → com.tdugue.noir.smb (ADR 0015)
-├── client.rs        libsmbclient via pavao, UN mutex de process, reessayer_une_fois (INV-03)
+├── identifiants.rs  Keychain : com.tdugue.hean.smb, UN seul service (ADR 0015, option B)
+├── client.rs        libsmbclient via pavao, UN mutex de process, empreinte des identifiants
+├── reprise.rs       reessayer_une_fois : UNE reprise, sur connexion neuve (INV-03)
+├── erreur.rs        l'enum Erreur du réseau — Racine nomme les trois causes dans l'ordre
 ├── uri.rs           smb://{id}/{partage}/{chemin} — format hérité de V1, épinglé par test
 ├── entete.rs        1 Mio d'en-tête pour FLAC/WAV/AIFF, fichier entier pour MP3/M4A/OGG
 ├── inventaire.rs    parcours différentiel, sans verrou de bibliothèque

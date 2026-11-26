@@ -1,14 +1,42 @@
 # 0015 — Nom de service Keychain pour les mots de passe SMB
 
-- **Date** : 2026-11-25
-- **État** : Proposée
-- **Décideur** : **Thomas**. La question lui est posée ci-dessous et **n'est pas tranchée**. Ce
-  qui est écrit dans la section « en attendant » est un **choix provisoire de session**, pris
-  pour que la part réseau de la bibliothèque soit observable ce soir, et il se retire en une
-  ligne de code.
+- **Date** : posée le 2026-11-25, **tranchée le 2026-11-26**
+- **État** : Acceptée
+- **Ce qui est tranché** : **option B, un nom propre à V2** — `com.tdugue.hean.smb`, et
+  lui seul.
+- **Décideur** : **Thomas**, qui a répondu « un nom propre à la V2 ». La question, ses trois
+  options et le coût de chacune restent écrits ci-dessous tels qu'ils lui ont été posés : un
+  ADR dont on efface la question ne permet plus de juger la réponse.
 - **Clôt** : le point ouvert « Nom de service Keychain pour les mots de passe SMB » de
   [`docs/adr/README.md`](README.md), ouvert par l'[ADR 0003](0003-dossier-de-donnees.md) §
   « ce que la migration ne déplace pas ».
+
+## La décision, et le coût qu'elle a réellement eu
+
+**`com.tdugue.hean.smb`, et lui seul.** Le nom de V1 n'est plus lu, et **rien ne le
+supprime** : les deux entrées que V1 a laissées sous `com.tdugue.noir.smb` — celle de la
+source vivante et l'orpheline relevée plus bas — restent dans le trousseau de Thomas, inertes.
+Les effacer serait modifier son trousseau sans qu'il l'ait demandé, ce que cet ADR a refusé de
+faire seul ; il peut le faire lui-même dans *Accès au trousseau*, et rien ne l'y presse.
+
+**Le coût chiffré par l'option B était déjà payé au moment où la question a été répondue, et
+c'est mesuré, pas supposé.** L'option annonçait « Thomas retape son mot de passe une fois ».
+Il l'avait retapé la veille, pendant le diagnostic de connexion du 2026-11-25 — la saisie que
+les deux défauts corrigés dans la PR #21 lui avaient imposée. Son mot de passe est donc sous
+le nom de V2 depuis ce soir-là, et son propre journal du 2026-11-26 à 01:01Z le dit :
+`mot de passe SMB trouvé dans le trousseau service="com.tdugue.hean.smb"`, puis un scan
+différentiel de 32 secondes sans aucune saisie. **Retirer le nom de V1 ne lui a rien coûté.**
+
+Ce qui se généralise, et qui vaut plus que cette décision-ci : le coût de l'option B a été
+chiffré faux **deux fois** avant d'être mesuré — d'abord à cinquante saisies (des testeurs qui
+n'existent pas), puis à une (déjà faite). Les deux fois, l'erreur penchait du même côté : elle
+rendait « propre » plus cher qu'il ne l'était.
+
+**Pourquoi cet ADR est modifié et non remplacé.** La règle d'immuabilité de `CLAUDE.md` protège
+une décision *prise* : on n'en réécrit pas le pourquoi. Celui-ci était à l'état **Proposée** —
+une question posée, explicitement en attente de réponse. Y inscrire la réponse est ce pour quoi
+il a été écrit. Rien de ce qui précède n'a été retiré ni lissé, y compris la prémisse fausse et
+la recommandation qui en a changé.
 
 > ### ⚠️ Corrigé le 2026-11-25, avant toute réponse : une prémisse était fausse
 >
@@ -88,7 +116,12 @@ le dépôt propre. Le prix de C — écrire et supprimer dans le trousseau de l'
 donnée la moins observable du système — se justifiait par ce nombre. À une personne, il ne se
 justifie plus.
 
-## En attendant — ce qui est implémenté, et qui n'est pas une décision
+## Ce qui a tourné avant la réponse — conservé, parce que c'est ce que Thomas a mesuré
+
+> **Plus en vigueur depuis le 2026-11-26.** La cascade décrite ici est la version qui a scanné
+> les 3 116 pistes du NAS les 25 et 26 novembre, et c'est elle qui explique pourquoi la
+> décision n'a rien coûté. Le code ne consulte plus qu'un seul service — et retirer le second
+> nom a aussi retiré la boucle, qui n'avait plus qu'un élément à parcourir.
 
 **Lecture en cascade : le nom de V2 d'abord, celui de V1 en secours. Aucune écriture, aucune
 suppression.**
@@ -144,9 +177,9 @@ mesurer sur une build signée.
 
 ## Conséquences acceptées
 
-- Tant que Thomas n'a pas tranché, **deux noms de service** sont consultés en lecture. Le coût
-  est un appel Keychain supplémentaire par source et par session, uniquement quand le premier
-  échoue — c'est-à-dire exactement une fois, sur la seule machine concernée.
+- ~~Tant que Thomas n'a pas tranché, **deux noms de service** sont consultés en lecture.~~
+  **Caduc depuis le 2026-11-26** : un seul service est consulté, donc un appel Keychain par
+  source et par session, et le message d'absence ne nomme plus qu'un nom.
 - Un mot de passe enregistré depuis V2 n'est **pas** relu par V1. Si Thomas repasse à V1 après
   avoir saisi un mot de passe dans V2, V1 ne le trouvera pas et le redemandera. Le retour
   arrière de l'[ADR 0014](0014-la-migration-conserve-le-dossier-de-v1.md) reste donc entier

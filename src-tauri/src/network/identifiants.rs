@@ -8,26 +8,34 @@
 //! d'architecture refuse `unwrap_or_default()` sur toute ligne qui parle d'identifiant, et
 //! les tests d'ici refusent qu'un mot de passe vide passe pour un mot de passe.
 //!
-//! **Le nom de service est un point ouvert, pas une décision** : voir
-//! [ADR 0015](../../../docs/adr/0015-nom-de-service-keychain-pour-les-mots-de-passe-smb.md).
-//! La cascade ci-dessous est le sous-ensemble non destructif des trois options — elle lit, et
-//! n'écrit ni ne supprime rien sous le nom de V1. La trancher consiste à **retirer une
-//! ligne** de `SERVICES`.
+//! **Le nom de service est tranché** : `com.tdugue.hean.smb`, et lui seul. Thomas a choisi
+//! l'option B de l'
+//! [ADR 0015](../../../docs/adr/0015-nom-de-service-keychain-pour-les-mots-de-passe-smb.md)
+//! le 2026-11-26. V2 ne consulte plus `com.tdugue.noir.smb`, le nom écrit par V1, et n'y
+//! écrit ni n'y supprime rien : les entrées que V1 y a laissées restent dans le trousseau,
+//! simplement plus jamais lues.
 //!
-//! V009 — *aucun dialogue Keychain au lancement* : rien ici n'est appelé au démarrage. La
-//! cascade est consultée au **premier scan** d'une source, et le cache de session fait que
+//! Le coût que cet ADR chiffrait — « Thomas retape son mot de passe une fois » — **avait
+//! déjà été payé quand il a répondu** : son mot de passe est sous le nom de V2 depuis le
+//! diagnostic de connexion du 2026-11-25, où il l'a ressaisi. Mesuré, pas supposé : son
+//! journal du 2026-11-26 à 01:01Z porte `service="com.tdugue.hean.smb"`. Retirer le nom de
+//! V1 ne lui demande donc aucun geste.
+//!
+//! V009 — *aucun dialogue Keychain au lancement* : rien ici n'est appelé au démarrage. Le
+//! trousseau est consulté au **premier scan** d'une source, et le cache de session fait que
 //! c'est une seule fois par source et par lancement.
 
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
-/// Les noms de service consultés, **dans cet ordre**. Le premier est celui de V2, le second
-/// celui que V1 a écrit (`noir-tauri/src-tauri/src/network/credentials.rs`, ligne 12) alors
-/// que le bundle identifier disait déjà `com.tdugue.hean`.
+/// Le nom de service Keychain, **le seul** que V2 lise et écrive (ADR 0015, option B). Le
+/// compte, sous ce service, est l'identifiant de la source réseau.
 ///
-/// L'écriture, elle, ne va **que** dans le premier : hériter d'un nom en lecture est
-/// réversible, y écrire ne l'est pas.
-const SERVICES: &[&str] = &["com.tdugue.hean.smb", "com.tdugue.noir.smb"];
+/// V1 écrivait sous `com.tdugue.noir.smb` (`noir-tauri/src-tauri/src/network/credentials.rs`,
+/// ligne 12) alors que son bundle identifier disait déjà `com.tdugue.hean` : c'était la
+/// dernière chaîne du dépôt à dire « noir ». **Ne pas la remettre ici** — c'est la décision,
+/// et le test de ce module refuse qu'un nom de service mentionne « noir ».
+const SERVICE: &str = "com.tdugue.hean.smb";
 
 /// Le cache de session. Il existe pour une raison précise, héritée de V1 : **sans lui,
 /// macOS peut demander une autorisation à chaque lecture**. Un scan qui ouvre 3 000 fichiers
@@ -44,14 +52,15 @@ static CACHE: LazyLock<Mutex<HashMap<String, String>>> =
 /// ici parce que le message du compilateur, lui, parle de `as_dyn_error`.
 #[derive(Debug, thiserror::Error)]
 pub enum Erreur {
-    /// La cascade est épuisée. Le message **nomme les services consultés** : sans eux, la
-    /// personne qui lit le journal ne peut pas savoir si c'est le mot de passe qui manque
-    /// ou le nom de service qui a changé.
+    /// Rien sous ce service pour cette source. Le message **nomme le service consulté** :
+    /// sans lui, la personne qui lit le journal ne peut pas savoir si c'est le mot de passe
+    /// qui manque ou le nom de service qui a changé — et ce nom a changé une fois, le
+    /// 2026-11-26 (ADR 0015), donc la question se posera.
     #[error(
         "aucun mot de passe pour la source {id_source} dans le trousseau macOS \
-         (services consultés : {services}) — l'ouvrir dans Hean et le saisir à nouveau"
+         (service consulté : {service}) — l'ouvrir dans Hean et le saisir à nouveau"
     )]
-    Absent { id_source: String, services: String },
+    Absent { id_source: String, service: String },
     /// Trouvé, mais **vide**. C'est INV-04 pris par l'autre bout : un mot de passe vide
     /// stocké est aussi dangereux qu'un `unwrap_or_default()`, et il ne se distingue d'une
     /// absence que si on le dit.
@@ -69,7 +78,7 @@ pub fn en_session(source_id: &str) -> bool {
     verrou().contains_key(source_id)
 }
 
-/// Le mot de passe d'une source : cache de session, puis la cascade de services.
+/// Le mot de passe d'une source : cache de session, puis le trousseau.
 ///
 /// Ne rend **jamais** `Ok("")`. Les deux chemins d'échec sont des variantes d'erreur
 /// distinctes, parce que « pas enregistré » et « enregistré vide » demandent le même geste à
@@ -79,23 +88,18 @@ pub fn mot_de_passe(source_id: &str) -> Result<String, Erreur> {
     if let Some(connu) = cache.get(source_id) {
         return Ok(connu.clone());
     }
-    for service in SERVICES {
-        match lire_du_trousseau(service, source_id) {
-            Some(mdp) if mdp.is_empty() => {
-                return Err(Erreur::Vide { id_source: source_id.to_string() })
-            }
-            Some(mdp) => {
-                tracing::info!(service, "mot de passe SMB trouvé dans le trousseau");
-                cache.insert(source_id.to_string(), mdp.clone());
-                return Ok(mdp);
-            }
-            None => continue,
+    match lire_du_trousseau(SERVICE, source_id) {
+        Some(mdp) if mdp.is_empty() => Err(Erreur::Vide { id_source: source_id.to_string() }),
+        Some(mdp) => {
+            tracing::info!(service = SERVICE, "mot de passe SMB trouvé dans le trousseau");
+            cache.insert(source_id.to_string(), mdp.clone());
+            Ok(mdp)
         }
+        None => Err(Erreur::Absent {
+            id_source: source_id.to_string(),
+            service: SERVICE.to_string(),
+        }),
     }
-    Err(Erreur::Absent {
-        id_source: source_id.to_string(),
-        services: SERVICES.join(", "),
-    })
 }
 
 /// Enregistre un mot de passe, **sous le nom de service de V2 seulement**.
@@ -103,13 +107,12 @@ pub fn enregistrer(source_id: &str, mot_de_passe: &str) -> Result<(), Erreur> {
     if mot_de_passe.is_empty() {
         return Err(Erreur::Vide { id_source: source_id.to_string() });
     }
-    let service = SERVICES[0];
-    ecrire_au_trousseau(service, source_id, mot_de_passe).map_err(|detail| Erreur::Ecriture {
+    ecrire_au_trousseau(SERVICE, source_id, mot_de_passe).map_err(|detail| Erreur::Ecriture {
         id_source: source_id.to_string(),
         detail,
     })?;
     verrou().insert(source_id.to_string(), mot_de_passe.to_string());
-    tracing::info!(service, "mot de passe SMB enregistré dans le trousseau");
+    tracing::info!(service = SERVICE, "mot de passe SMB enregistré dans le trousseau");
     Ok(())
 }
 
@@ -120,7 +123,7 @@ fn verrou() -> std::sync::MutexGuard<'static, HashMap<String, String>> {
 }
 
 /// La lecture réelle. `None` = absent **de ce service** ; ce n'est pas une erreur, c'est le
-/// cas normal du premier élément de la cascade chez quelqu'un qui vient de V1.
+/// cas normal d'une source dont le mot de passe n'a jamais été saisi dans V2.
 ///
 /// Un échec qui n'est pas une absence — trousseau verrouillé, autorisation refusée — est
 /// journalisé **et** rendu comme absent, ce qui fait tomber l'appelant sur `Erreur::Absent`.
@@ -165,19 +168,25 @@ fn ecrire_au_trousseau(_service: &str, _compte: &str, _mdp: &str) -> Result<(), 
 
 #[cfg(test)]
 mod tests {
-    use super::{Erreur, SERVICES};
+    use super::{Erreur, SERVICE};
 
     /// Les tests de ce module **ne touchent pas au trousseau de la machine**, et c'est une
     /// contrainte et non une commodité : un test qui lirait le vrai Keychain ouvrirait un
     /// dialogue macOS en CI, et chez Thomas pendant `./check`. Ce qui s'éprouve ici est donc
-    /// la **cascade** et la forme des erreurs — ce qui est précisément ce qu'INV-04 protège.
-    /// Ce qui ne s'éprouve pas : que `get_generic_password` fasse ce que sa doc dit.
+    /// le **nom de service** et la forme des erreurs — ce qui est précisément ce qu'INV-04
+    /// protège. Ce qui ne s'éprouve pas : que `get_generic_password` fasse ce que sa doc dit.
     #[test]
-    fn la_cascade_lit_v2_puis_v1_et_necrit_que_sous_v2() {
-        assert_eq!(SERVICES, &["com.tdugue.hean.smb", "com.tdugue.noir.smb"]);
-        // L'ordre est la décision provisoire de l'ADR 0015 : si quelqu'un l'inverse, les
-        // mots de passe enregistrés par V2 cessent d'être trouvés en premier.
-        assert_eq!(SERVICES[0], "com.tdugue.hean.smb", "l'écriture va sous ce nom");
+    fn le_seul_nom_de_service_est_celui_de_v2() {
+        assert_eq!(SERVICE, "com.tdugue.hean.smb");
+        // La seconde assertion est celle qui tient la décision, et elle n'est pas
+        // redondante : la première interdit *ce* changement-là, la seconde interdit **toute
+        // remise du nom de V1**, sous quelque forme que ce soit. L'ADR 0015 a tranché pour
+        // l'option B le 2026-11-26 ; sans cette ligne, « ça marchait avant avec noir » est
+        // une correction d'une minute que rien ne contredit.
+        assert!(
+            !SERVICE.contains("noir"),
+            "le nom de service de V1 est revenu : {SERVICE} (ADR 0015, option B)"
+        );
     }
 
     /// INV-04 — un mot de passe vide n'est jamais rendu comme un mot de passe.
@@ -187,17 +196,17 @@ mod tests {
         assert!(matches!(e, Erreur::Vide { .. }), "{e}");
     }
 
-    /// Les deux messages d'échec disent quoi faire, et celui de l'absence **nomme les
-    /// services consultés** : sans ça, personne ne peut distinguer « mot de passe effacé »
-    /// de « nom de service changé », et l'ADR 0015 se rediscuterait à l'aveugle.
+    /// Les deux messages d'échec disent quoi faire, et celui de l'absence **nomme le service
+    /// consulté** : sans ça, personne ne peut distinguer « mot de passe effacé » de « nom de
+    /// service changé », et l'ADR 0015 se rediscuterait à l'aveugle.
     #[test]
     fn les_messages_derreur_nomment_ce_quil_faut_pour_enqueter() {
         let absent = Erreur::Absent {
             id_source: "dcdd24af".into(),
-            services: SERVICES.join(", "),
+            service: SERVICE.to_string(),
         }
         .to_string();
-        for attendu in ["dcdd24af", "com.tdugue.hean.smb", "com.tdugue.noir.smb", "saisir"] {
+        for attendu in ["dcdd24af", "com.tdugue.hean.smb", "saisir"] {
             assert!(absent.contains(attendu), "« {attendu} » absent de : {absent}");
         }
         let vide = Erreur::Vide { id_source: "dcdd24af".into() }.to_string();
