@@ -71,7 +71,7 @@ Voici les différentes commandes du terminal
 [MTP] Created folder: Music/dvsn - A Muse In Her Feelings
 [MTP] Progress: 10/16 files (0.2 GB)
 [MTP] Batch sync complete: 16/16 files copied, 0 already on device, (0.3 GB), 0 errors
-[MTP-SYNC] Manifest written: 101 files tracked at /Users/tsunami25/Library/Application Support/noir/mtp_manifest_C0775F15349A0FC555E7C88221D90CF2_1.json
+[MTP-SYNC] Manifest written: 101 files tracked at $HOME/Library/Application Support/noir/mtp_manifest_<SERIAL_APPAREIL>_1.json
 [MTP-SYNC] === SYNC FINISHED WITH ERRORS === 16 copied, 14 deleted, 0.3 GB in 42.6s, 14 errors
 
 
@@ -104,7 +104,7 @@ Voici ce qui apparaît dans le terminal
 [PERF-RS] dap_compute_sync_plan TOTAL: 428.663625ms
 [MTP-SYNC] Starting MTP sync: 14 files to copy, 0 to delete on storage 1
 [MTP] Scanning for MTP devices...
-[MTP] Device found: QUALCOMM FiiO JM21 (serial: C0775F15349A0FC555E7C88221D90CF2)
+[MTP] Device found: QUALCOMM FiiO JM21 (serial: <SERIAL_APPAREIL>)
 [MTP]   Storage: Espace de stockage interne partagé (16.3 GB free / 21.2 GB total)
 [MTP]   Storage: JM21 Micro SD (1999.3 GB free / 1999.9 GB total)
 [MTP] Device connection released
@@ -114,32 +114,32 @@ Voici ce qui apparaît dans le terminal
 [MTP] Created folder: Music/Paco De Lucia - Entre Dos Aguas
 [MTP] TIMEOUT: Paco De Lucia - Entre Dos Aguas/05 - Convite.flac — poisoning folder 'Paco De Lucia - Entre Dos Aguas' (remaining files will be skipped)
 [MTP] Batch sync complete: 4/14 files copied, 0 already on device, (0.1 GB), 10 errors
-[MTP-SYNC] Manifest written: 105 files tracked at /Users/tsunami25/Library/Application Support/noir/mtp_manifest_C0775F15349A0FC555E7C88221D90CF2_1.json
+[MTP-SYNC] Manifest written: 105 files tracked at $HOME/Library/Application Support/noir/mtp_manifest_<SERIAL_APPAREIL>_1.json
 [MTP-SYNC] === SYNC FINISHED WITH ERRORS === 4 copied, 0 deleted, 0.1 GB in 48.2s, 10 errors
 [MTP] Scanning for MTP devices...
 [MTP] No MTP device found: Invalid data: Transaction ID mismatch: expected 1, got 73
 [MTP] Scanning for MTP devices...
-[MTP] Device found: QUALCOMM FiiO JM21 (serial: C0775F15349A0FC555E7C88221D90CF2)
+[MTP] Device found: QUALCOMM FiiO JM21 (serial: <SERIAL_APPAREIL>)
 [MTP]   Storage: Espace de stockage interne partagé (16.3 GB free / 21.2 GB total)
 [MTP]   Storage: JM21 Micro SD (1999.2 GB free / 1999.9 GB total)
 [MTP] Device connection released
 [MTP] Scanning for MTP devices...
-[MTP] Device found: QUALCOMM FiiO JM21 (serial: C0775F15349A0FC555E7C88221D90CF2)
+[MTP] Device found: QUALCOMM FiiO JM21 (serial: <SERIAL_APPAREIL>)
 [MTP]   Storage: Espace de stockage interne partagé (16.3 GB free / 21.2 GB total)
 [MTP]   Storage: JM21 Micro SD (1999.2 GB free / 1999.9 GB total)
 [MTP] Device connection released
 [MTP] Scanning for MTP devices...
-[MTP] Device found: QUALCOMM FiiO JM21 (serial: C0775F15349A0FC555E7C88221D90CF2)
+[MTP] Device found: QUALCOMM FiiO JM21 (serial: <SERIAL_APPAREIL>)
 [MTP]   Storage: Espace de stockage interne partagé (16.3 GB free / 21.2 GB total)
 [MTP]   Storage: JM21 Micro SD (1999.2 GB free / 1999.9 GB total)
 [MTP] Device connection released
 [MTP] Scanning for MTP devices...
-[MTP] Device found: QUALCOMM FiiO JM21 (serial: C0775F15349A0FC555E7C88221D90CF2)
+[MTP] Device found: QUALCOMM FiiO JM21 (serial: <SERIAL_APPAREIL>)
 [MTP]   Storage: Espace de stockage interne partagé (16.3 GB free / 21.2 GB total)
 [MTP]   Storage: JM21 Micro SD (1999.2 GB free / 1999.9 GB total)
 [MTP] Device connection released
 [MTP] Scanning for MTP devices...
-[MTP] Device found: QUALCOMM FiiO JM21 (serial: C0775F15349A0FC555E7C88221D90CF2)
+[MTP] Device found: QUALCOMM FiiO JM21 (serial: <SERIAL_APPAREIL>)
 [MTP]   Storage: Espace de stockage interne partagé (16.3 GB free / 21.2 GB total)
 [MTP]   Storage: JM21 Micro SD (1999.2 GB free / 1999.9 GB total)
 [MTP] Device connection released

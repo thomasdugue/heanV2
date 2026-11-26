@@ -222,7 +222,7 @@ le top départ. D'où le bloc de lancement ci-dessous.
 **Protocole** (à reproduire à l'identique sur V2) :
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/heanV2 && ./tools/measure-app.sh noir-tauri 90
+cd $HOME/Documents/Thomas/heanV2 && ./tools/measure-app.sh noir-tauri 90
 ```
 
 Puis, pendant que le script échantillonne : 10 s au repos sur l'accueil → aller sur **Albums** et

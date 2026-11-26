@@ -7,11 +7,11 @@ typographie (préalable A4).
 ## Lancement
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop && git checkout thomasdugue/design-migration-audit
+cd $HOME/Documents/Thomas/noirdesktop && git checkout thomasdugue/design-migration-audit
 ```
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
+cd $HOME/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
 ```
 
 **Pourquoi le checkout principal et pas le workspace Conductor** : il a déjà
@@ -26,7 +26,7 @@ fichiers non suivis à la racine ne sont pas suivis dans la branche cible, et le
 Vérifier après le checkout :
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop && git log -1 --format=%h
+cd $HOME/Documents/Thomas/noirdesktop && git log -1 --format=%h
 ```
 
 Doit afficher `e12a200`. Si ce n'est pas ça, les captures ne valent rien.
@@ -107,7 +107,7 @@ là. Un build de dev n'a pas le même profil mémoire — comparer les deux ne v
 C'est donc un exercice séparé, sur l'app installée :
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/heanV2 && ./tools/measure-app.sh noir-tauri 90
+cd $HOME/Documents/Thomas/heanV2 && ./tools/measure-app.sh noir-tauri 90
 ```
 
 Découpage : 10 s au repos → Albums et défiler toute la grille jusqu'à ~45 s → 15 s au repos → trois
@@ -118,7 +118,7 @@ requêtes dans la recherche → repos.
 ## Après
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop && git checkout claude/kind-cerf-A9weP
+cd $HOME/Documents/Thomas/noirdesktop && git checkout claude/kind-cerf-A9weP
 ```
 
 Pour remettre le checkout principal où il était — ou le laisser sur la cible, c'est elle qui compte

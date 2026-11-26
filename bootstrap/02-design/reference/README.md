@@ -43,11 +43,11 @@ Le worktree qui porte le bon commit :
 Protocole complet : [`../../../docs/PROTOCOLE-CAPTURES.md`](../../../docs/PROTOCOLE-CAPTURES.md).
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop && git checkout thomasdugue/design-migration-audit
+cd $HOME/Documents/Thomas/noirdesktop && git checkout thomasdugue/design-migration-audit
 ```
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
+cd $HOME/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
 ```
 
 Vérifier avant de lancer que `git log -1 --format=%h` vaut bien `e12a200`.

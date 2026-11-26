@@ -1507,7 +1507,7 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
 répond).
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
+cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
 ```
 
 1. **Au lancement**, la fenêtre affiche une section **« NAS et sources réseau »** avec une ligne
@@ -1746,3 +1746,17 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   externes », relevé au démarrage de 20:21) et non sur les haut-parleurs du Mac mini comme je
   l'avais d'abord écrit, faute de l'avoir vérifié : **Hean n'a
   encore jamais piloté le DAC**, et le document le dit maintenant.
+- **2026-11-26** (masquage avant la bascule en public) : Thomas tranche de **passer le dépôt en
+  public le temps de la V2** — la CI ne rendait plus aucun verdict depuis le matin, le job
+  échouant en 3 s sur une annotation de facturation GitHub, et les runners standard sont gratuits
+  sur un dépôt public. Mesuré : 114 runs, **232 min de runner macOS** (mur, non facturé) en cinq
+  jours — c'est le nombre de runs qui coûte, pas leur durée. ADR [0019](adr/0019-le-depot-passe-en-public.md).
+  Masqué : un **mot de passe app-specific Apple**, le **DSN Sentry**, l'**Apple Team ID**,
+  l'e-mail personnel, le **numéro de série du FiiO JM21**, et `/Users/<compte>` → `$HOME`.
+  ⚠️ **Ce que le masquage ne règle pas, mesuré sur `origin/main`** : le mot de passe Apple et le
+  DSN sont dans l'arbre des **60 commits**, c'est-à-dire de tous, le fichier qui les porte étant
+  là depuis le commit initial ; **37** portent l'e-mail en auteur (116 sur les branches poussées).
+  Un justificatif publié ne se nettoie pas, il **se révoque** : à Thomas de le faire des deux côtés.
+  **Et la leçon** : j'avais cherché le mot de passe avec un motif qui butait sur le guillemet
+  ouvrant, et je ne l'ai pas vu alors que j'éditais les lignes au-dessus et au-dessous. D'où
+  INV-29, proposée : aucun justificatif en clair dans un fichier suivi par git.

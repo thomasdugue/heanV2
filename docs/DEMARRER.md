@@ -25,7 +25,7 @@ local `noirdesktop-v1`, sur la branche `thomasdugue/design-migration-audit`. Tan
 GitHub, une panne de disque emporte la référence visuelle de V2.
 
 ```bash
-cd /Users/tsunami25/conductor/workspaces/noirdesktop-v1/yellowknife && git push -u origin thomasdugue/design-migration-audit
+cd $HOME/conductor/workspaces/noirdesktop-v1/yellowknife && git push -u origin thomasdugue/design-migration-audit
 ```
 
 Reste aussi à choisir un régime pour V1 pendant la reconstruction — moins urgent qu'il n'y paraît,
@@ -64,11 +64,11 @@ Ce qui suit reste valable pour reprendre la série.
 session. En deux lignes :
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop && git checkout thomasdugue/design-migration-audit
+cd $HOME/Documents/Thomas/noirdesktop && git checkout thomasdugue/design-migration-audit
 ```
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
+cd $HOME/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
 ```
 
 C'est bien le **checkout principal** et pas le workspace Conductor : lui seul a `scripts/.env.local`

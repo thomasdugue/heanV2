@@ -3,7 +3,7 @@
 ## Lancement de l'app
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop/.claude/worktrees/nice-solomon/noir-tauri && npm run tauri dev
+cd $HOME/Documents/Thomas/noirdesktop/.claude/worktrees/nice-solomon/noir-tauri && npm run tauri dev
 ```
 
 ## Prérequis
