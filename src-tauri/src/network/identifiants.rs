@@ -33,8 +33,14 @@ use std::sync::{LazyLock, Mutex};
 ///
 /// V1 écrivait sous `com.tdugue.noir.smb` (`noir-tauri/src-tauri/src/network/credentials.rs`,
 /// ligne 12) alors que son bundle identifier disait déjà `com.tdugue.hean` : c'était la
-/// dernière chaîne du dépôt à dire « noir ». **Ne pas la remettre ici** — c'est la décision,
-/// et le test de ce module refuse qu'un nom de service mentionne « noir ».
+/// dernière chaîne du dépôt à dire « noir » **sans y être obligée**. Deux autres le disent
+/// encore et doivent le dire — `library/dossier.rs` et `migration::inventaire::TEMOIN`
+/// nomment le dossier de données de V1, qui s'appelle réellement `noir` (ADR 0003 et 0014,
+/// INV-26). La nuance est écrite parce que sans elle, le prochain `git grep noir` ressemble à
+/// un ménage inachevé, et « finir le ménage » sur `dossier.rs` casserait la migration.
+///
+/// **Ne pas remettre le nom de V1 ici** : c'est la décision, et le test de ce module refuse
+/// qu'un nom de service mentionne « noir ».
 const SERVICE: &str = "com.tdugue.hean.smb";
 
 /// Le cache de session. Il existe pour une raison précise, héritée de V1 : **sans lui,
@@ -88,13 +94,26 @@ pub fn mot_de_passe(source_id: &str) -> Result<String, Erreur> {
     if let Some(connu) = cache.get(source_id) {
         return Ok(connu.clone());
     }
-    match lire_du_trousseau(SERVICE, source_id) {
+    let mdp = interpreter(lire_du_trousseau(SERVICE, source_id), source_id)?;
+    tracing::info!(service = SERVICE, "mot de passe SMB trouvé dans le trousseau");
+    cache.insert(source_id.to_string(), mdp.clone());
+    Ok(mdp)
+}
+
+/// Ce que les trois réponses possibles du trousseau veulent dire. **C'est ici que vit
+/// INV-04**, et c'est séparé de la lecture pour une seule raison : un test ne peut pas
+/// atteindre cette logique à travers `get_generic_password`, qui ouvrirait un dialogue macOS
+/// en CI et chez Thomas. Séparée, elle s'éprouve avec `Some("")`, `Some("x")` et `None`.
+///
+/// C'est la forme d'INV-03 dans [`super::reprise`] : détacher la réaction de sa cause pour
+/// pouvoir injecter la panne sans la provoquer. Relevé par `invariant-guardian` le
+/// 2026-11-26 — avant ça, retirer le bras « trouvé mais vide » rendait `Ok("")` sans faire
+/// rougir quoi que ce soit : clippy ne voit que l'inversion des bras, et le détecteur
+/// d'architecture ne cherche que le littéral `unwrap_or_default()`.
+fn interpreter(lu: Option<String>, source_id: &str) -> Result<String, Erreur> {
+    match lu {
         Some(mdp) if mdp.is_empty() => Err(Erreur::Vide { id_source: source_id.to_string() }),
-        Some(mdp) => {
-            tracing::info!(service = SERVICE, "mot de passe SMB trouvé dans le trousseau");
-            cache.insert(source_id.to_string(), mdp.clone());
-            Ok(mdp)
-        }
+        Some(mdp) => Ok(mdp),
         None => Err(Erreur::Absent {
             id_source: source_id.to_string(),
             service: SERVICE.to_string(),
@@ -177,16 +196,29 @@ mod tests {
     /// protège. Ce qui ne s'éprouve pas : que `get_generic_password` fasse ce que sa doc dit.
     #[test]
     fn le_seul_nom_de_service_est_celui_de_v2() {
-        assert_eq!(SERVICE, "com.tdugue.hean.smb");
-        // La seconde assertion est celle qui tient la décision, et elle n'est pas
-        // redondante : la première interdit *ce* changement-là, la seconde interdit **toute
-        // remise du nom de V1**, sous quelque forme que ce soit. L'ADR 0015 a tranché pour
-        // l'option B le 2026-11-26 ; sans cette ligne, « ça marchait avant avec noir » est
-        // une correction d'une minute que rien ne contredit.
+        // **Cet ordre-ci, et l'ordre est tout.** C'est cette assertion qui rougit quand
+        // quelqu'un remet le nom de V1, et son message nomme la décision au lieu d'afficher
+        // deux chaînes qui diffèrent. Mise en second — ce qu'elle était — elle devenait
+        // inatteignable : toute valeur contenant « noir » fait d'abord échouer l'`assert_eq!`.
+        // Relevé par `invariant-guardian` le 2026-11-26, qui a aussi relevé que le compte
+        // rendu de l'injection annonçait l'avoir vue rouge alors que non.
         assert!(
             !SERVICE.contains("noir"),
-            "le nom de service de V1 est revenu : {SERVICE} (ADR 0015, option B)"
+            "le nom de service de V1 est revenu : {SERVICE} — l'ADR 0015 a tranché l'option B"
         );
+        assert_eq!(SERVICE, "com.tdugue.hean.smb");
+    }
+
+    /// INV-04 (🔴) sur le chemin de **lecture**, les trois cas, sans toucher au trousseau.
+    /// Le test d'à côté éprouve l'écriture ; celui-ci éprouve ce que le module fait de ce que
+    /// le trousseau lui rend, et c'est là que « jamais `Ok("")` » se décide.
+    #[test]
+    fn un_mot_de_passe_vide_lu_au_trousseau_est_une_erreur_et_non_une_chaine_vide() {
+        let vide = super::interpreter(Some(String::new()), "dcdd24af").expect_err("doit refuser");
+        assert!(matches!(vide, Erreur::Vide { .. }), "{vide}");
+        let absent = super::interpreter(None, "dcdd24af").expect_err("doit refuser");
+        assert!(matches!(absent, Erreur::Absent { .. }), "{absent}");
+        assert_eq!(super::interpreter(Some("x".into()), "dcdd24af").expect("doit passer"), "x");
     }
 
     /// INV-04 — un mot de passe vide n'est jamais rendu comme un mot de passe.

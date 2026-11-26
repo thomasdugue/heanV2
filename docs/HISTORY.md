@@ -1696,14 +1696,14 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   `SERVICE` ne vaut plus que `com.tdugue.hean.smb` ; le nom de V1 n'est plus lu, et rien n'est
   écrit ni supprimé sous lui — les deux entrées du trousseau de Thomas, l'orpheline comprise,
   restent intactes. **Le coût annoncé était déjà payé** : il avait ressaisi son mot de passe la
-  veille pendant le diagnostic de connexion, donc il est sous le nom de V2 depuis, et son
-  journal de 01:01Z le prouve (`service="com.tdugue.hean.smb"`, scan de 32 s, 0 ajoutée).
-  Vérifié ensuite dans le trousseau par la session d'orchestration, attributs seuls.
-  **Troisième estimation de ce coût, première mesurée, et les deux fausses penchaient du même
-  côté** — celui qui fait paraître « propre » moins cher qu'il ne l'est à l'inverse ; le
-  raisonnement complet est dans l'ADR. Un test refuse que la constante contienne « noir » :
-  éprouvé par injection, 2 tests rouges sur 4. L'ADR passe de *Proposée* à *Acceptée* sans rien
-  perdre de son raisonnement — modifié et non remplacé parce qu'il était une question en
-  attente, et c'est écrit dedans. ⚠️ **Collision** : la même décision a été livrée deux fois,
-  en PR #22 et #23, et Thomas arbitre laquelle garder. Je me suis arrêté en la découvrant
-  (ADR 0013) ; c'est la troisième fois, et l'orchestration l'a reconnue de son fait.
+  veille pendant le diagnostic, donc il est sous le nom de V2 depuis, et son journal de 01:01Z
+  le prouve (scan de 32 s, 0 ajoutée, aucune saisie). Troisième estimation de ce coût, première
+  mesurée, et les deux fausses penchaient du même côté ; l'ADR passe de *Proposée* à *Acceptée*
+  sans rien perdre — modifié et non remplacé, parce qu'il était une question en attente.
+  **`invariant-guardian` a corrigé deux de mes affirmations.** Mon assertion anti-« noir »
+  était placée **après** un `assert_eq!` sur la même valeur, donc inatteignable, et j'annonçais
+  l'avoir éprouvée : remise en premier, l'injection la fait rougir avec son message. Et « la
+  dernière chaîne du dépôt à dire noir » était faux — deux autres le disent, obligées (le
+  dossier de V1 s'appelle `noir`). Il a aussi vu que le bras « lu mais vide » n'était éprouvé
+  par rien (INV-04 🔴) : `interpreter()` l'isole, trois cas testés, injection rouge. Et que la
+  sonde SMB fabriquait un mot de passe vide. ⚠️ Collision : PR #22 et #23 font ceci en double.
