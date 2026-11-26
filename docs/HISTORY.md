@@ -1707,3 +1707,14 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   chiffré faux deux fois. Tenue par `chiffres-annonces.test.ts`. Second tour : « la fenêtre est
   la ligne » n'était tenu par aucune assertion (l'élargir laissait tout vert) et mon renvoi
   « §5 » était faux là où « §3 » était juste. D'où deux assertions, et une règle de plus.
+- **2026-11-26** (passe) : **le bit-perfect est un état affiché, pas une propriété permanente**
+  — ADR 0018, tranché par Thomas en corrigeant une analyse fausse. Le repli de fréquence du DAC
+  est voulu ; ce qui est interdit, c'est de rééchantillonner **sans le dire**. La formule
+  « bit-perfect = pas de resampling » circulait depuis le premier jour comme un interdit absolu
+  attribué à l'ADR 0002 — **qui ne dit pas ça** : 0002 tranche CoreAudio contre CPAL. Lue au pied
+  de la lettre par la session qui porte la sortie audio, elle aurait fait supprimer une fonction.
+  Reformulée, pas supprimée. Et la règle qui aurait évité l'erreur est écrite : **avant d'appeler
+  un comportement de V1 un défaut, lire la chaîne entière et citer `fichier:ligne` des deux
+  côtés** — le mécanisme est en Rust, l'honnêteté du mécanisme est en JS. Deuxième faute du même
+  jour et de la même forme (l'autre : un coût de mot de passe annoncé sans regarder le trousseau).
+  Corollaire demandé par Thomas : vérifier ce qu'il dit de V1 comme n'importe quelle affirmation.

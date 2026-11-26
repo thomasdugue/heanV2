@@ -120,6 +120,17 @@ exactement quand elles servent — et que `CLAUDE.md` doit rester lisible en ent
   `styles.css` 10 654.)
 - **Toute donnée affichée passe par un échappement**, guillemets compris. C'est le
   comportement W006 : un tag contenant `"` était tronqué à la sauvegarde.
+- **Avant d'appeler un comportement de V1 un défaut : lire la chaîne entière.** Le mécanisme
+  est en Rust, mais **l'honnêteté du mécanisme est souvent en JS**. Citer `fichier:ligne` des
+  deux côtés — `src-tauri/src/` **et** `noir-tauri/src/*.js`. Sans ces deux références, ce
+  n'est pas un constat, c'est une impression : ne pas l'écrire dans un brief, et surtout ne
+  demander à personne de « corriger ». Payé le 2026-11-26 : le repli de fréquence du DAC,
+  déclaré « altération silencieuse » après lecture du seul Rust, alors que le lecteur affiche
+  fréquence entrante et sortante depuis toujours (ADR 0018). Corollaire demandé par Thomas :
+  **quand il décrit un comportement de V1, le vérifier comme n'importe quelle affirmation et
+  lui dire ce qui diffère** — il décrit de mémoire un produit de 30 000 lignes. C'est la
+  condition de « porter d'abord, améliorer sur un défaut mesuré » : sans mesure des deux
+  bouts, « mesuré » ne veut rien dire.
 
 ### Éprouver un détecteur plutôt que le supposer
 
@@ -238,7 +249,10 @@ le renvoi vers l'index, qui est tenu par une vérification. **Un ADR ne se modif
 écrit un nouveau.**
 
 Rappel des interdits qui en découlent et qui ne se rouvrent pas : **jamais CPAL** ·
-**bit-perfect = pas de resampling** · **macOS 11+ seulement, hors Mac App Store** ·
+**jamais de rééchantillonnage par confort, par optimisation ou par défaut de conception — le
+repli de fréquence est permis quand le périphérique ne sait pas faire autrement, et il
+s'affiche** (ADR 0018 ; la formule « bit-perfect = pas de resampling » était un interdit sans
+source, et l'ADR 0002 ne dit pas ça) · **macOS 11+ seulement, hors Mac App Store** ·
 **Svelte 5 en runes, jamais les stores Svelte 4** · **aucune dépendance npm de production
 sans ADR**.
 
