@@ -107,11 +107,23 @@
   // fois par seconde. L'`$effect` rend la fonction d'arrêt, que Svelte appelle à la
   // destruction du composant.
   $effect(() => {
+    let tic = 0;
+    /** Les sorties, en une chaîne : sert à ne réassigner la liste que si elle a changé. */
+    const signature = (l: readonly PeripheriqueAudio[]): string =>
+      l.map((p) => `${p.id}:${p.nom}:${p.par_defaut}`).join('|');
+
     const relever = async (): Promise<void> => {
       try {
         lecture = await playbackState();
+        // Toutes les 2 s, on demande au moteur de RELIRE le matériel. Sans ça, brancher le
+        // DAC pendant que l'app tourne ne le ferait pas apparaître dans la liste — c'est
+        // l'étape 10 du protocole de test, et elle échouerait.
+        if (tic % 20 === 0) await refreshAudioDevices();
+        tic += 1;
         const liste = await audioDevices();
-        if (liste.length !== peripheriques.length) peripheriques = liste;
+        // Comparaison sur les NOMS et pas sur le nombre : débrancher une sortie et en
+        // brancher une autre laisse le compte identique, et la liste serait restée fausse.
+        if (signature(liste) !== signature(peripheriques)) peripheriques = liste;
       } catch {
         // Le backend n'a pas répondu : on garde le dernier état connu plutôt que de vider
         // l'affichage. Une barre qui saute à zéro sur un sondage raté serait un faux signal.

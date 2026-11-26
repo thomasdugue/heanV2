@@ -139,7 +139,7 @@ pub(super) unsafe extern "C" fn rendre(
     // les échantillons partent tels quels (voir `chain.rs`).
     Chaine::avec_volume(donnees.etat.volume()).appliquer(&mut donnees.travail[..lus]);
 
-    ecrire_vers_coreaudio(tampons, &donnees.travail[..lus], attendus, donnees.canaux);
+    ecrire_vers_coreaudio(tampons, &donnees.travail[..lus], donnees.canaux);
     0
 }
 
@@ -154,8 +154,8 @@ unsafe fn faire_silence(tampons: &mut [coreaudio_sys::AudioBuffer]) {
     }
 }
 
-/// Recopie `echantillons` (entrelacés) vers les tampons de CoreAudio, et complète par du
-/// silence jusqu'à `attendus`.
+/// Recopie `echantillons` (entrelacés) vers les tampons de CoreAudio, et met le reste de
+/// chaque tampon à **zéro**.
 ///
 /// Les deux formes sont gérées comme en V1 : un tampon unique entrelacé — ce que l'AUHAL
 /// donne pour le format déclaré ici — et le cas désentrelacé, un tampon par canal.
@@ -164,7 +164,6 @@ unsafe fn faire_silence(tampons: &mut [coreaudio_sys::AudioBuffer]) {
 unsafe fn ecrire_vers_coreaudio(
     tampons: &mut [coreaudio_sys::AudioBuffer],
     echantillons: &[i32],
-    attendus: usize,
     canaux: usize,
 ) {
     if tampons.len() == 1 {
@@ -183,14 +182,16 @@ unsafe fn ecrire_vers_coreaudio(
     }
 
     let trames_lues = if canaux == 0 { 0 } else { echantillons.len() / canaux };
-    let trames_attendues = if canaux == 0 { 0 } else { attendus / canaux };
     for (canal, t) in tampons.iter_mut().enumerate().take(canaux) {
         if t.mData.is_null() {
             continue;
         }
         let cases = t.mDataByteSize as usize / OCTETS_PAR_ECHANTILLON as usize;
         let destination = std::slice::from_raw_parts_mut(t.mData as *mut i32, cases);
-        for (trame, case) in destination.iter_mut().enumerate().take(trames_attendues) {
+        // Tout le tampon est écrit, et ce qui dépasse les trames lues est mis à zéro.
+        // Laisser la queue telle quelle rejouerait le contenu du callback précédent — un
+        // bourdonnement, pas un silence.
+        for (trame, case) in destination.iter_mut().enumerate() {
             *case = if trame < trames_lues {
                 echantillons[trame * canaux + canal]
             } else {
