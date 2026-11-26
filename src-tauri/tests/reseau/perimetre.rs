@@ -333,3 +333,35 @@ fn une_racine_de_disque_devenue_illisible_nefface_pas_ses_pistes() {
     assert_eq!(rapport.disparues, 0, "{rapport:?}");
     assert_eq!(pistes(&depot).len(), 2);
 }
+
+/// **Le message qu'on lit quand le scan ne peut pas démarrer.** Il doit nommer les trois
+/// causes possibles, parce que SMB ne dit pas laquelle.
+///
+/// C'est le test d'un message d'erreur, et il a sa raison : le 2026-11-25, la racine refusée
+/// rendait « server returned a bad file descriptor » — ni « accès refusé », ni « chemin
+/// absent ». Thomas a saisi son mot de passe **quatre fois** devant cette phrase. Un message
+/// d'erreur est une fonctionnalité ; celle-ci s'éprouve comme les autres.
+#[test]
+fn une_racine_refusee_explique_quoi_verifier_et_dans_quel_ordre() {
+    let bac = Bac::avec("message-racine", &[]);
+    let depot = verrouille(bac.depot());
+    enregistrer(&depot, &source());
+
+    let refusant = FauxPartage::nouveau().refuser("/LOSSLESS");
+    let e = hean_lib::network::scanner_avec(&depot, &source().id, |_| Ok(Box::new(&refusant)))
+        .expect_err("une racine refusée est une erreur");
+    let message = e.to_string();
+
+    // Le NAS a répondu : il ne faut pas envoyer chercher du côté du réseau.
+    assert!(message.contains("a répondu"), "{message}");
+    // Les trois causes, et l'ordre dans lequel les vérifier.
+    assert!(message.contains("mot de passe"), "{message}");
+    assert!(message.contains("droit"), "{message}");
+    assert!(message.contains("n'existe plus"), "{message}");
+    // Et l'aveu : SMB ne distingue pas. Sans lui, on croit que l'app sait et ne dit pas.
+    assert!(message.contains("SMB ne dit pas laquelle"), "{message}");
+    // Le dossier et le partage sont nommés : « ça ne marche pas » ne se diagnostique pas.
+    assert!(message.contains("/LOSSLESS"), "{message}");
+    assert!(message.contains("music"), "{message}");
+    assert!(message.contains("dugstation.local"), "{message}");
+}

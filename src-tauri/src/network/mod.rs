@@ -7,7 +7,9 @@
 //!
 //! ```text
 //! identifiants.rs   le mot de passe, dans le trousseau macOS (INV-04, ADR 0015)
-//! client.rs         libsmbclient, derrière UN verrou de process (PLAT-2) + INV-03
+//! client.rs         libsmbclient, derrière UN verrou de process (PLAT-2)
+//! reprise.rs        INV-03 : une opération qui échoue se retente sur une connexion neuve
+//! erreur.rs         ce que l'utilisateur lit quand SMB refuse, et ne dit pas pourquoi
 //! uri.rs            smb://{id}/{partage}/{chemin} — le format hérité de V1
 //! entete.rs         combien d'octets lire, et pour quels formats c'est légitime
 //! inventaire.rs     le parcours différentiel — sans verrou de bibliothèque
@@ -26,8 +28,10 @@
 
 pub mod client;
 pub mod entete;
+pub mod erreur;
 pub mod identifiants;
 pub mod inventaire;
+pub mod reprise;
 pub mod reprise_v1;
 pub mod uri;
 

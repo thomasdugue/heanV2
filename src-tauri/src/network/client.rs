@@ -11,16 +11,17 @@
 //! Conséquence directe sur l'IPC : un scan tient ce verrou pendant des minutes, donc il ne
 //! doit **pas** tenir en même temps celui de la bibliothèque (ADR 0016 §5).
 //!
-//! ## INV-03 (🔴) — une connexion périmée se retente
+//! ## La reprise d'INV-03 est dans `reprise.rs`
 //!
-//! Un NAS ferme une session inactive, et `libsmbclient` ne s'en rend compte qu'à l'opération
-//! suivante. La règle attendait la phase 5 et un conteneur Samba ; elle ne l'attend plus,
-//! parce que la **réaction** à une connexion périmée est séparée de sa cause :
-//! `reessayer_une_fois` ne connaît ni SMB ni le réseau, donc elle s'éprouve par injection de
-//! panne (tests en bas de ce fichier). Ce qui demande un vrai serveur est la cause, pas la
-//! réaction.
+//! Elle en est sortie le 2026-11-25, quand ce fichier a atteint 400 lignes en apprenant à ne
+//! plus réutiliser une connexion ouverte avec de mauvais identifiants. Le découpage suit une
+//! frontière réelle : ici on parle à `libsmbclient`, là-bas on décide quoi faire quand une
+//! opération échoue — et c'est justement parce que cette décision ne connaît ni SMB ni le
+//! réseau qu'elle s'éprouve par injection de panne.
 
 use std::sync::{LazyLock, Mutex};
+
+use super::reprise::reessayer_une_fois;
 
 use crate::library::SourceReseau;
 
@@ -38,15 +39,11 @@ pub struct Entree {
     pub mtime_ns: i64,
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum Erreur {
-    #[error("connexion à {hote} (partage {partage}) : {detail}")]
-    Connexion { hote: String, partage: String, detail: String },
-    #[error("lecture du dossier {chemin} sur {hote} : {detail}")]
-    Dossier { hote: String, chemin: String, detail: String },
-    #[error("lecture du fichier {chemin} sur {hote} : {detail}")]
-    Fichier { hote: String, chemin: String, detail: String },
-}
+/// Les erreurs du sous-système réseau vivent dans `erreur.rs`, et sont réexportées ici :
+/// `client::Erreur` reste le nom par lequel tout le module les désigne. Elles en sont
+/// sorties le 2026-11-25, quand ce fichier a franchi 400 lignes en apprenant à dire *pourquoi*
+/// un dossier ne s'ouvre pas — le message qui a coûté quatre saisies de mot de passe.
+pub use super::erreur::Erreur;
 
 /// Ce dont l'inventaire a besoin d'un partage SMB, et rien de plus.
 ///
@@ -66,27 +63,6 @@ pub trait Smb {
     fn lire(&self, chemin: &str, max: Option<usize>) -> Result<Vec<u8>, Erreur>;
 }
 
-/// **INV-03.** Tente l'opération ; si elle échoue, rafraîchit la connexion et retente **une
-/// seule fois**.
-///
-/// Une seule fois, et pas « jusqu'à ce que ça marche » : une boucle transformerait un NAS
-/// éteint en attente infinie, et c'est le comportement W005 pris par le mauvais bout. Si la
-/// seconde tentative échoue, c'est **son** erreur qui remonte — celle de la connexion
-/// fraîche décrit la panne réelle, là où la première décrit une session périmée.
-pub fn reessayer_une_fois<T>(
-    operation: impl Fn() -> Result<T, Erreur>,
-    rafraichir: impl Fn() -> Result<(), Erreur>,
-) -> Result<T, Erreur> {
-    match operation() {
-        Ok(v) => Ok(v),
-        Err(premiere) => {
-            tracing::warn!(erreur = %premiere, "opération SMB en échec, reconnexion et seconde tentative");
-            rafraichir()?;
-            operation()
-        }
-    }
-}
-
 /// La connexion SMB active. **Une seule pour tout le process** (PLAT-2).
 static CONNEXION: LazyLock<Mutex<Option<Active>>> = LazyLock::new(|| Mutex::new(None));
 
@@ -94,6 +70,23 @@ struct Active {
     client: pavao::SmbClient,
     hote: String,
     partage: String,
+    /// **L'empreinte des identifiants avec lesquels cette connexion a été ouverte.**
+    ///
+    /// Sans elle, la connexion était réutilisée dès que l'hôte et le partage
+    /// correspondaient — **quels que soient les identifiants**. Conséquence mesurée le
+    /// 2026-11-25 sur le NAS de Thomas : une faute de frappe dans le mot de passe ouvrait
+    /// une connexion refusée par le NAS, et **corriger le mot de passe ne changeait rien**.
+    /// La connexion fautive restait en cache pour toute la durée de l'application, et chaque
+    /// scan repartait dessus. Il a saisi son mot de passe quatre fois en croyant se tromper.
+    ///
+    /// Ce qui l'a sauvé est INV-03 : la seconde tentative jette la connexion et en ouvre une
+    /// neuve, donc le scan finissait par passer — **au coup d'après**. Un garde-fou a
+    /// rattrapé le défaut sans le signaler, ce qui est la pire façon de le découvrir.
+    ///
+    /// C'est une empreinte et non les identifiants : un mot de passe n'a pas à vivre dans un
+    /// `static` de ce module. Elle ne sort jamais du process et ne se compare qu'à elle-même,
+    /// donc la stabilité du hachage entre deux versions de Rust n'a aucune importance ici.
+    empreinte: u64,
 }
 
 /// Le client réel. Il ne garde pas de connexion : la connexion est dans le `static`, parce
@@ -151,16 +144,35 @@ impl ClientSmb {
             client,
             hote: self.hote.clone(),
             partage: self.partage.clone(),
+            empreinte: self.empreinte(),
         });
         Ok(())
+    }
+
+    /// L'empreinte de ce à quoi on se connecte **et avec quoi**. Hôte, partage, utilisateur,
+    /// domaine, drapeau invité, mot de passe : si l'un change, la connexion en cache n'est
+    /// plus la bonne.
+    fn empreinte(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        self.hote.hash(&mut h);
+        self.partage.hash(&mut h);
+        self.utilisateur.hash(&mut h);
+        self.domaine.hash(&mut h);
+        self.invite.hash(&mut h);
+        self.mot_de_passe.hash(&mut h);
+        h.finish()
     }
 
     /// Fait l'opération en tenant le verrou unique, en se connectant si besoin.
     fn avec<T>(&self, f: impl FnOnce(&pavao::SmbClient) -> Result<T, Erreur>) -> Result<T, Erreur> {
         let mut place = CONNEXION.lock().unwrap_or_else(|e| e.into_inner());
-        let bonne = place
-            .as_ref()
-            .is_some_and(|a| a.hote == self.hote && a.partage == self.partage);
+        // **L'empreinte fait partie de la question, et c'est la correction du 2026-11-25.**
+        // Comparer l'hôte et le partage seuls faisait réutiliser une connexion ouverte avec
+        // un mot de passe faux, donc corriger ce mot de passe n'avait aucun effet.
+        let bonne = place.as_ref().is_some_and(|a| {
+            a.hote == self.hote && a.partage == self.partage && a.empreinte == self.empreinte()
+        });
         if !bonne {
             self.connecter(&mut place)?;
         }
@@ -178,11 +190,27 @@ impl ClientSmb {
         *CONNEXION.lock().unwrap_or_else(|e| e.into_inner()) = None;
         Ok(())
     }
+
+    /// L'opération, avec la reprise d'INV-03 — **et sans laisser derrière soi une connexion
+    /// qui a échoué deux fois.**
+    ///
+    /// Le second point est la moitié oubliée de la correction du 2026-11-25 : une connexion
+    /// qui vient d'échouer restait en cache, donc l'opération suivante repartait dessus et
+    /// payait à nouveau une tentative perdue avant de reconnecter. Deux échecs de suite
+    /// veulent dire que cette connexion-là n'est pas bonne ; la prochaine opération doit
+    /// partir propre.
+    fn avec_reprise<T>(&self, op: impl Fn() -> Result<T, Erreur>) -> Result<T, Erreur> {
+        let resultat = reessayer_une_fois(&op, || self.oublier_la_connexion());
+        if resultat.is_err() {
+            let _ = self.oublier_la_connexion();
+        }
+        resultat
+    }
 }
 
 impl Smb for ClientSmb {
     fn lister(&self, chemin: &str) -> Result<Vec<Entree>, Erreur> {
-        reessayer_une_fois(
+        self.avec_reprise(
             || {
                 self.avec(|client| {
                     // `list_dirplus` rend taille et date **en un seul aller-retour par
@@ -223,12 +251,11 @@ impl Smb for ClientSmb {
                     }
                 })
             },
-            || self.oublier_la_connexion(),
         )
     }
 
     fn lire(&self, chemin: &str, max: Option<usize>) -> Result<Vec<u8>, Erreur> {
-        reessayer_une_fois(
+        self.avec_reprise(
             || {
                 self.avec(|client| {
                     use std::io::Read;
@@ -254,7 +281,6 @@ impl Smb for ClientSmb {
                     Ok(octets)
                 })
             },
-            || self.oublier_la_connexion(),
         )
     }
 }
@@ -281,98 +307,67 @@ fn en_nanos(t: std::time::SystemTime) -> i64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{en_nanos, reessayer_une_fois, url_du_serveur, Erreur};
-    use std::sync::atomic::{AtomicU32, Ordering};
+    use super::{en_nanos, url_du_serveur, ClientSmb};
+    use crate::library::SourceReseau;
 
-    fn panne(quoi: &str) -> Erreur {
-        Erreur::Dossier {
-            hote: "nas".into(),
-            chemin: "/".into(),
-            detail: quoi.to_string(),
+    fn source() -> SourceReseau {
+        SourceReseau {
+            id: "src".into(),
+            nom: "nas".into(),
+            hote: "nas.local".into(),
+            partage: "music".into(),
+            chemin_distant: "/".into(),
+            utilisateur: "admin".into(),
+            domaine: None,
+            invite: false,
+            active: true,
         }
     }
 
-    /// INV-03, par **injection de panne** : la première tentative échoue, la connexion est
-    /// rafraîchie, la seconde réussit. C'est le cas d'un NAS qui a fermé une session
-    /// inactive — le plus courant, et celui que V1 ne vérifiait qu'avec un vrai NAS dans le
-    /// bon état (ses tests `network_source` étaient `#[ignore]`).
+    /// **La propriété sur laquelle tient la correction du 2026-11-25.** La connexion en cache
+    /// n'est réutilisée que si son empreinte correspond ; si l'un des six champs change, elle
+    /// doit être rouverte.
+    ///
+    /// Ce qu'il manquait coûtait ceci, mesuré sur le NAS de Thomas : une faute de frappe dans
+    /// le mot de passe ouvrait une connexion refusée, **et corriger le mot de passe ne
+    /// changeait rien** — la connexion fautive restait en cache pour toute la durée de
+    /// l'application. Il l'a saisi quatre fois en croyant se tromper.
+    ///
+    /// Ce que ce test ne prouve pas, et c'est la part irréductible : que `libsmbclient`
+    /// refuse bien la connexion. Ce qu'il prouve est que l'app ne la réutilise plus.
     #[test]
-    fn une_premiere_tentative_en_echec_est_retentee_apres_reconnexion() {
-        let essais = AtomicU32::new(0);
-        let reconnexions = AtomicU32::new(0);
-        let r = reessayer_une_fois(
-            || {
-                if essais.fetch_add(1, Ordering::SeqCst) == 0 {
-                    Err(panne("session périmée"))
-                } else {
-                    Ok(42)
-                }
-            },
-            || {
-                reconnexions.fetch_add(1, Ordering::SeqCst);
-                Ok(())
-            },
+    fn un_mot_de_passe_corrige_change_lempreinte_de_la_connexion() {
+        let s = source();
+        let bon = ClientSmb::nouveau(&s, "le-bon".into());
+        let faux = ClientSmb::nouveau(&s, "le-faux".into());
+        assert_ne!(
+            bon.empreinte(),
+            faux.empreinte(),
+            "deux mots de passe différents ne doivent pas partager une connexion"
         );
-        assert_eq!(r.expect("la seconde tentative réussit"), 42);
-        assert_eq!(essais.load(Ordering::SeqCst), 2, "exactement deux tentatives");
-        assert_eq!(reconnexions.load(Ordering::SeqCst), 1, "une seule reconnexion");
+        // Et deux fois les mêmes identifiants réutilisent bien la connexion : sans ça, un
+        // scan de 3 137 fichiers rouvrirait une session SMB à chaque fichier.
+        assert_eq!(bon.empreinte(), ClientSmb::nouveau(&s, "le-bon".into()).empreinte());
     }
 
-    /// Et **une seule fois**. Une boucle « jusqu'à ce que ça marche » transformerait un NAS
-    /// éteint en attente infinie : c'est W005 pris par le mauvais bout.
+    /// Chacun des six champs compte. Écrit comme une boucle sur les six plutôt que sur celui
+    /// qui a mordu : c'est le mot de passe qui a coûté la soirée, mais changer d'utilisateur
+    /// ou passer en invité sur la même connexion aurait le même effet.
     #[test]
-    fn un_echec_persistant_ne_boucle_pas() {
-        let essais = AtomicU32::new(0);
-        let r: Result<(), Erreur> = reessayer_une_fois(
-            || {
-                essais.fetch_add(1, Ordering::SeqCst);
-                Err(panne("NAS éteint"))
-            },
-            || Ok(()),
-        );
-        let e = r.expect_err("doit échouer");
-        assert!(e.to_string().contains("NAS éteint"), "{e}");
-        assert_eq!(essais.load(Ordering::SeqCst), 2, "deux tentatives, pas plus");
-    }
-
-    /// Une reconnexion qui échoue elle-même remonte **son** erreur, et la seconde tentative
-    /// n'a pas lieu : sans ça, l'utilisateur lirait « session périmée » alors que la vraie
-    /// cause est « mot de passe refusé ».
-    #[test]
-    fn une_reconnexion_impossible_remonte_sa_propre_cause() {
-        let essais = AtomicU32::new(0);
-        let r: Result<(), Erreur> = reessayer_une_fois(
-            || {
-                essais.fetch_add(1, Ordering::SeqCst);
-                Err(panne("session périmée"))
-            },
-            || {
-                Err(Erreur::Connexion {
-                    hote: "nas".into(),
-                    partage: "music".into(),
-                    detail: "mot de passe refusé".into(),
-                })
-            },
-        );
-        let e = r.expect_err("doit échouer");
-        assert!(e.to_string().contains("mot de passe refusé"), "{e}");
-        assert_eq!(essais.load(Ordering::SeqCst), 1, "la seconde tentative n'a pas lieu");
-    }
-
-    /// Un succès du premier coup ne reconnecte pas. L'assertion qui compte : le chemin
-    /// normal — 3 137 fichiers — ne paie pas la règle.
-    #[test]
-    fn un_succes_immediat_ne_reconnecte_jamais() {
-        let reconnexions = AtomicU32::new(0);
-        let r = reessayer_une_fois(
-            || Ok(7),
-            || {
-                reconnexions.fetch_add(1, Ordering::SeqCst);
-                Ok(())
-            },
-        );
-        assert_eq!(r.expect("ok"), 7);
-        assert_eq!(reconnexions.load(Ordering::SeqCst), 0);
+    fn chacun_des_six_champs_entre_dans_lempreinte() {
+        let base = ClientSmb::nouveau(&source(), "mdp".into()).empreinte();
+        let variantes: Vec<(&str, SourceReseau)> = vec![
+            ("hôte", SourceReseau { hote: "autre.local".into(), ..source() }),
+            ("partage", SourceReseau { partage: "photo".into(), ..source() }),
+            ("utilisateur", SourceReseau { utilisateur: "invite".into(), ..source() }),
+            ("domaine", SourceReseau { domaine: Some("WORKGROUP".into()), ..source() }),
+            ("invité", SourceReseau { invite: true, ..source() }),
+        ];
+        for (quoi, s) in variantes {
+            assert_ne!(ClientSmb::nouveau(&s, "mdp".into()).empreinte(), base, "{quoi}");
+        }
+        // Le sixième : le mot de passe, à source identique.
+        assert_ne!(ClientSmb::nouveau(&source(), "autre".into()).empreinte(), base, "mot de passe");
     }
 
     #[test]
@@ -387,7 +382,6 @@ mod tests {
     fn une_date_absurde_vaut_inconnue_et_ne_panique_pas() {
         assert_eq!(en_nanos(std::time::UNIX_EPOCH), 0);
         assert!(en_nanos(std::time::SystemTime::now()) > 0);
-        // Avant 1970 : `duration_since` échoue, et on rend « inconnue ».
         let avant = std::time::UNIX_EPOCH - std::time::Duration::from_secs(1);
         assert_eq!(en_nanos(avant), 0);
     }

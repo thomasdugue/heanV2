@@ -143,7 +143,7 @@ dette **visible**, que `./check` recompte à chaque passage.
 ### INV-03 — SMB : connexion périmée = retry automatique
 - pile : test
 - gravité : 🔴 BLOQUANT
-- couverture : test client.rs
+- couverture : test reprise.rs
 - pourquoi : une opération SMB doit retenter avec une connexion fraîche si la première
   échoue — un NAS ferme une session inactive, et `libsmbclient` ne s'en aperçoit qu'à
   l'opération suivante. En V1 les tests `network_source` étaient `#[ignore]` : la règle ne se
@@ -160,6 +160,15 @@ dette **visible**, que `./check` recompte à chaque passage.
   bout) ; une reconnexion qui échoue elle-même remonte **sa** cause, sinon l'utilisateur lit
   « session périmée » alors que son mot de passe est refusé ; et un succès du premier coup ne
   reconnecte jamais, donc le chemin normal — 3 137 fichiers — ne paie pas la règle.
+  **Et ce garde-fou a rattrapé un autre défaut sans le signaler, le 2026-11-25** : la
+  connexion en cache était réutilisée dès que l'hôte et le partage correspondaient, **sans
+  égard pour les identifiants**, donc corriger un mot de passe mal tapé n'avait aucun effet.
+  Le scan finissait quand même par passer — au coup d'après, par cette reprise-ci. Thomas a
+  saisi son mot de passe quatre fois en croyant se tromper. Leçon à garder : **une reprise
+  qui réussit silencieusement masque la cause**, et un `WARN` par tentative perdue n'a pas
+  suffi à la faire voir. La correction est dans `client.rs` (l'empreinte des identifiants
+  entre dans la question « est-ce la bonne connexion ? »), et une opération qui a échoué
+  deux fois ne reste plus en cache.
 
 ### INV-04 — SMB : un échec Keychain remonte une erreur, jamais un mot de passe vide
 - pile : test

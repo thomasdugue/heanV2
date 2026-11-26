@@ -15,7 +15,7 @@ En V1, **3 sur 20** étaient couvertes par un test.
 | INV-17 | option_env!() pour TOUS les secrets compile-time | ✂️ rayé | 🔴 BLOQUANT | sans objet — `src-tauri/build.rs` + `compile_error!()`, et architecture |
 | INV-01 | Un album = une seule entrée | 🧪 test | 🔴 BLOQUANT | test `cle.rs` — type `AlbumKey` à constructeur unique + proptests, et |
 | INV-02 | Pas de duplication visuelle sur la home | 🧪 test | 🟡 AVERTISSEMENT | planifiée (phase 3) — test de comportement sur « Recently Played » |
-| INV-03 | SMB : connexion périmée = retry automatique | 🧪 test | 🔴 BLOQUANT | test client.rs |
+| INV-03 | SMB : connexion périmée = retry automatique | 🧪 test | 🔴 BLOQUANT | test reprise.rs |
 | INV-04 | SMB : un échec Keychain remonte une erreur, jamais un mot de passe vide | 🧪 test | 🔴 BLOQUANT | architecture `backend.test.ts` |
 | INV-05 | SMB : l'erreur du thread de download remonte à l'utilisateur | 🧪 test | 🟡 AVERTISSEMENT | planifiée (phase 5) — conteneur Samba |
 | INV-07 | Une métadonnée éditée est écrite dans le fichier audio | 🧪 test | 🔴 BLOQUANT | test `edition.rs` — écriture lofty, puis relecture du fichier |

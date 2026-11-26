@@ -94,8 +94,13 @@
             <!-- Dire LAQUELLE est en cours, et combien de temps ça prend. Sans ça, une
                  fenêtre qui ne bouge pas pendant deux minutes ressemble à une fenêtre
                  bloquée — et c'est un rapport de bug pour rien. -->
-            <em>Scan en cours… le premier scan lit chaque fichier sur le NAS : compte
-              environ deux minutes pour 3 000 pistes. Les suivants ne relisent rien.</em>
+            <!-- La durée est **mesurée**, pas estimée : voir docs/HISTORY.md, scan réel du
+                 2026-11-25 sur le NAS de Thomas. Une estimation optimiste dans une interface
+                 est pire que pas de chiffre — elle fait croire à une panne. -->
+            <em>Scan en cours… le premier scan lit chaque fichier sur le NAS, et c'est long :
+              <strong>compte une bonne demi-heure pour 3 000 pistes</strong> — mesuré, pas
+              estimé. Les suivants ne relisent rien et prennent quelques secondes. Tu peux
+              continuer à te servir de la fenêtre pendant ce temps.</em>
           {/if}
         </li>
       {/each}
