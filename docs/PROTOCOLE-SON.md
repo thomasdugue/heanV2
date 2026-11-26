@@ -11,8 +11,27 @@ précédente, sauf le lancement.
 
 ## Lancement
 
+⚠️ **Tant que la PR #25 n'est pas fusionnée, ce moteur n'est pas dans le dossier
+principal** : il vit sur sa branche, dans un dossier à part. C'est celui-là qu'il faut
+lancer. Lancer le dossier principal ouvrirait une version **sans moteur de son** — tout ce
+protocole échouerait dès l'étape 2, sans avoir rien éprouvé de ce qu'il vise.
+
+```bash
+cd "/Users/tsunami25/Documents/Thomas/heanV2/.claude/worktrees/phase-2-bibliotheque-dce2d1" && npm run tauri dev
+```
+
+Après la fusion, le dossier principal porte le moteur et la ligne redevient la courte :
+
 ```bash
 cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
+```
+
+**« Port 1420 is already in use »** : une fenêtre de développement tourne déjà quelque part,
+souvent oubliée d'une session précédente. Elle tient le port, et rien d'autre ne démarrera
+avant qu'elle soit arrêtée — Ctrl-C dans son terminal. Pour savoir lequel :
+
+```bash
+lsof -nP -iTCP:1420 -sTCP:LISTEN
 ```
 
 La fenêtre s'ouvre sur « Hean — coquille de phase 3 ». Elle est laide : c'est voulu, le
