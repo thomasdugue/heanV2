@@ -46,6 +46,7 @@ décisions sous le même numéro ont coûté une heure et huit renvois à corrig
 | [0015](0015-nom-de-service-keychain-pour-les-mots-de-passe-smb.md) | Nom de service Keychain pour les mots de passe SMB : `com.tdugue.hean.smb` et lui seul, le nom de V1 n'est plus lu | Acceptée |
 | [0016](0016-la-part-reseau-de-la-bibliotheque.md) | La part réseau de la bibliothèque : SMB lu directement, et un scan par périmètre | Acceptée |
 | [0017](0017-ce-que-thomas-a-tranche-le-25-novembre.md) | Ce que Thomas a tranché le 25 novembre : pas d'utilisateurs, le son d'abord, et le harnais se gèle | Acceptée |
+| [0018](0018-le-bit-perfect-est-un-etat-affiche.md) | Le bit-perfect est un état affiché ; le repli de fréquence est permis s'il s'affiche | Acceptée |
 
 **Décisions encore ouvertes**, à transformer en ADR dès qu'elles sont prises :
 
@@ -55,6 +56,7 @@ décisions sous le même numéro ont coûté une heure et huit renvois à corrig
 | Identité d'une piste : par chemin de fichier, ou morceau logique avec N fichiers ? | phase 3 | 21 % de la bibliothèque est en double — [`../MESURES-V1.md`](../MESURES-V1.md) §10 |
 | **Cible de parité : les 124 features, ou une cible réduite à ~85-90 ?** Critère proposé par l'audit : « un utilisateur passe à V2 sans perdre ce qu'il utilise ». Deezer est dedans et WiFi Sync dehors, le reste attend | rien : **Thomas a explicitement reporté la question jusqu'à ce que le son sorte des enceintes** | [`0017`](0017-ce-que-thomas-a-tranche-le-25-novembre.md) §2 |
 | **Une seule liste des zones Rust vivantes, au lieu de cinq ?** Chaque garde-fou porte la sienne, un dossier qui naît entre dans trois listes sur cinq, et l'oubli est invisible. Vu trois fois. Gravité suggérée 🟡 : le dommage est indirect — un détecteur aveugle — mais il désarme des règles 🔴 | rien ; gelé jusqu'au jalon son ([`0017`](0017-ce-que-thomas-a-tranche-le-25-novembre.md) §5) | mémoire de l'agent de relecture, `les-listes-de-zones-du-harnais` |
+| **La flèche de l'écart de fréquence pointe toujours vers le bas**, alors que le repli choisit en priorité une fréquence *supérieure* : un 44,1 kHz joué à 48 s'affiche « 48 kHz ↓ ». Les deux chiffres restent visibles, donc l'information n'est pas fausse | rien : cosmétique, non mesuré comme gênant | [`0018`](0018-le-bit-perfect-est-un-etat-affiche.md) |
 | Régime de V1 pendant la reconstruction (gel / hotfix seulement / évolution) | rien | [`0004`](0004-cible-de-parite.md) — la cible, elle, est tranchée |
 | V2 = mise à jour de V1 (même bundle identifier) ou app distincte | phase 7 | [`0003`](0003-dossier-de-donnees.md) |
 | **Que faire quand le NAS est éteint ?** Aujourd'hui les pistes réseau n'apparaissent qu'après un scan, donc une bibliothèque à 91 % réseau est quasi vide sans le NAS. Reprendre les 3 137 pistes du cache de V1 au démarrage la rendrait visible hors ligne, au prix de 42 trous et de 181 écarts de métadonnées connus | rien aujourd'hui ; deviendra urgent si Thomas travaille souvent NAS éteint | [`0016`](0016-la-part-reseau-de-la-bibliotheque.md) § alternatives écartées |
