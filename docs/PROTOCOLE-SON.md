@@ -39,9 +39,10 @@ design est pour plus tard. La section **Lecture** est en haut, sous les dossiers
 
 **Échec** : la fenêtre ne s'ouvre pas, ou la section Lecture est absente.
 
-## Déjà passées sur ton matériel, le 2026-11-26
+## Déjà passées sur ton matériel, les 2026-11-26 et 27
 
-Relevé dans le journal de ta session, pas déduit d'un test. Tu peux les sauter.
+Relevé dans le journal de ta session ou jugé par Thomas lui-même, pas déduit d'un test. Tu
+peux les sauter.
 
 | | Ce que le journal montre |
 |---|---|
@@ -51,9 +52,20 @@ Relevé dans le journal de ta session, pas déduit d'un test. Tu peux les sauter
 | **14** — le matériel est rendu | la fréquence d'origine est remise à **chaque** fermeture de flux, et pas seulement en quittant l'app |
 | **8** — l'album s'enchaîne sans trou | `piste enchaînée dans le même flux fichier=07 - Supernature.flac`, et **rien** derrière : ni fréquence réglée, ni flux rouvert, ni sortie redémarrée — le tampon n'a pas été touché. Jugé sans trou à l'oreille par Thomas |
 | **3** — zéro trou | aucun avertissement sur **huit** fermetures de flux, rééchantillonnage compris. Reste à tenir trois minutes d'affilée sur une seule piste |
+| **4** — pause et reprise | jugées instantanées par Thomas. Elles le sont par construction : la pause n'est qu'un drapeau que lit le callback, le tampon n'est pas jeté et le flux reste ouvert — donc le journal n'en dit rien, et il n'y a rien à y chercher |
+| **7** — le volume | jugé immédiat par Thomas, même remarque : un atomique, et rien dans le journal |
 
-Restent, et elles demandent tes oreilles : **4** (pause), **5** (déplacement), **7** (volume),
-et tout le bloc du DAC.
+**5 (déplacement) a échoué, et le défaut était dans la barre, pas dans le moteur.** Le
+curseur se relisait dix fois par seconde depuis l'état sondé : chaque relevé réécrivait sa
+valeur sous le doigt, donc viser était impossible. Corrigé — pendant un déplacement, c'est
+le doigt qui commande, et le sondage reprend la main au relâchement. Le curseur de volume
+avait la même forme sans le défaut, parce que la valeur qu'il relit est celle qu'on vient
+d'y poser : elle ne bouge pas d'elle-même. **À refaire après un relancement.**
+
+« Pas bit-perfect : le mode exclusif est coupé » n'est pas un défaut : c'est la quatrième
+des quatre conditions (ADR 0007), et c'est l'**étape 12** qui la lève en cochant la case.
+
+Restent, et elles demandent tes oreilles : **5** (à refaire) et tout le bloc du DAC.
 
 ## Sans rien brancher
 

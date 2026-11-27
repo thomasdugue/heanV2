@@ -1736,3 +1736,17 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   dans le son sont comptés** — après correction, car le compteur comptait aussi chaque fin
   d'album et chaque déplacement, et un indicateur qui crie au loup se fait retirer.
   **À la charge de Thomas** : `docs/PROTOCOLE-SON.md`. **Hors périmètre** : la lecture NAS.
+
+- **2026-11-27** (le protocole son, sur le matériel de Thomas) : **sept étapes passées**, et
+  une a trouvé un vrai défaut. Passées : 2, 3, 8 (enchaînement d'album), 9 (repli 192 → 96 kHz
+  avec les deux fréquences affichées), 11, 14, et — jugées par Thomas, car le journal n'en dit
+  rien par construction — 4 (pause) et 7 (volume). **Échec de l'étape 5** : la barre de
+  position était impossible à viser. Le moteur n'y était pour rien — le curseur relisait la
+  position sondée dix fois par seconde, donc chaque relevé réécrivait sa valeur sous le doigt.
+  Corrigé dans `Lecture.svelte` : pendant un déplacement c'est le doigt qui commande, le
+  sondage reprend la main au relâchement. **Ce qui rendait le défaut invisible à la relecture**
+  est que le curseur de volume a la même forme et marche : la valeur qu'il relit est celle
+  qu'on vient d'y poser, elle ne bouge pas d'elle-même. D'où la règle à retenir : **un
+  contrôle dont la valeur est sondée ne se relit pas pendant qu'on le manipule** — et un
+  deuxième contrôle de la même forme qui marche ne prouve rien sur le premier.
+  **Reste à la charge de Thomas** : refaire 5, et tout le bloc du DAC.
