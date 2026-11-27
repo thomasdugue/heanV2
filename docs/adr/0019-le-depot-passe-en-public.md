@@ -38,8 +38,9 @@ Ce qui a été masqué dans l'arbre courant, par cette décision :
 | Apple Team ID | même fichier, 3 fois | `<TEAM_ID>` |
 | Adresse e-mail personnelle | 4 fichiers | l'adresse `users.noreply.github.com`, déjà publique |
 | Numéro de série du FiiO JM21 | 2 fichiers, 16 fois | `<SERIAL_APPAREIL>` |
-| Chemins `/Users/<compte>` | 11 fichiers, 23 fois | `$HOME` — et non `~`, qui ne s'étend pas entre guillemets doubles ; le dépôt en a un cas, `docs/PROTOCOLE-SON.md` |
+| Chemins `/Users/<compte>` | 11 fichiers, 22 fois | `$HOME` — et non `~`, qui ne s'étend pas entre guillemets doubles ; le dépôt en a un cas, `docs/PROTOCOLE-SON.md` |
 | Mot de passe app-specific Apple | `GUIDE-LAUNCH-BETA-V1.md`, 1 fois | `<MOT_DE_PASSE_APP_SPECIFIQUE>` |
+| Nom d'hôte du NAS, dérivé du patronyme | 7 fichiers, 34 fois, dont 29 en fixtures de test | `<NAS>` dans la prose, `nas` dans les fixtures. `admin` et `LOSSLESS` restent : génériques, et cités par les ADR [0015](0015-nom-de-service-keychain-pour-les-mots-de-passe-smb.md) et [0016](0016-la-part-reseau-de-la-bibliotheque.md), immuables |
 
 **Vérifié le 2026-11-27** : un balayage de tous les fichiers suivis, motifs tolérants aux
 guillemets — c'est un guillemet ouvrant qui avait caché le mot de passe Apple — ne trouve plus
@@ -99,11 +100,10 @@ part d'un disque nu », notée en tête de [`check`](../../check) : c'est elle q
 
 - **Aucun fichier `LICENSE`.** Publier n'est pas ouvrir : par défaut, tous droits réservés — le
   code est lisible et copiable en fait, pas réutilisable en droit. Hean reste un produit payant
-  (« distribution directe, licence perpétuelle »), et `bootstrap/` embarque 59 fichiers source
-  — mesure : les 142 fichiers suivis de `bootstrap/`, filtrés sur `.rs` (36), `.js` (12),
-  `.html` (7), `.css` (3) et `.py` (1) ; le reste est de la prose. Ce chiffre porte un argument
-  juridique, il doit dire ce qu'il compte
-  de V1.
+  (« distribution directe, licence perpétuelle »), et `bootstrap/` embarque **59 fichiers source
+  de V1** : les 134 fichiers suivis de `bootstrap/` après le retrait des captures (142 avant),
+  filtrés sur `.rs` (36), `.js` (12), `.html` (7), `.css` (3) et `.py` (1) ; le reste est de la
+  prose. Un chiffre qui porte un argument juridique doit dire ce qu'il compte.
 - **Les documents de stratégie commerciale deviennent publics** : `pricing-gtm.md` (209 lignes),
   `market-viability.md` (150) et `gtm-playbook-solo-dev.md` (112), dans
   `bootstrap/01-produit/recherche/`.

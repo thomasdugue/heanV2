@@ -12,3 +12,5 @@
 - [Les listes de zones du harnais](les-listes-de-zones-du-harnais.md) — chaque garde-fou a la sienne ; on retourne une liste d'oublis, pas une liste de choix
 - [Un compteur sans lecteur](un-compteur-sans-lecteur.md) — un compteur d'anomalie n'est une trace que si quelqu'un le lit sur le chemin réel
 - [Repli de fréquence et interdit de resampling](repli-de-frequence-et-interdit-de-resampling.md) — le code replie, le skill et l'ADR 0007 §5 disent « refuser » : vérifier avant de juger
+- [Mesurer commits et branches](mesurer-commits-et-branches.md) — mesurer sur `origin/main`, jamais sur le `main` local ni `--all` ; `git branch -r` compte les refs mortes ; le squash décale main de +1.
+- [Ce que le masquage a laissé](ce-que-le-masquage-a-laisse.md) — le NAS a été masqué ; `admin`, `LOSSLESS` et `com.tdugue.*` restent par choix écrit : ne pas les re-signaler.

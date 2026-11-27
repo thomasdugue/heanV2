@@ -13,7 +13,7 @@ import { RACINE, lire } from './_lecture';
 // motif ne regarde pas puisqu'il commence par `~`.
 //
 // ⚠️ Il y en avait une seconde, retirée le 2026-11-26 : les BLOCS DE LANCEMENT
-// `cd <chemin absolu> && <commande>`. Elle couvrait les 23 chemins `/Users/<compte>` des
+// `cd <chemin absolu> && <commande>`. Elle couvrait les 22 chemins `/Users/<compte>` des
 // protocoles, tous remplacés par `$HOME` avant la bascule du dépôt en public (ADR 0019) —
 // `$HOME` et non `~`, qui ne s'étend pas entre guillemets doubles. L'exception n'avait donc
 // plus rien à couvrir, et une exception vide ne dort pas : elle **couvre d'avance**, et le

@@ -53,7 +53,12 @@ l'arbitrage devient : l'embarquer en local, ou assumer Geist Mono partout.
 
 ## 2. Les captures
 
-Destination : `bootstrap/02-design/reference/captures/`
+Destination : **un dossier local, hors de git** — `~/Desktop/captures-hean/` fait l'affaire. Le
+dépôt est destiné à devenir public depuis le 2026-11-27 et ne porte plus aucune capture de la
+bibliothèque ([ADR 0020](adr/0020-les-captures-sortent-du-depot.md)) ;
+`bootstrap/02-design/reference/captures/` ne garde que le `README.md` qui dit ce que les huit
+premières montraient. Un `.gitignore` refuse les `.png` de ce dossier : les y remettre demande un
+`git add -f`, qui se voit en revue.
 
 Nommage : `NN-ecran.png`, numéroté dans l'ordre ci-dessous, pour que le dossier se lise comme un
 parcours. `Cmd+Shift+4` puis espace capture la fenêtre seule, sans le bureau.

@@ -28,14 +28,22 @@ mesures de [`../MESURES-V1.md`](../MESURES-V1.md) : §9 l'extraction de couleur 
 révélés. C'est cette prose, et non les images, que la phase 4 lira — et elle reste vérifiable
 puisque le protocole de reprise existe ([`../PROTOCOLE-CAPTURES.md`](../PROTOCOLE-CAPTURES.md)).
 
+**Et l'interdit s'écrit dans `.gitignore`**, pas seulement dans ces pages :
+`bootstrap/02-design/reference/captures/*.png` y entre. Une consigne en prose ne peut pas échouer ;
+une ligne d'ignore rend la faute inexprimable sans un `git add -f`, qui se voit en revue. C'est
+l'ADR [0005](0005-entretien-du-harnais-et-orchestration.md) appliqué à une décision de produit —
+d'autant que `PROTOCOLE-CAPTURES.md`, le seul document qu'une session ouvrira pour reprendre la
+série, disait encore de les écrire ici.
+
 Les noms d'œuvres qui restent dans cette prose (« AIR », « PRINCE », *Moon Safari*) sont des disques
 du commerce, déjà cités par `MESURES-V1.md` : ce sont les **images** qui exposaient une bibliothèque
 personnelle, pas ces trois mentions.
 
 ## Ce que ça ne règle pas
 
-⚠️ **Mesuré le 2026-11-27 : les images sont dans l'arbre de 53 des 61 commits de `main`.** Les
-retirer de `HEAD` les retire de la page que GitHub montre, pas du dépôt : un clone les rend toutes,
+⚠️ **Mesuré le 2026-11-27 : les images sont dans l'arbre de 52 des 60 commits de `origin/main`.**
+La référence compte : le `main` **local** de ce poste porte un commit de plus, jamais poussé, et
+compter sur lui donnait 53 sur 61. Ce qui se publie, c'est `origin/main`. Les retirer de `HEAD` les retire de la page que GitHub montre, pas du dépôt : un clone les rend toutes,
 et l'interface web laisse parcourir n'importe quel commit. Et contrairement à un mot de passe, une
 image **ne se révoque pas**.
 
