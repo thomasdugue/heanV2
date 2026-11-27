@@ -34,7 +34,7 @@ Pourquoi le coût est faible, et c'est mesuré le 2026-11-27, pas supposé :
   pas parce qu'elles portent du travail non intégré. Mon estimation précédente — « 22 branches
   partiraient à refaire » — comptait des branches mortes.
 - **le travail en cours tient en une branche** : `claude/coreaudio-sortie-8e47a4`, 3 fichiers et
-  +96 lignes hors de `main`, session encore ouverte. ⚠️ Les 6 worktrees n'ont aucun fichier
+  +96 lignes hors de `main`, en trois commits qu'aucune PR ne suit. ⚠️ Les 6 worktrees n'ont aucun fichier
   modifié, mais ça ne le prouvait pas : `git status` ne voit pas ce qui est commité, et le dépôt
   neuf n'ayant **aucun ancêtre commun**, une branche laissée derrière ne se fusionne plus — elle se
   rejoue par `git format-patch`. D'où la seconde condition de l'étape 1 du protocole.

@@ -47,9 +47,14 @@ Il ne rend **pas** un verdict, il réduit vingt-et-une branches à une poignée 
 
 - `claude/masquer-donnees-sensibles` — **aucune fusion** : c'est la PR #26, que l'étape fusionne.
 - `claude/coreaudio-sortie-8e47a4` — **3 fichiers, +96 lignes** hors de `main`
-  (`src/lib/ui/Lecture.svelte`, `docs/HISTORY.md`, `docs/PROTOCOLE-SON.md`), dernier commit du
-  2026-11-27 et **session encore ouverte**. Le seul vrai travail en cours : fusionner sa PR avant
-  de continuer, ou rejouer ses trois fichiers par patch.
+  (`src/lib/ui/Lecture.svelte`, `docs/HISTORY.md`, `docs/PROTOCOLE-SON.md`) : **trois commits
+  postérieurs à la fusion de sa PR #25**, qu'**aucune PR ouverte ne suit**. Le seul vrai travail en
+  cours. ⚠️ Ne pas attendre qu'il atterrisse tout seul : rien ne le suit, et sa session a rendu son
+  rapport. Sa PR se fusionne avant de continuer, ou ses trois fichiers se rejouent par patch.
+  ⚠️ Et sa version de `docs/PROTOCOLE-SON.md` porte encore trois chemins `/Users/<compte>` que
+  cette PR a passés à `$HOME` : une fois la #26 fusionnée, `./check` est **rouge** sur sa branche
+  jusqu'à leur correction — l'exception `BLOC_DE_LANCEMENT` du test d'architecture, que la #26
+  retire, est précisément ce qui les laissait passer. Session prévenue le 2026-11-27.
 - `claude/coquille-visible-cef91a` et `claude/harnais-extensions-non-lues` — des **queues de deux
   à trois minutes** des 23 et 24 novembre : la session a poussé un dernier commit pendant que le
   *squash* atterrissait. Vérifié ligne par ligne le 2026-11-27, rien n'y est perdu — l'entrée de
