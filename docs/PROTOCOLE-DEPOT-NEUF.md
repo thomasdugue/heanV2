@@ -16,7 +16,7 @@ Compte **vingt minutes**. Les étapes sont dans l'ordre : chacune suppose la pr�
 | | |
 |---|---|
 | **Le nom du dépôt public** | `hean` — le nom du produit, et celui du dossier de données (ADR [0003](adr/0003-dossier-de-donnees.md)). Il ne peut pas être `heanV2`, ce nom restant pris par le dépôt privé. Tout ce qui suit l'appelle `hean` |
-| **Aucune URL en dur à reprendre** | vérifié le 2026-11-27 : les 406 fichiers suivis ne citent `thomasdugue/heanV2` nulle part. Les 21 URL de dépôt qu'ils portent visent `noirdesktop` et `noir-feedback`, les dépôts de V1 — des références historiques, qui restent justes |
+| **Aucune URL en dur à reprendre** | vérifié le 2026-11-27 : les 408 fichiers suivis ne citent `thomasdugue/heanV2` nulle part. Les 21 URL de dépôt qu'ils portent visent `noirdesktop` et `noir-feedback`, les dépôts de V1 — des références historiques, qui restent justes |
 | **Rien en cours à sauver** | mesuré le 2026-11-27 : une seule PR ouverte (la #26), et **zéro fichier modifié** dans les six worktrees |
 
 ## 1. Fusionner la PR #26, côté privé
@@ -70,7 +70,12 @@ inexprimable, plutôt qu'une consigne de ne pas copier le mauvais dossier.
 rm -rf $HOME/hean-public && mkdir -p $HOME/hean-public && git -C $HOME/Documents/Thomas/heanV2 archive HEAD | tar -x -C $HOME/hean-public && find $HOME/hean-public -type f | wc -l
 ```
 
-Le compte doit valoir celui de `git ls-files | wc -l` — **406** le 2026-11-27.
+Les deux comptes doivent être **égaux** — c'est l'égalité qui vérifie, pas le chiffre, qui bouge à
+chaque commit (408 le 2026-11-27) :
+
+```bash
+git -C $HOME/Documents/Thomas/heanV2 ls-files | wc -l
+```
 
 ## 5. Le commit initial, avec la bonne adresse
 
