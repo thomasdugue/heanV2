@@ -1748,5 +1748,7 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   est que le curseur de volume a la même forme et marche : la valeur qu'il relit est celle
   qu'on vient d'y poser, elle ne bouge pas d'elle-même. D'où la règle à retenir : **un
   contrôle dont la valeur est sondée ne se relit pas pendant qu'on le manipule** — et un
-  deuxième contrôle de la même forme qui marche ne prouve rien sur le premier.
-  **Reste à la charge de Thomas** : refaire 5, et tout le bloc du DAC.
+  deuxième contrôle de la même forme qui marche ne prouve rien sur le premier. **5 est
+  repassée après correction**, donc neuf étapes sur dix-huit sont tenues.
+  **Reste à la charge de Thomas** : 1, 6, 12, 13bis, 17, la tenue de 3 sur trois minutes, et
+  tout ce qui demande le DAC ou un AirPlay.

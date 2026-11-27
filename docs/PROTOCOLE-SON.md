@@ -54,18 +54,24 @@ peux les sauter.
 | **3** — zéro trou | aucun avertissement sur **huit** fermetures de flux, rééchantillonnage compris. Reste à tenir trois minutes d'affilée sur une seule piste |
 | **4** — pause et reprise | jugées instantanées par Thomas. Elles le sont par construction : la pause n'est qu'un drapeau que lit le callback, le tampon n'est pas jeté et le flux reste ouvert — donc le journal n'en dit rien, et il n'y a rien à y chercher |
 | **7** — le volume | jugé immédiat par Thomas, même remarque : un atomique, et rien dans le journal |
+| **5** — le déplacement | repassée par Thomas **après correction** de la barre. Le détail est juste en dessous, parce que c'est la seule étape de la liste qui a trouvé un défaut |
 
-**5 (déplacement) a échoué, et le défaut était dans la barre, pas dans le moteur.** Le
-curseur se relisait dix fois par seconde depuis l'état sondé : chaque relevé réécrivait sa
-valeur sous le doigt, donc viser était impossible. Corrigé — pendant un déplacement, c'est
-le doigt qui commande, et le sondage reprend la main au relâchement. Le curseur de volume
-avait la même forme sans le défaut, parce que la valeur qu'il relit est celle qu'on vient
-d'y poser : elle ne bouge pas d'elle-même. **À refaire après un relancement.**
+**5 (déplacement) a échoué du premier coup, et le défaut était dans la barre, pas dans le
+moteur.** Le curseur se relisait dix fois par seconde depuis l'état sondé : chaque relevé
+réécrivait sa valeur sous le doigt, donc viser était impossible. Corrigé, puis **repassée par
+Thomas**. Ce qui rendait le défaut invisible à la relecture : le curseur de volume a la même
+forme et marche, parce que la valeur qu'il relit est celle qu'on vient d'y poser — elle ne
+bouge pas d'elle-même. Un deuxième contrôle de la même forme qui fonctionne ne prouve rien
+sur le premier.
 
 « Pas bit-perfect : le mode exclusif est coupé » n'est pas un défaut : c'est la quatrième
 des quatre conditions (ADR 0007), et c'est l'**étape 12** qui la lève en cochant la case.
 
-Restent, et elles demandent tes oreilles : **5** (à refaire) et tout le bloc du DAC.
+**Ce qui reste et ne demande aucun matériel** : **1** (la liste des sorties), **6** (piste
+suivante et précédente), **12** (cocher le mode exclusif, qui marche sur n'importe quelle
+sortie), **13bis** (un déplacement juste après un saut), **17** (changer la sortie dans les
+Réglages Son de macOS pendant une piste), et la tenue de **3** sur trois minutes d'affilée.
+Le reste attend le DAC, ou un AirPlay.
 
 ## Sans rien brancher
 
