@@ -10,7 +10,8 @@
 L'ADR [0019](0019-le-depot-passe-en-public.md) a masqué les données sensibles dans l'arbre courant,
 l'ADR [0020](0020-les-captures-sortent-du-depot.md) a retiré les 8 captures. Les deux restent
 **cosmétiques** tant que l'historique les porte : le mot de passe app-specific Apple et le DSN
-Sentry sont dans l'arbre des **60 commits** de `origin/main` — de *tous* — et les captures dans 52.
+Sentry sont dans l'arbre de **tous** les commits de `origin/main` — le fichier qui les porte est là
+depuis le commit initial, vérifié commit par commit — et les captures dans 53 sur 61.
 
 Deux formes existaient pour fermer ça. **Mesuré le 2026-11-27, l'une des deux ne ferme rien.**
 GitHub garde pour chaque pull request une référence `refs/pull/<n>/head` que le propriétaire du
@@ -28,7 +29,7 @@ passé. `thomasdugue/heanV2` reste privé et garde tout — historique, PR, revu
 
 Pourquoi le coût est faible, et c'est mesuré le 2026-11-27, pas supposé :
 
-- **une seule PR ouverte** (#26, celle du masquage) ; 24 fusionnées, 1 fermée. Les 13 branches
+- **une seule PR ouverte** (#26, celle du masquage) ; 24 fusionnées, 1 fermée. Les 14 branches
   poussées qui paraissent « en avance » sur `main` le sont parce que les fusions sont des *squash*,
   pas parce qu'elles portent du travail non intégré. Mon estimation précédente — « 22 branches
   partiraient à refaire » — comptait des branches mortes.
@@ -60,9 +61,9 @@ PR ci-dessus y survivent, donc l'opération coûte 22 branches et 6 worktrees à
 rien nettoyer**. C'est le genre de travail qui donne l'impression d'avoir réglé le problème, ce qui
 est pire que de ne pas l'avoir fait.
 
-**Passer le dépôt actuel en public tel quel**, ce que 0019 décidait avant cette mesure. Publie les
-60 commits et les 26 refs de PR, c'est-à-dire exactement tout ce que 0019 et 0020 viennent de
-retirer de l'arbre.
+**Passer le dépôt actuel en public tel quel**, ce que 0019 décidait avant cette mesure. Publie
+l'historique entier et les 26 refs de PR, c'est-à-dire exactement tout ce que 0019 et 0020 viennent
+de retirer de l'arbre.
 
 **Garder les deux dépôts en miroir** — le privé pour le travail, le public pour la vitrine.
 Écartée parce qu'elle manque le but : la CI gratuite est **la** raison de la bascule (0019), et des

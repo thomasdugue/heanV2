@@ -40,6 +40,7 @@ Ce qui a été masqué dans l'arbre courant, par cette décision :
 | Numéro de série du FiiO JM21 | 2 fichiers, 16 fois | `<SERIAL_APPAREIL>` |
 | Chemins `/Users/<compte>` | 11 fichiers, 22 fois | `$HOME` — et non `~`, qui ne s'étend pas entre guillemets doubles ; le dépôt en a un cas, `docs/PROTOCOLE-SON.md` |
 | Mot de passe app-specific Apple | `GUIDE-LAUNCH-BETA-V1.md`, 1 fois | `<MOT_DE_PASSE_APP_SPECIFIQUE>` |
+| Adresse e-mail d'un **tiers** (contact presse Qobuz) | `bootstrap/01-produit/recherche/gtm-playbook-solo-dev.md`, 1 fois | `<CONTACT_PRESSE_QOBUZ>`. Relevée le 2026-11-27 : ni un justificatif ni une donnée de Thomas, donc hors des deux motifs de balayage — c'est la donnée personnelle de quelqu'un qui n'a pas été consulté |
 | Nom d'hôte du NAS, dérivé du patronyme | 7 fichiers, 34 fois, dont 29 en fixtures de test | `<NAS>` dans la prose, `nas` dans les fixtures. `admin` et `LOSSLESS` restent : génériques, et cités par les ADR [0015](0015-nom-de-service-keychain-pour-les-mots-de-passe-smb.md) et [0016](0016-la-part-reseau-de-la-bibliotheque.md), immuables |
 
 **Vérifié le 2026-11-27** : un balayage de tous les fichiers suivis, motifs tolérants aux

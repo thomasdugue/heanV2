@@ -41,7 +41,7 @@ personnelle, pas ces trois mentions.
 
 ## Ce que ça ne règle pas
 
-⚠️ **Mesuré le 2026-11-27 : les images sont dans l'arbre de 52 des 60 commits de `origin/main`.**
+⚠️ **Mesuré le 2026-11-27 : les images sont dans l'arbre de 53 des 61 commits de `origin/main`.**
 La référence compte : le `main` **local** de ce poste porte un commit de plus, jamais poussé, et
 compter sur lui donnait 53 sur 61. Ce qui se publie, c'est `origin/main`. Les retirer de `HEAD` les retire de la page que GitHub montre, pas du dépôt : un clone les rend toutes,
 et l'interface web laisse parcourir n'importe quel commit. Et contrairement à un mot de passe, une

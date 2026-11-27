@@ -1776,16 +1776,17 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
   de V1, déjà morte ou sous un autre compte. L'ADR 0019 le dit maintenant : une consigne de
   révocation qui nomme la mauvaise clé fait croire le travail fait.
 - **2026-11-27** (fin du masquage) : Thomas tranche la décision ouverte — **dépôt neuf**, ADR
-  [0021](adr/0021-un-depot-neuf-a-un-seul-commit.md). ⚠️ **Et la mesure qui a tranché avec lui** :
-  GitHub garde pour chaque PR une `refs/pull/<n>/head` que le propriétaire **ne peut pas
-  supprimer**. Le dépôt en porte 26, et **25 donnent encore** le mot de passe, le DSN et les huit
-  captures. Réécrire l'historique de `main` aurait donc coûté 22 branches et 6 worktrees **pour ne
-  rien nettoyer** — le pire des deux, puisqu'on aurait cru le problème réglé. J'avais chiffré le
-  coût de l'option A, pas son effet.
-  Le reste du coût s'effondre aussi, mesuré : **une seule PR ouverte** (les 13 branches qui
-  paraissent en avance le sont par *squash*), **zéro fichier modifié** dans les six worktrees. Et
-  l'historique raconté est dans l'**arbre**, pas dans git : `HISTORY.md` et les 21 ADR partent avec
-  le commit initial. Écrit : [`PROTOCOLE-DEPOT-NEUF.md`](PROTOCOLE-DEPOT-NEUF.md), neuf étapes dont
-  deux irrattrapables — `user.email` **dans** la commande du commit, et un balayage final resserré
-  sur de la matière réelle (le motif large attrapait 16 fichiers de classes CSS en kebab-case ; un
-  balayage qui crie au loup seize fois ne se lit pas jusqu'au bout).
+  [0021](adr/0021-un-depot-neuf-a-un-seul-commit.md). ⚠️ **La mesure qui a tranché avec lui** :
+  GitHub garde pour chaque PR une `refs/pull/<n>/head` **non supprimable** par le propriétaire. Le
+  dépôt en porte 26, et **25 donnent encore** le mot de passe, le DSN et les huit captures.
+  Réécrire l'historique aurait coûté 22 branches et 6 worktrees **pour ne rien nettoyer** — pire que
+  ne rien faire, puisqu'on aurait cru le problème réglé. J'avais chiffré le coût de l'option, pas
+  son effet. Le reste s'effondre, mesuré : **une seule PR ouverte**, **zéro fichier modifié** dans
+  les six worktrees, et l'historique raconté vit dans l'**arbre** — `HISTORY.md` et les 21 ADR
+  partent avec le commit initial. Écrit : [`PROTOCOLE-DEPOT-NEUF.md`](PROTOCOLE-DEPOT-NEUF.md).
+  ⚠️ **Et le guardian a rendu BLOQUANT sur ce protocole, deux fois à raison** : son balayage nommait
+  le nom d'hôte du NAS, donc le document le **remettait** dans le dépôt et son compteur ne pouvait
+  plus valoir zéro ; et sa vérification d'après-publication filtrait des noms de fichiers au lieu de
+  lignes, donc elle aurait annoncé cinq justificatifs dans un dépôt déjà public. **Leçon** : une
+  commande écrite dans un document se rejoue avant d'être commitée, comme un détecteur s'éprouve par
+  injection. Les comptes du matin (60, 52) ont été périmés à 14:07 par un push : 61 et 53.
