@@ -59,3 +59,6 @@ existé — la bêta V1 n'a pas été distribuée. Voir [`03-architecture/PERSIS
 Licence perpétuelle, pas d'abonnement. Prix étudié : **49 € en early-bird → 69 € standard**,
 distribution directe (LemonSqueezy). Revenu Year 1 estimé ~22 400 € pour < 1 200 € de coûts fixes.
 Détail : [`recherche/pricing-gtm.md`](recherche/pricing-gtm.md).
+
+**Avant d'arbitrer une décision produit avec le marché en tête, lire [`MARCHE.md`](MARCHE.md)** :
+ce qui est utilisable dans les trois études, et ce qui ne doit pas être cité.

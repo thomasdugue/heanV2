@@ -1820,3 +1820,18 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
   de la base, qui peut être périmée là où `readdirplus` manque (0016 §4) — une longueur fausse
   ne donne pas une erreur mais un déplacement qui vise à côté. **Reste à mesurer sur son NAS** :
   le compteur de trous, et la profondeur d'anticipation juste.
+
+- **2026-11-28** (distiller les trois études de marché) : écrit
+  [`bootstrap/01-produit/MARCHE.md`](../bootstrap/01-produit/MARCHE.md), 148 lignes, 8 sections — ce qui
+  est utilisable dans les ~470 lignes de `recherche/`, et ce qui ne doit **pas** être cité (le chiffre
+  de 82 800 € ; les TAM/SAM/SOM annotés *Low confidence* par l'étude elle-même ; la section marque,
+  écrite pour « Noir », jamais rejouée pour « Hean »). `NON-GOALS.md` y renvoie. Aucun ADR : rien à
+  décider ici. **Trois écarts entre les études**, qu'aucune des deux ne signale : Audirvana Studio
+  (deux prix), JRiver (trois), Roon annuel (deux) — les deux valeurs sont écrites exprès, avec leur
+  source. **Le relevé de audirvana.com du jour** (session appelante) en tranche une et **corrige trois
+  lignes** de la lecture d'origine : Origin est à 149,99 € (pas 119,99 €), son UI n'est plus datée
+  (Origin 3.0), et il lit un NAS — par un CorePlayer installé **sur** le NAS. D'où le chiffre le plus
+  fort du document, qui n'était dans aucune étude : **69 € EQ compris contre 219,99 €** chez Audirvana
+  (Origin + « Signal Processing Suite »). **Trou confirmé par grep** : zéro ligne de licence, d'essai
+  ou d'activation dans V1 — « même feature set » ne donne pas un produit vendable. `CLAUDE.md` **non
+  touché** : 149/150 lignes, le budget ne permettait plus un renvoi.
