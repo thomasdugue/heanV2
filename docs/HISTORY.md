@@ -1790,18 +1790,18 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
   périmés à 14:07 par un push (61, 53), et **« zéro fichier modifié » qui ne voit pas le travail
   commité** — une branche porte +96 lignes hors de `main`, session ouverte. **Leçon** : une commande
   écrite dans un document se rejoue avant d'être commitée, comme un détecteur s'éprouve par injection.
-- **2026-11-27** (le protocole son, sur le matériel de Thomas) : **six étapes de plus, et un
-  vrai défaut trouvé.** Passées : 4 et 7, jugées par Thomas car le journal n'en dit rien par
-  construction ; 6, 12 (position conservée, badge **Bit-perfect** sur sa copie d'écran),
-  13bis, et **5 après correction**. Neuf sur vingt tenues ; 3 attend ses trois minutes.
+- **2026-11-27** (le protocole son, sur le matériel de Thomas) : **neuf étapes de plus, douze
+  sur vingt, et plus rien ne se teste sans matériel** (détail : `PROTOCOLE-SON.md`). Dont **3**,
+  la plus importante : 3 min 15 s sans un trou ; les huit restantes exigent le DAC ou un AirPlay.
   **Échec de l'étape 5** : la barre était impossible à viser, et le moteur n'y était pour
   rien — le curseur relisait la position sondée, donc chaque relevé réécrivait sa valeur sous
   le doigt. D'où **INV-30** (🟡 ; le 29 est réclamé par l'entrée du masquage ci-dessus,
   j'arrive second) : *un contrôle dont la valeur est sondée ne se relit pas pendant qu'on le
-  manipule* — et son corollaire, qui est ce qui a rendu le défaut invisible à la relecture :
-  **un deuxième contrôle de la même forme qui marche ne prouve rien sur le premier**.
-  **INV-28 étendue**, sur décision de Thomas : une durée dont l'unité vit dans le NOM d'une
-  constante en est une ; `VISEE_TENUE_MS = 300` était invisible au détecteur, qui exigeait
-  l'unité collée aux chiffres. **Leçon de procédé** : j'ai poussé quatre commits après la
-  fusion en squash de la #25, donc hors de main ; le test de Thomas n'a réussi que parce que
-  mon Vite tenait le port 1420. Avant de pousser, `gh pr view <n> --json state`.
+  manipule* — et son corollaire, qui l'a rendu invisible à la relecture : **un deuxième
+  contrôle de la même forme qui marche ne prouve rien sur le premier**.
+  **INV-28 étendue**, sur décision de Thomas : `VISEE_TENUE_MS = 300` lui était invisible, sa
+  grammaire exigeant l'unité collée aux chiffres. **Décision ouverte** : changer de sortie
+  dans Hean peut laisser le son inaudible — macOS garde un volume **par périphérique**, le
+  moteur n'écrit jamais le volume matériel, et l'app affiche « 100 % ». **Leçon de procédé** :
+  j'ai poussé quatre commits après la fusion en squash de la #25, donc hors de main ; le test
+  de Thomas n'a réussi que parce que mon Vite tenait le port 1420.
