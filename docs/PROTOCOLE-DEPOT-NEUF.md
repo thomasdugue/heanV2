@@ -95,12 +95,18 @@ ce projet — le mot de passe SMB du NAS et le jeton du worker Cloudflare — n'
 seule la forme d'une *affectation* les voit.
 
 ```bash
-git grep -nIE '(mot_de_passe|password|passwd|token|secret|dsn|api[_-]?key)[a-z_]*[[:space:]]*[:=][[:space:]]*["'][^"' ]{8,}' -- .
+git grep -nIE "(mot_de_passe|password|passwd|token|secret|dsn|api[_-]?key)[a-z_]*[[:space:]]*[:=][[:space:]]*[\"'][^\"' ]{8,}" -- .
 ```
 
 **Attendu : deux lignes**, les fixtures `"secret-token-1234"` et `"uniq-test-token-9876"` de
 `bootstrap/05-postmortem/chantier-wifi-sync/code/rust/wifi_sync/server.rs`. Toute autre ligne
 arrête le protocole.
+
+⚠️ **Cette commande est en guillemets doubles, et ça n'est pas un détail de style.** En guillemets
+simples, l'apostrophe de la classe `["']` ferme la chaîne : zsh rend `unmatched "` et **rien ne
+s'exécute**. C'est la forme qui a été commitée ici le 2026-11-27, avec son « attendu : deux lignes »
+— j'avais rejoué une variante, pas le texte du document. Une commande écrite dans un document se
+rejoue **telle qu'écrite**, copiée depuis le fichier : c'est la seule lecture qui vaut.
 
 **Échec** : n'importe quel nombre au-dessus de zéro. Relance sans les deux derniers filtres, la
 sortie dit le fichier et la ligne. Ne passe pas à l'étape 4 : après, ce qui est publié est publié.
