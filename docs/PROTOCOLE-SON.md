@@ -85,8 +85,19 @@ famille de l'indicateur qui ment, celle que l'étape 9 existe pour empêcher. **
 ouverte pour Thomas** : lire le volume du périphérique et le dire, le relever, ou ne rien
 faire. Non corrigé ici — ce n'est pas le périmètre de cette session.
 
-**Plus rien ne se teste sans matériel.** Cela fait **douze étapes sur vingt** tenues, et les
-**huit** qui restent demandent toutes le DAC ou un AirPlay : 9bis, 10, 11, 13, 14, 15, 16, 18. Et **aucune étape du bloc DAC (10, 11, 13, 14) n'est
+**Plus rien ne se teste sans matériel.** **Douze étapes sur vingt** sont tenues, **une est
+sans objet** ici (voir juste en dessous), et les **sept** qui restent demandent le DAC ou un
+AirPlay : 10, 11, 13, 14, 15, 16, 18.
+
+⚠️ **9bis ne se fera pas sur ce matériel : aucun DAC de Thomas ne monte à 192 kHz** (dit par
+lui le 2026-11-27). **Mais son but est déjà atteint autrement**, et c'est ce qui compte : elle
+existe pour qu'un indicateur **bloqué** sur « rééchantillonné » ne puisse pas passer pour
+juste. Or toutes les lectures en 44,1 kHz affichent « Sortie : 44,1 kHz » **sans** la mention
+et **avec** le badge bit-perfect, là où le 192 kHz affiche « 96 kHz (rééchantillonné) » et le
+perd. L'indicateur distingue donc bien les deux cas, et il n'est pas collé sur l'un d'eux.
+Ce que 9bis aurait ajouté et qui reste non éprouvé, nommément : que Hean fasse **monter** un
+DAC à 192 kHz. Tant qu'aucun DAC de ce calibre n'est là, cette étape se saute — elle ne
+compte ni comme tenue ni comme dette. Et **aucune étape du bloc DAC (10, 11, 13, 14) n'est
 passée** : le repli à 96 kHz de l'étape 9 s'est fait sur une **sortie intégrée** qui plafonne
 là, pas sur un DAC — le journal nomme `id=86`, soit « Écouteurs externes ». **Hean n'a encore
 jamais piloté ton DAC** : c'est la partie qui reste entièrement à éprouver.
