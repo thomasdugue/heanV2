@@ -113,7 +113,7 @@ MANIFEST.md                 d'où vient chaque fichier, et ce qui a été volont
 
 ```bash
 mkdir -p ~/Documents/Thomas/heanV2 && cd ~/Documents/Thomas/heanV2 && git init
-cp -R /Users/tsunami25/Documents/Thomas/noirdesktop/heanv2-bootstrap .
+cp -R $HOME/Documents/Thomas/noirdesktop/heanv2-bootstrap .
 ```
 
 Puis, dans la session heanV2 :
@@ -131,7 +131,7 @@ Puis, dans la session heanV2 :
    vérifiable. Il faut lancer V1 et capturer chaque vue, chaque panel, chaque modal, vers
    `02-design/reference/captures/`.
    ```bash
-   cd /Users/tsunami25/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
+   cd $HOME/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
    ```
 2. **Vérifier la typographie.** DM Sans est chargée depuis Google Fonts alors que la CSP ne
    l'autorise pas : l'app tourne probablement en Geist Mono + San Francisco, pas en DM Sans. À

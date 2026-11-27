@@ -80,7 +80,7 @@ describe('réseau', () => {
     const backend = creerFauxBackend(UNIQUEMENT_NAS);
     const depot = creerDepot(backend);
     await depot.charger();
-    await depot.ajouterUneSourceReseau('dugstation', 'dugstation.local', 'music', '/LOSSLESS/complete', 'admin');
+    await depot.ajouterUneSourceReseau('nas', 'nas.local', 'music', '/LOSSLESS/complete', 'admin');
     const [source] = await depot.sourcesReseau();
     expect(source).toBeDefined();
     expect(backend.appels['listTracks']).toBe(1);

@@ -372,7 +372,7 @@ mod tests {
 
     #[test]
     fn une_adresse_ipv6_nue_est_mise_entre_crochets() {
-        assert_eq!(url_du_serveur("dugstation.local"), "smb://dugstation.local");
+        assert_eq!(url_du_serveur("nas.local"), "smb://nas.local");
         assert_eq!(url_du_serveur("192.168.1.10"), "smb://192.168.1.10");
         assert_eq!(url_du_serveur("fe80::1"), "smb://[fe80::1]");
         assert_eq!(url_du_serveur("[fe80::1]"), "smb://[fe80::1]");

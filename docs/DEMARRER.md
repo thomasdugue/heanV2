@@ -25,7 +25,7 @@ local `noirdesktop-v1`, sur la branche `thomasdugue/design-migration-audit`. Tan
 GitHub, une panne de disque emporte la référence visuelle de V2.
 
 ```bash
-cd /Users/tsunami25/conductor/workspaces/noirdesktop-v1/yellowknife && git push -u origin thomasdugue/design-migration-audit
+cd $HOME/conductor/workspaces/noirdesktop-v1/yellowknife && git push -u origin thomasdugue/design-migration-audit
 ```
 
 Reste aussi à choisir un régime pour V1 pendant la reconstruction — moins urgent qu'il n'y paraît,
@@ -39,7 +39,9 @@ puisque le travail de design sur V1 est arrêté depuis octobre :
 
 ### A2. Capturer la cible visuellement 🟠 ~~bloquant~~ — **fait pour la validation, en pause pour la référence**
 
-**Le 2026-11-21 à 18 h 51, la cible a été lancée pour la première fois.** Huit captures :
+**Le 2026-11-21 à 18 h 51, la cible a été lancée pour la première fois.** Huit captures, **retirées
+du dépôt le 2026-11-27** avant la bascule en public ([ADR 0020](adr/0020-les-captures-sortent-du-depot.md)) :
+ce qu'elles montraient, écran par écran, est consigné dans
 [`../bootstrap/02-design/reference/captures/`](../bootstrap/02-design/reference/captures/README.md).
 
 Ces captures avaient deux rôles. **Le premier est rempli** : la cible est validée — les `--glass-*`
@@ -64,17 +66,18 @@ Ce qui suit reste valable pour reprendre la série.
 session. En deux lignes :
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop && git checkout thomasdugue/design-migration-audit
+cd $HOME/Documents/Thomas/noirdesktop && git checkout thomasdugue/design-migration-audit
 ```
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
+cd $HOME/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
 ```
 
 C'est bien le **checkout principal** et pas le workspace Conductor : lui seul a `scripts/.env.local`
 (sans quoi `dev.sh` s'arrête net) et 17 Go de cache de build Rust.
 
-Destination : `bootstrap/02-design/reference/captures/`. La liste des écrans à couvrir est dans
+Destination : **locale, hors de git** tant que le dépôt est public ([ADR 0020](adr/0020-les-captures-sortent-du-depot.md)).
+La liste des écrans à couvrir est dans
 [`../bootstrap/02-design/reference/README.md`](../bootstrap/02-design/reference/README.md).
 
 Urgence réelle : ces captures doivent être prises **depuis l'état actuel** de ta machine
@@ -114,6 +117,14 @@ Le nouveau dépôt n'a aucun secret. Avant la première release (phase 7, pas av
 `scripts/.env.local` avec les 6 valeurs — modèle dans
 [`../bootstrap/06-setup-v2/ci/secrets.env.template`](../bootstrap/06-setup-v2/ci/secrets.env.template).
 Ne pas découvrir ça le jour de la release.
+
+⚠️ **Deux secrets ont existé en clair dans le dépôt** et sont dans l'arbre de *tous* ses commits : un
+mot de passe app-specific Apple et un DSN Sentry (ADR
+[0019](adr/0019-le-depot-passe-en-public.md)). Le mot de passe **reste à révoquer** — c'est le seul
+des deux qui authentifie. Et la bascule du dépôt en public passe par un **dépôt neuf à un seul
+commit** (ADR [0021](adr/0021-un-depot-neuf-a-un-seul-commit.md)) : neuf étapes dans l'ordre,
+[`PROTOCOLE-DEPOT-NEUF.md`](PROTOCOLE-DEPOT-NEUF.md), dont deux ne se rattrapent pas une fois le
+dépôt public.
 
 ---
 

@@ -222,7 +222,7 @@ le top départ. D'où le bloc de lancement ci-dessous.
 **Protocole** (à reproduire à l'identique sur V2) :
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/heanV2 && ./tools/measure-app.sh noir-tauri 90
+cd $HOME/Documents/Thomas/heanV2 && ./tools/measure-app.sh noir-tauri 90
 ```
 
 Puis, pendant que le script échantillonne : 10 s au repos sur l'accueil → aller sur **Albums** et
@@ -309,7 +309,9 @@ qu'on avait éliminé**, sur une image pleine résolution (~127 Ko), à chaque o
 C'est une piste sérieuse pour les 155 Mo de la WebView (§4), au même titre que les thumbnails
 manquants (§5) — et comme eux, **c'était invisible en production** (§8).
 
-**Observation liée, à confirmer** : sur les captures `03-album-page.png` et `08-artiste-page.png`,
+**Observation liée, à confirmer** : sur les captures `03-album-page.png` et `08-artiste-page.png`
+(retirées du dépôt le 2026-11-27, [ADR 0020](adr/0020-les-captures-sortent-du-depot.md) : la
+confirmer demande donc une capture neuve),
 les watermarks (« AIR », « PRINCE ») apparaissent en **gris**, alors que `DESIGN-SYSTEM.md` les
 décrit teintés par un gradient de deux couleurs extraites de la pochette. Le fallback base64 réussit
 pourtant. Reste à vérifier si la teinte est appliquée et très discrète, ou si elle ne l'est pas.
@@ -326,7 +328,9 @@ pourtant. Reste à vérifier si la teinte est appliquée et très discrète, ou 
 
 Visible dans les captures : la page album de *Moon Safari* affiche « 20 tracks » et liste chaque
 titre **deux fois** (`03-album-page.png`) ; la vue Tracks montre « 10 Feet Tall » de Fat Freddy's
-Drop deux fois de suite (`06-tracks.png`).
+Drop deux fois de suite (`06-tracks.png`). Ces images sont sorties du dépôt le 2026-11-27
+([ADR 0020](adr/0020-les-captures-sortent-du-depot.md)) ; le comptage ci-dessous, lui, vient de la
+base et se refait.
 
 Ce n'est **pas un bug d'affichage** — la bibliothèque contient vraiment ces entrées :
 

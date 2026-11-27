@@ -1390,7 +1390,7 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     affirmation de plus à retourner, et personne ne la relit.
 - **2026-11-25** (soir, suite) : **le NAS devient visible.** 91 % de la bibliothèque de Thomas est
   sur son NAS — 3 137 pistes sur 3 443 — et V2 n'affichait que les 305 locales. V2 lit maintenant un
-  partage SMB directement (`libsmbclient` via `pavao`), reprend la source `dugstation` du
+  partage SMB directement (`libsmbclient` via `pavao`), reprend la source `<NAS>` du
   `network_sources.json` de V1 **avec son identifiant**, et un scan fait entrer ses pistes dans la
   même base SQLite que les locales. ADR [0016](adr/0016-la-part-reseau-de-la-bibliotheque.md)
   (acceptée) et **[0015](adr/0015-nom-de-service-keychain-pour-les-mots-de-passe-smb.md)
@@ -1492,7 +1492,7 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
     `tools/verifier-migration-reelle.sh` passe toujours (2 443 fichiers, original intact) et montre
     la nouvelle ligne `sources réseau de V1 reprises : sources: 1, incompletes: 0`. Et sur une
     **copie de son `hean/` actuel** — base en schéma 2, 305 pistes — la séquence de démarrage
-    applique la migration 3, reprend `dugstation` avec son identifiant `dcdd24af-…`, laisse ses
+    applique la migration 3, reprend `<NAS>` avec son identifiant `dcdd24af-…`, laisse ses
     305 pistes intactes, et ne rejoue pas la reprise de `config.json` (`deja_faite: true`).
   - **Ce qui n'est pas fait, et qui n'est pas un oubli** : la lecture audio depuis le NAS (le
     backend CoreAudio n'existe pas — du streaming ne serait démontrable par rien), les pochettes
@@ -1503,19 +1503,19 @@ Leçon V1 : cet historique vivait dans `CLAUDE.md` jusqu'à ce que le fichier de
 
 ### Protocole de test — la part réseau (2026-11-25)
 
-À suivre sans moi. **Le NAS doit être allumé** (vérifié joignable ce soir : `dugstation.local:445`
+À suivre sans moi. **Le NAS doit être allumé** (vérifié joignable ce soir : `<NAS>.local:445`
 répond).
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
+cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
 ```
 
 1. **Au lancement**, la fenêtre affiche une section **« NAS et sources réseau »** avec une ligne
-   `dugstation — smb://dugstation.local/music/LOSSLESS/complete · utilisateur admin`. Elle vient de
+   `<NAS> — smb://<NAS>.local/music/LOSSLESS/complete · utilisateur admin`. Elle vient de
    ta configuration V1, reprise automatiquement. En bas, la bibliothèque annonce **305 pistes**.
    → *Échec* : aucune source listée. Alors la reprise n'a pas eu lieu — regarde le journal pour une
    ligne `network_sources.json de V1 illisible`.
-2. **Clique « Scanner cette source »** sur la ligne `dugstation`. N'écris rien dans le champ « Mot de
+2. **Clique « Scanner cette source »** sur la ligne `<NAS>`. N'écris rien dans le champ « Mot de
    passe » : ton mot de passe est déjà dans le trousseau macOS et Hean va le relire.
 3. **macOS va demander une autorisation**, une fois : « Hean souhaite utiliser des informations
    confidentielles stockées dans *com.tdugue.noir.smb* ». C'est attendu, et c'est bien Hean qui
@@ -1746,3 +1746,47 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   externes », relevé au démarrage de 20:21) et non sur les haut-parleurs du Mac mini comme je
   l'avais d'abord écrit, faute de l'avoir vérifié : **Hean n'a
   encore jamais piloté le DAC**, et le document le dit maintenant.
+- **2026-11-26** (masquage avant la bascule en public) : Thomas tranche de **passer le dépôt en
+  public le temps de la V2** — la CI ne rendait plus aucun verdict depuis le matin, le job
+  échouant en 3 s sur une annotation de facturation GitHub, et les runners standard sont gratuits
+  sur un dépôt public. Mesuré : 114 runs, **232 min de runner macOS** (mur, non facturé) en cinq
+  jours — c'est le nombre de runs qui coûte, pas leur durée. ADR [0019](adr/0019-le-depot-passe-en-public.md).
+  Masqué : un **mot de passe app-specific Apple**, le **DSN Sentry**, l'**Apple Team ID**,
+  l'e-mail personnel, le **numéro de série du FiiO JM21**, et `/Users/<compte>` → `$HOME`.
+  ⚠️ **Ce que le masquage ne règle pas, mesuré sur `origin/main`** : le mot de passe Apple et le
+  DSN sont dans l'arbre des **60 commits**, c'est-à-dire de tous, le fichier qui les porte étant
+  là depuis le commit initial ; **37** portent l'e-mail en auteur (116 sur les branches poussées).
+  Un justificatif publié ne se nettoie pas, il **se révoque** : à Thomas de le faire des deux côtés.
+  **Et la leçon** : j'avais cherché le mot de passe avec un motif qui butait sur le guillemet
+  ouvrant, et je ne l'ai pas vu alors que j'éditais les lignes au-dessus et au-dessous. D'où
+  INV-29, proposée : aucun justificatif en clair dans un fichier suivi par git.
+- **2026-11-27** (suite du masquage) : Thomas tranche le sort des 8 captures — **les retirer**.
+  ADR [0020](adr/0020-les-captures-sortent-du-depot.md). Elles montraient sa bibliothèque réelle, et
+  leur propre `README.md` portait la consigne depuis le 2026-11-21 : « ce dépôt est privé, il doit le
+  rester, ou ces captures doivent être retirées avant toute ouverture ». Les images sortent, **le
+  `README.md` reste** et porte seul, écran par écran, ce qu'elles montraient et les trois défauts
+  qu'elles ont révélés — c'est cette prose que la phase 4 lira, et la série devait de toute façon
+  être reprise en entier après la passe « davantage de DM Sans ».
+  ⚠️ **Mesuré : les images sont dans l'arbre de 52 des 60 commits de `origin/main`.** Comme pour les
+  justificatifs, retirer de `HEAD` retire de la page que GitHub montre, pas du dépôt — et une image
+  ne se révoque pas. Le retrait est nécessaire, pas suffisant : réécrire l'historique ou publier un
+  dépôt neuf à un seul commit sont en décision ouverte, avec leur coût mesuré.
+  Autre relevé du jour : **la clé Sentry du dépôt n'est pas celle du projet courant** — le compte ne
+  porte qu'une organisation, un projet et une clé, d'identifiant différent. La clé exposée est celle
+  de V1, déjà morte ou sous un autre compte. L'ADR 0019 le dit maintenant : une consigne de
+  révocation qui nomme la mauvaise clé fait croire le travail fait.
+- **2026-11-27** (fin du masquage) : Thomas tranche la décision ouverte — **dépôt neuf**, ADR
+  [0021](adr/0021-un-depot-neuf-a-un-seul-commit.md). ⚠️ **La mesure qui a tranché avec lui** :
+  GitHub garde pour chaque PR une `refs/pull/<n>/head` **non supprimable** par le propriétaire. Le
+  dépôt en porte 26, et **25 donnent encore** le mot de passe, le DSN et les huit captures.
+  Réécrire l'historique aurait coûté 22 branches et 6 worktrees **pour ne rien nettoyer** — pire que
+  ne rien faire, puisqu'on aurait cru le problème réglé. J'avais chiffré le coût de l'option, pas
+  son effet. Écrit : [`PROTOCOLE-DEPOT-NEUF.md`](PROTOCOLE-DEPOT-NEUF.md), et l'historique raconté
+  part avec le commit initial — `HISTORY.md` et les 21 ADR sont dans l'**arbre**, pas dans git.
+  ⚠️ **Le guardian a rendu BLOQUANT sur ce protocole, deux fois à raison** : son balayage nommait le
+  nom d'hôte du NAS, donc le document le **remettait** dans le dépôt ; et sa vérification d'après
+  publication filtrait des noms de fichiers, donc elle aurait annoncé cinq justificatifs dans un
+  dépôt déjà public. Trois fois j'ai pris la mesure facile pour la mesure demandée : 60 commits
+  périmés à 14:07 par un push (61, 53), et **« zéro fichier modifié » qui ne voit pas le travail
+  commité** — une branche porte +96 lignes hors de `main`, session ouverte. **Leçon** : une commande
+  écrite dans un document se rejoue avant d'être commitée, comme un détecteur s'éprouve par injection.

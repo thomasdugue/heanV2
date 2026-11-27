@@ -12,7 +12,7 @@ précédente, sauf le lancement.
 ## Lancement
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
+cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
 ```
 
 La PR #25 est fusionnée (2026-11-26, squash `f171218`) : **le moteur est dans le dossier
@@ -180,7 +180,7 @@ périphériques, lisent une fréquence, et vérifient que le HAL accepte le form
 Hean. Lancées le 2026-11-26 sur ton Mac mini : les trois passent.
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/heanV2 && cargo test --manifest-path src-tauri/Cargo.toml --test sortie_coreaudio -- --ignored --nocapture
+cd $HOME/Documents/Thomas/heanV2 && cargo test --manifest-path src-tauri/Cargo.toml --test sortie_coreaudio -- --ignored --nocapture
 ```
 
 ## Ce que ce protocole ne couvre pas, et pourquoi

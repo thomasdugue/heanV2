@@ -66,7 +66,7 @@ pub fn en_trouvee(uri: &str) -> Trouvee {
 /// suppression. Dérivé, le même partage rend toujours la même source.
 ///
 /// La forme est lisible exprès : elle apparaît dans chaque chemin de piste, et un journal
-/// qui dit `smb://dugstation-local_music_lossless-complete/…` se lit, là où un UUID
+/// qui dit `smb://nas-local_music_lossless-complete/…` se lit, là où un UUID
 /// demande d'ouvrir la base. Tout ce qui n'est pas alphanumérique devient `-`, parce que le
 /// résultat est un **segment d'URI** : un `/` dedans casserait le découpage.
 ///
@@ -110,11 +110,11 @@ mod tests {
     /// La source **réelle** de Thomas, relevée dans son `network_sources.json` migré le
     /// 2026-11-25. Les tests travaillent sur ces valeurs-là et pas sur un exemple inventé :
     /// c'est le seul moyen que l'assemblage d'URI soit vérifié contre ce qui existe.
-    fn dugstation() -> SourceReseau {
+    fn nas() -> SourceReseau {
         SourceReseau {
             id: "dcdd24af-ca15-48a4-adde-18b5fcfa92f0".into(),
-            nom: "dugstation".into(),
-            hote: "dugstation.local".into(),
+            nom: "nas".into(),
+            hote: "nas.local".into(),
             partage: "music".into(),
             chemin_distant: "/LOSSLESS/complete".into(),
             utilisateur: "admin".into(),
@@ -130,7 +130,7 @@ mod tests {
     /// `network_scan_cache.json`.
     #[test]
     fn une_uri_assemblee_par_v2_est_celle_que_v1_a_ecrite() {
-        let s = dugstation();
+        let s = nas();
         let attendu = "smb://dcdd24af-ca15-48a4-adde-18b5fcfa92f0/music/LOSSLESS/complete/\
                        To Pimp a Butterfly (2015)/Kendrick Lamar - To Pimp a Butterfly - 16 - Mortal Man.mp3";
         let chemin_dans_le_partage =
@@ -145,7 +145,7 @@ mod tests {
     /// (`/LOSSLESS/complete`). Les deux doivent rester vrais ensemble.
     #[test]
     fn le_prefixe_court_du_cache_de_v1_et_le_chemin_distant_ne_se_contredisent_pas() {
-        let s = dugstation();
+        let s = nas();
         let uri = de_fichier(&s.id, &s.partage, "/LOSSLESS/complete/album/x.flac");
         assert!(uri.starts_with("smb://dcdd24af-ca15-48a4-adde-18b5fcfa92f0/music/LOSSLESS"));
         assert!(uri.starts_with(&format!(
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn le_perimetre_dune_source_contient_ses_uri_et_pas_celles_dune_autre() {
-        let s = dugstation();
+        let s = nas();
         let p = Perimetre::Source(prefixe(&s.id));
         assert!(p.contient(&de_fichier(&s.id, &s.partage, "/LOSSLESS/complete/x.flac")));
         assert!(!p.contient(&de_fichier("une-autre", &s.partage, "/LOSSLESS/complete/x.flac")));
@@ -166,16 +166,16 @@ mod tests {
 
     #[test]
     fn le_depart_dun_scan_est_toujours_absolu_dans_le_partage() {
-        assert_eq!(depart(&dugstation()), "/LOSSLESS/complete");
-        let racine = SourceReseau { chemin_distant: String::new(), ..dugstation() };
+        assert_eq!(depart(&nas()), "/LOSSLESS/complete");
+        let racine = SourceReseau { chemin_distant: String::new(), ..nas() };
         assert_eq!(depart(&racine), "/");
-        let slash = SourceReseau { chemin_distant: "/".into(), ..dugstation() };
+        let slash = SourceReseau { chemin_distant: "/".into(), ..nas() };
         assert_eq!(depart(&slash), "/");
         // Les slashs en trop sont normalisés, parce qu'un `network_sources.json` écrit à la
         // main en portera.
-        let sale = SourceReseau { chemin_distant: "/LOSSLESS/complete/".into(), ..dugstation() };
+        let sale = SourceReseau { chemin_distant: "/LOSSLESS/complete/".into(), ..nas() };
         assert_eq!(depart(&sale), "/LOSSLESS/complete");
-        let sans = SourceReseau { chemin_distant: "LOSSLESS".into(), ..dugstation() };
+        let sans = SourceReseau { chemin_distant: "LOSSLESS".into(), ..nas() };
         assert_eq!(depart(&sans), "/LOSSLESS");
     }
 
@@ -184,12 +184,12 @@ mod tests {
     /// identifiant décalerait le découpage de toutes les URI de la source.
     #[test]
     fn un_identifiant_derive_est_stable_lisible_et_sans_slash() {
-        let a = super::identifiant_derive("dugstation.local", "music", "/LOSSLESS/complete");
-        assert_eq!(a, "dugstation-local_music_lossless-complete");
-        assert_eq!(a, super::identifiant_derive("DugStation.local", "Music", "/LOSSLESS/complete"));
+        let a = super::identifiant_derive("nas.local", "music", "/LOSSLESS/complete");
+        assert_eq!(a, "nas-local_music_lossless-complete");
+        assert_eq!(a, super::identifiant_derive("NAS.Local", "Music", "/LOSSLESS/complete"));
         assert!(!a.contains('/'), "un / casserait le découpage des URI");
         // Deux chemins différents sur le même partage sont deux sources.
-        assert_ne!(a, super::identifiant_derive("dugstation.local", "music", "/LOSSY"));
+        assert_ne!(a, super::identifiant_derive("nas.local", "music", "/LOSSY"));
         // Et le périmètre dérivé reste étanche.
         let p = Perimetre::Source(prefixe(&a));
         assert!(p.contient(&de_fichier(&a, "music", "/LOSSLESS/complete/x.flac")));
