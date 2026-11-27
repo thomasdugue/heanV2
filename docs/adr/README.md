@@ -50,6 +50,7 @@ décisions sous le même numéro ont coûté une heure et huit renvois à corrig
 | [0019](0019-le-depot-passe-en-public.md) | Le dépôt passe en public le temps de la construction de V2 ; données sensibles masquées, DSN à révoquer | Acceptée |
 | [0020](0020-les-captures-sortent-du-depot.md) | Les 8 captures de la bibliothèque sortent du dépôt ; leur `README.md` garde ce qu'elles montraient | Acceptée |
 | [0021](0021-un-depot-neuf-a-un-seul-commit.md) | Le dépôt public est un dépôt **neuf à un seul commit** ; l'actuel reste privé. Réécrire l'historique ne nettoierait rien : 25 des 26 `refs/pull/*` de GitHub ne sont pas supprimables | Acceptée |
+| [0022](0022-la-lecture-nas-se-fait-en-direct.md) | Une piste du NAS se lit **en direct**, par lectures à une position donnée, **sans fichier temporaire** : le ménage de `smb_buffer` ne nettoyait pas en V1, et la lecture directe supprime la classe de défaut plutôt que son instance. La longueur est demandée au partage à l'ouverture et non reprise de la bibliothèque, qui peut être périmée (§4 de 0016) : le déplacement est donc juste par construction | Acceptée |
 
 **Décisions encore ouvertes**, à transformer en ADR dès qu'elles sont prises :
 

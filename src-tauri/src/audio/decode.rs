@@ -89,13 +89,30 @@ fn prochain_bloc(
 }
 
 impl Decodeur {
-    /// Ouvre un fichier et lit son format sans décoder d'audio.
+    /// Ouvre un fichier **local** et lit son format sans décoder d'audio.
     pub fn ouvrir(chemin: &Path) -> Result<Self, ErreurAudio> {
         let fichier = File::open(chemin).map_err(|source| ErreurAudio::Lecture {
             chemin: chemin.to_path_buf(),
             source,
         })?;
-        let flux = MediaSourceStream::new(Box::new(fichier), Default::default());
+        Self::ouvrir_flux(Box::new(fichier), chemin)
+    }
+
+    /// Le même travail, sur un flux **déjà fabriqué par l'appelant**.
+    ///
+    /// C'est par là qu'entre une piste du NAS (ADR 0022), et l'intérêt est que ce module
+    /// n'apprend rien de SMB : il reçoit un `MediaSource`, d'où qu'il vienne. Le sondage de
+    /// format, le choix de la piste et tout le reste restent **un seul chemin** — `ouvrir`
+    /// délègue ici, donc un fichier local et une piste distante ne peuvent pas diverger.
+    ///
+    /// `chemin` reste nommé pour les erreurs et pour l'indice d'extension. Pour une piste
+    /// distante c'est l'URI `smb://…`, et c'est exactement ce qu'un message d'erreur doit
+    /// montrer.
+    pub fn ouvrir_flux(
+        source: Box<dyn symphonia::core::io::MediaSource>,
+        chemin: &Path,
+    ) -> Result<Self, ErreurAudio> {
+        let flux = MediaSourceStream::new(source, Default::default());
 
         // L'extension n'est qu'un indice : symphonia sonde le contenu. Un fichier mal
         // nommé se décode donc quand même, ce qui est le bon comportement pour une

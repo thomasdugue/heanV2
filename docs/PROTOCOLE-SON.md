@@ -101,8 +101,8 @@ jamais piloté ton DAC** : c'est la partie qui reste entièrement à éprouver.
 2. **Une piste locale joue.** Ajoute un dossier de musique, scanne, clique une piste.
    Tu dois **entendre le son dans la seconde**, et la position doit avancer.
    **Échec** : silence, ou un message d'erreur, ou la position reste à 0:00.
-   ⚠️ **Une piste du NAS ne joue pas** et dit « la lecture réseau reste à porter ». C'est
-   normal à ce stade, ce n'est pas un bug à signaler.
+   ⚠️ **Une piste du NAS joue, depuis le 2026-11-28** (ADR 0022). Si elle refuse, c'est un
+   bug à signaler, et le message affiché nomme l'hôte et le chemin : recopie-le.
 
 3. **Le compteur de trous reste à zéro.** En bas de la section Lecture :
    « Trous dans le son depuis le début : **0** ». Laisse jouer trois minutes.
@@ -146,6 +146,22 @@ jamais piloté ton DAC** : c'est la partie qui reste entièrement à éprouver.
 9bis. **Et le même fichier sur un DAC qui sait faire 192 kHz affiche les deux fois 192 kHz**,
    avec le badge. C'est le témoin de l'étape précédente : sans lui, un indicateur bloqué sur
    « rééchantillonné » passerait pour juste.
+
+19. **Une piste du NAS joue, et le compteur de trous reste à zéro.** C'est **la mesure sur
+   laquelle l'ADR 0022 a été tranché**, et sans cette étape cette décision n'a aucun gage :
+   la lecture directe est jouable si le débit moyen du NAS suit, et c'est le compteur qui le
+   dit. Clique une piste du NAS, laisse jouer trois minutes, regarde « Trous dans le son ».
+   **Échec** : n'importe quel nombre au-dessus de zéro. Si ça troue, le téléchargement en
+   fond redevient le repli prévu — mais sur ce chiffre, pas sur une intuition.
+   ⚠️ Le son peut mettre une seconde de plus à partir qu'en local : le premier mégaoctet
+   doit arriver. Ce n'est un défaut que s'il dépasse quelques secondes.
+
+20. **Une piste du NAS joue pendant qu'une source réseau se scanne.** Lance un scan réseau,
+   puis clique une piste du NAS et laisse jouer. **Pourquoi cette étape existe** : SMB est un
+   singleton de process (PLAT-2), donc chaque bloc de lecture attend derrière les lectures du
+   scan — et si les deux portent sur des **sources différentes**, la session SMB est détruite
+   et rouverte à chaque alternance. Personne n'a mesuré ce que ça coûte.
+   **Échec** : le compteur de trous monte, ou le son se coupe.
 
 ## Avec le DAC
 
@@ -224,7 +240,6 @@ cd $HOME/Documents/Thomas/heanV2 && cargo test --manifest-path src-tauri/Cargo.t
 
 | | |
 |---|---|
-| **La lecture d'un fichier du NAS** | elle demande de toucher au module réseau, hors du périmètre de la session (ADR 0013) — et 91 % de ta bibliothèque est là |
 | L'égaliseur | ses huit fréquences de bandes sont une donnée de parité que le bootstrap ne contient pas |
 | Les touches media, le plein écran, les paroles | hors périmètre, explicitement |
 | Le délai de démarrage mesuré | il demande un marqueur dans l'app (MESURES-V1.md §3) |

@@ -39,6 +39,26 @@ pub fn de_fichier(source_id: &str, partage: &str, chemin_dans_le_partage: &str) 
     )
 }
 
+/// Les trois parties d'une URI de fichier : la source, le partage, et le chemin **absolu
+/// dans le partage** — c'est-à-dire exactement ce que `lire` et `lister` attendent.
+///
+/// Le pendant de `de_fichier`, et il n'existait pas : rien n'avait encore besoin de relire
+/// une URI, le scan ne faisant que les écrire. La lecture en direct, elle, part d'une URI
+/// rangée en base et doit revenir au chemin SMB (ADR 0022). Le slash initial est remis parce
+/// que `libsmbclient` veut un chemin absolu dans le partage, comme `depart` le dit déjà.
+///
+/// `None` quand ce n'est pas une URI de ce dépôt — un chemin local, par exemple, qui doit
+/// alors suivre l'autre porte plutôt que d'échouer ici.
+pub fn parties(uri: &str) -> Option<(String, String, String)> {
+    let reste = uri.strip_prefix(SCHEME_RESEAU)?;
+    let (source_id, reste) = reste.split_once('/')?;
+    let (partage, chemin) = reste.split_once('/')?;
+    if source_id.is_empty() || partage.is_empty() || chemin.is_empty() {
+        return None;
+    }
+    Some((source_id.to_string(), partage.to_string(), format!("/{chemin}")))
+}
+
 /// Une piste distante vue comme une entrée de scan.
 ///
 /// **Taille et date à zéro, et ce n'est pas un oubli** : `libsmbclient` ne les rend pas en
@@ -98,6 +118,41 @@ pub fn depart(source: &SourceReseau) -> String {
         "/".to_string()
     } else {
         format!("/{}", c.trim_matches('/'))
+    }
+}
+
+#[cfg(test)]
+mod tests_parties {
+    use super::*;
+
+    /// L'aller-retour, et non une forme écrite à la main : c'est `de_fichier` qui définit le
+    /// format, donc c'est contre lui que le parseur se vérifie. Une forme recopiée ici
+    /// divergerait le jour où le format bouge, et le test resterait vert.
+    #[test]
+    fn ce_que_de_fichier_ecrit_se_relit_a_lidentique() {
+        for (id, partage, dans_le_partage) in [
+            ("nas-local_music", "music", "/Albums/a.flac"),
+            ("nas-local_music", "music", "Albums/a.flac"),
+            ("x", "p", "/a.flac"),
+            ("nas_1", "mon partage", "/dossier avec espaces/b - c.flac"),
+        ] {
+            let uri = de_fichier(id, partage, dans_le_partage);
+            let (lu_id, lu_partage, lu_chemin) = parties(&uri).expect(&uri);
+            assert_eq!(lu_id, id);
+            assert_eq!(lu_partage, partage);
+            assert_eq!(lu_chemin, format!("/{}", dans_le_partage.trim_start_matches('/')));
+        }
+    }
+
+    #[test]
+    fn un_chemin_local_ou_une_uri_tronquee_ne_se_lit_pas() {
+        // Un chemin local doit suivre l'autre porte, pas échouer ici.
+        assert!(parties("/musique/a.flac").is_none());
+        assert!(parties("smb://").is_none());
+        assert!(parties("smb://source").is_none());
+        assert!(parties("smb://source/partage").is_none());
+        // Le partage sans fichier derrière n'est pas un fichier.
+        assert!(parties("smb://source/partage/").is_none());
     }
 }
 

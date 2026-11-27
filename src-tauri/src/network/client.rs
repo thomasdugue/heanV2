@@ -19,6 +19,14 @@
 //! opération échoue — et c'est justement parce que cette décision ne connaît ni SMB ni le
 //! réseau qu'elle s'éprouve par injection de panne.
 
+// Les lectures d'octets vivent dans un module ENFANT, et non à côté : elles touchent
+// `libsmbclient`, donc elles restent sous ce module, dont l'en-tête dit qu'il en est le seul
+// endroit du projet. Sorties d'ici le 2026-11-28, quand `tranche` l'a mené à la limite des
+// 400 lignes — et la frontière est réelle : ici la connexion et le parcours, là-bas les
+// octets d'un fichier.
+mod octets;
+pub use octets::Tranche;
+
 use std::sync::{LazyLock, Mutex};
 
 use super::reprise::reessayer_une_fois;
@@ -61,6 +69,13 @@ pub trait Smb {
     /// 1 Mio coûte ~29 ms de transfert au lieu de plusieurs secondes pour un FLAC entier
     /// (ADR 0016 §3). Quels formats y ont droit est décidé par `network::entete`, pas ici.
     fn lire(&self, chemin: &str, max: Option<usize>) -> Result<Vec<u8>, Erreur>;
+
+    /// Une tranche d'un fichier distant, **et sa taille totale**, en une seule ouverture.
+    ///
+    /// La primitive de la lecture en direct (ADR 0022). Elle rend la taille parce que
+    /// `pavao::SmbFile` **emprunte** le client : un handle ne survit pas à la sortie du
+    /// verrou de PLAT-2, donc demander la taille à part coûterait une ouverture de plus.
+    fn tranche(&self, chemin: &str, debut: u64, max: usize) -> Result<Tranche, Erreur>;
 }
 
 /// La connexion SMB active. **Une seule pour tout le process** (PLAT-2).
@@ -255,33 +270,11 @@ impl Smb for ClientSmb {
     }
 
     fn lire(&self, chemin: &str, max: Option<usize>) -> Result<Vec<u8>, Erreur> {
-        self.avec_reprise(
-            || {
-                self.avec(|client| {
-                    use std::io::Read;
-                    let echec = |detail: String| Erreur::Fichier {
-                        hote: self.hote.clone(),
-                        chemin: chemin.to_string(),
-                        detail,
-                    };
-                    let fichier = client
-                        .open_with(chemin, pavao::SmbOpenOptions::default().read(true))
-                        .map_err(|e| echec(e.to_string()))?;
-                    let mut octets = Vec::new();
-                    match max {
-                        Some(n) => fichier
-                            .take(n as u64)
-                            .read_to_end(&mut octets)
-                            .map_err(|e| echec(e.to_string()))?,
-                        None => {
-                            let mut f = fichier;
-                            f.read_to_end(&mut octets).map_err(|e| echec(e.to_string()))?
-                        }
-                    };
-                    Ok(octets)
-                })
-            },
-        )
+        octets::lire(self, chemin, max)
+    }
+
+    fn tranche(&self, chemin: &str, debut: u64, max: usize) -> Result<Tranche, Erreur> {
+        octets::tranche(self, chemin, debut, max)
     }
 }
 

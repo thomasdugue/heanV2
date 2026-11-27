@@ -53,6 +53,7 @@ pub mod convert;
 pub mod coreaudio;
 pub mod decode;
 pub mod error;
+pub mod source;
 pub mod format;
 pub mod lecteur;
 pub mod samples;

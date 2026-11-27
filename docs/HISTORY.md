@@ -1805,3 +1805,18 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
   moteur n'écrit jamais le volume matériel, et l'app affiche « 100 % ». **Leçon de procédé** :
   j'ai poussé quatre commits après la fusion en squash de la #25, donc hors de main ; le test
   de Thomas n'a réussi que parce que mon Vite tenait le port 1420.
+- **2026-11-28** (même session, chantier à part) : **les 91 % de la bibliothèque qui vivent sur
+  le NAS se jouent.** Le lecteur n'en jouait que 9 % : le moteur n'ouvrait qu'un `File` local
+  et l'interface écartait les chemins `smb://`. Thomas a tranché **la lecture en direct, sans
+  fichier temporaire** — ADR [0022](adr/0022-la-lecture-nas-se-fait-en-direct.md). Le
+  téléchargement progressif de V1 est écarté sur un défaut **mesuré**, ce que « porter d'abord »
+  exige : le nettoyage de `smb_buffer` ne nettoyait pas. Le défaut n'était pas de télécharger,
+  mais que chaque écoute laisse un fichier — donc qu'il y ait un ménage à rater. La lecture
+  directe supprime la classe, pas l'instance. ⚠️ **Ce que la plateforme impose** :
+  `pavao::SmbFile` emprunte le client, qui vit sous le mutex de PLAT-2, donc un handle ne
+  survit pas à la sortie du verrou — le cache de blocs n'est **pas** une optimisation mais une
+  condition, et deux tests comptent les ouvertures pour que l'affirmation puisse échouer
+  (éprouvés par injection : cache désarmé, ils rougissent). La taille vient du partage et non
+  de la base, qui peut être périmée là où `readdirplus` manque (0016 §4) — une longueur fausse
+  ne donne pas une erreur mais un déplacement qui vise à côté. **Reste à mesurer sur son NAS** :
+  le compteur de trous, et la profondeur d'anticipation juste.
