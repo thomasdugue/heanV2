@@ -64,7 +64,7 @@
    * estimée et jamais mesurée : de quoi couvrir quelques sondages, le temps que le moteur
    * applique le saut et republie la position.
    */
-  const VISEE_TENUE_MS = 300;
+  const VISEE_TENUE_MS = 300; // estimé, jamais mesuré — INV-28 veut l'origine sur cette ligne
 
   /**
    * La position que le doigt vise, pendant qu'il déplace la barre et juste après.

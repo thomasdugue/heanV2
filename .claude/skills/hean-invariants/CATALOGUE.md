@@ -1,4 +1,4 @@
-# Catalogue des invariants — les 28 fiches
+# Catalogue des invariants — les 29 fiches
 
 <!-- Lu par `tools/check-invariants.mjs`, `tools/check-comptes.mjs` et `tools/gen/couverture.mjs`,
      conjointement avec SKILL.md. Garder le format `### INV-NN` + les quatre champs. -->
@@ -457,8 +457,10 @@ dette **visible**, que `./check` recompte à chaque passage.
 
 - pile : test
 - gravité : 🟡 AVERTISSEMENT
-- couverture : planifiée (phase 4) — muette faute de matière : deux curseurs existent
-  aujourd'hui, et la vraie façade du lecteur arrive en phase 4
+- couverture : planifiée (phase 4) — **et la matière existe déjà**, les deux curseurs de
+  `Lecture.svelte` : ce qui manque est un détecteur qui distingue « valeur sondée » de
+  « valeur qu'on vient de poser », et c'est une question de conception, pas d'absence de
+  corpus. Dire « faute de matière » ici serait la faute d'INV-04 du 2026-11-25
 - pourquoi : né le 2026-11-27, sur la **première épreuve du moteur de son par Thomas**. La
   barre de position liait son `value` à l'état de lecture, qui est **sondé** et non poussé :
   chaque relevé réécrivait la valeur du curseur sous le doigt, le pouce poussait, le sondage
