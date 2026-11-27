@@ -53,6 +53,7 @@ lignes sans numéro sont des observations utiles qui ne valident aucune étape d
 | **12** — le mode exclusif | `mode exclusif actif peripherique=Écouteurs externes`, la piste rouverte à `depart_ms=8544` : la position est conservée. Thomas a envoyé la copie d'écran — badge **Bit-perfect**, volume à 100 %, compteur de trous à 0 |
 | **13bis** — déplacement après un saut | aucun avertissement à la fermeture du flux qui suivait le déplacement : le saut n'a ajouté aucun trou |
 | **3** — zéro trou sur trois minutes | **3 min 15 s de lecture d'affilée**, un seul flux, aucun avertissement à la fermeture (`In Your Eyes`, 16 bits / 44,1 kHz) |
+| **1** — la liste des sorties | les **six** sorties que macOS expose sont là, relevées à l'instant par `system_profiler` : l'écran en HDMI, les écouteurs, les haut-parleurs du Mac mini, le micro USB et les deux périphériques virtuels de Steam. Aucun nom manquant |
 | **17** — la sortie change dans macOS | Thomas a basculé macOS vers « Écouteurs externes » pendant que Hean jouait sur les haut-parleurs : le son **n'a pas bougé**, et Hean a continué d'afficher sa propre sortie. **Rien dans le journal**, ce qui est le comportement attendu — l'AudioUnit est lié au périphérique, pas au défaut système |
 
 **5 (déplacement) a échoué du premier coup, et le défaut était dans la barre, pas dans le
@@ -84,8 +85,8 @@ famille de l'indicateur qui ment, celle que l'étape 9 existe pour empêcher. **
 ouverte pour Thomas** : lire le volume du périphérique et le dire, le relever, ou ne rien
 faire. Non corrigé ici — ce n'est pas le périmètre de cette session.
 
-**Ce qui reste et ne demande aucun matériel** : **1** (la liste des sorties), et elle seule.
-Cela fait **onze étapes sur vingt** tenues. Et **aucune étape du bloc DAC (10, 11, 13, 14) n'est
+**Plus rien ne se teste sans matériel.** Cela fait **douze étapes sur vingt** tenues, et les
+**huit** qui restent demandent toutes le DAC ou un AirPlay : 9bis, 10, 11, 13, 14, 15, 16, 18. Et **aucune étape du bloc DAC (10, 11, 13, 14) n'est
 passée** : le repli à 96 kHz de l'étape 9 s'est fait sur une **sortie intégrée** qui plafonne
 là, pas sur un DAC — le journal nomme `id=86`, soit « Écouteurs externes ». **Hean n'a encore
 jamais piloté ton DAC** : c'est la partie qui reste entièrement à éprouver.
