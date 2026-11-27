@@ -141,7 +141,8 @@ multi-sélection (F15), détection de doublons (B16).
 
 **Ce que Hean n'a pas et qu'Audirvana a** [A] — relevé, pas programme : app Remote iOS/Android gratuite (§3), vue dossiers,
 synchronisation de la bibliothèque Apple, renderer UPnP par défaut, Chromecast, multizone, DSD1024, MQA, 32 bits /
-1411,2 kHz, macOS 10.15+ (Hean exige 11+), quinze ans d'existence, partenariats OEM.
+1411,2 kHz, macOS 10.15+ (Hean exige 11+), quinze ans d'existence, partenariats OEM. Les deux premiers sont déjà suivis comme
+**décisions ouvertes** dans [l'index des ADR](../../docs/adr/README.md), gelées jusqu'au jalon son.
 
 ⚠️ **Un risque de dépendance** : B11 (genres) et C05 (images d'artistes) reposent sur l'API Deezer, **non officielle**.
 Obligatoires par décision ([ADR 0017](../../docs/adr/0017-ce-que-thomas-a-tranche-le-25-novembre.md)), et ce n'est pas remis

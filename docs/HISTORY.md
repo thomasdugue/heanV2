@@ -1822,7 +1822,7 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
   le compteur de trous, et la profondeur d'anticipation juste.
 
 - **2026-11-28** (distiller les trois études de marché) : écrit
-  [`bootstrap/01-produit/MARCHE.md`](../bootstrap/01-produit/MARCHE.md), 148 lignes, 8 sections — ce qui
+  [`bootstrap/01-produit/MARCHE.md`](../bootstrap/01-produit/MARCHE.md), une page, 8 sections — ce qui
   est utilisable dans les ~470 lignes de `recherche/`, et ce qui ne doit **pas** être cité (le chiffre
   de 82 800 € ; les TAM/SAM/SOM annotés *Low confidence* par l'étude elle-même ; la section marque,
   écrite pour « Noir », jamais rejouée pour « Hean »). `NON-GOALS.md` y renvoie. Aucun ADR : rien à
