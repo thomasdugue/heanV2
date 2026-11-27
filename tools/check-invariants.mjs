@@ -17,7 +17,7 @@ import { join, resolve } from 'node:path';
 
 const RACINE = resolve(import.meta.dirname, '..');
 const SKILL = '.claude/skills/hean-invariants/SKILL.md';
-// Les 27 fiches ont quitté SKILL.md pour CATALOGUE.md le 2026-11-25 : une session qui écrit
+// Les 29 fiches ont quitté SKILL.md pour CATALOGUE.md le 2026-11-25 : une session qui écrit
 // du code lisait 617 lignes pour des règles déjà tenues par des tests. SKILL.md garde le
 // tableau de tri et les pièges de plateforme — ce qu'aucun test ne prouvera. La source de
 // vérité, pour cette vérification, reste LES DEUX fichiers : en lire un seul laisserait

@@ -2,7 +2,7 @@
 
 <!-- FICHIER GÉNÉRÉ — NE PAS ÉDITER. Source : .claude/skills/hean-invariants/SKILL.md + CATALOGUE.md. Régénérer : npm run gen -->
 
-28 règles : 6 rayées par construction, 20 devenues des tests, 2 irréductibles.
+29 règles : 6 rayées par construction, 21 devenues des tests, 2 irréductibles.
 En V1, **3 sur 20** étaient couvertes par un test.
 
 | # | Règle | Pile | Gravité | Ce qui la protège |
@@ -35,3 +35,4 @@ En V1, **3 sur 20** étaient couvertes par un test.
 | INV-26 | La migration ne supprime pas le dossier de V1, sauf son cache de téléchargement | 🧪 test | 🔴 BLOQUANT | architecture `migration-durable.test.ts` — l'appel de suppression ne doit pas reparaître |
 | INV-27 | Un scan ne conclut la disparition d'une piste que dans son périmètre | 🧪 test | 🔴 BLOQUANT | test perimetre.rs |
 | INV-28 | Un chiffre montré à l'utilisateur dit sur place s'il est mesuré ou estimé | 🧪 test | 🟡 AVERTISSEMENT | architecture `chiffres-annonces.test.ts` |
+| INV-30 | Un contrôle dont la valeur est sondée ne se relit pas pendant qu'on le manipule | 🧪 test | 🟡 AVERTISSEMENT | planifiée (phase 4) — **et la matière existe déjà**, les deux curseurs de |

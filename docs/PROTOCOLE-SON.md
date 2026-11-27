@@ -33,26 +33,46 @@ design est pour plus tard. La section **Lecture** est en haut, sous les dossiers
 
 **Échec** : la fenêtre ne s'ouvre pas, ou la section Lecture est absente.
 
-## Déjà passées sur ton matériel, le 2026-11-26
+## Déjà passées sur ton matériel, les 2026-11-26 et 27
 
-Relevé dans le journal de ta session, pas déduit d'un test. **Tu peux sauter les lignes
-qui portent un numéro d'étape, celles-là seulement.** Les deux lignes sans numéro sont des
-observations utiles qui ne valident aucune étape de la liste.
+Relevé dans le journal de ta session ou jugé par Thomas lui-même, pas déduit d'un test.
+**Tu peux sauter les lignes qui portent un numéro d'étape, celles-là seulement.** Les deux
+lignes sans numéro sont des observations utiles qui ne valident aucune étape de la liste.
 
-| | Ce que le journal montre |
+| | Ce que le journal montre, ou ce que Thomas a jugé |
 |---|---|
 | **2** — une piste locale joue | `piste ouverte` puis `sortie démarrée` en **52 ms** (`03 - ATLiens.flac`, 16 bits / 44,1 kHz) |
 | **9** — le 192 kHz perd le badge | `repli de fréquence : l'AUHAL rééchantillonne` · `source_hz=192000 sortie_hz=96000` · `bit_perfect=false`, sur trois fichiers |
 | *(aucun numéro)* — changer de sortie | `sortie changée, défaut système synchronisé id=86`, et la piste réouverte à `depart_ms=6315` : la position est conservée. **Ne saute pas l'étape 11** : elle dit « un 24/192 joue sur le DAC, et le DAC passe vraiment à 192 kHz », et elle n'a pas été faite |
 | *(aucun numéro)* — le matériel est rendu | la fréquence d'origine est remise à **chaque** fermeture de flux, et pas seulement en quittant l'app. **Ne saute pas l'étape 14** : elle demande que ton DAC retrouve sa fréquence, et aucun DAC n'a été branché |
 | **8** — l'album s'enchaîne sans trou | `piste enchaînée dans le même flux fichier=07 - Supernature.flac`, et **rien** derrière : ni fréquence réglée, ni flux rouvert, ni sortie redémarrée — le tampon n'a pas été touché. Jugé sans trou à l'oreille par Thomas |
-| **3** — zéro trou | aucun avertissement sur **huit** fermetures de flux, rééchantillonnage compris. Reste à tenir trois minutes d'affilée sur une seule piste |
+| **4** — pause et reprise | jugées instantanées par Thomas. Elles le sont par construction : la pause n'est qu'un drapeau que lit le callback, le tampon n'est pas jeté et le flux reste ouvert — donc le journal n'en dit rien, et il n'y a rien à y chercher |
+| **7** — le volume | jugé immédiat par Thomas, même remarque : un atomique, et rien dans le journal |
+| **5** — le déplacement | repassée par Thomas **après correction** de la barre. Le détail est juste en dessous, parce que c'est la seule étape de la liste qui a trouvé un défaut |
+| **6** — suivante et précédente | sept changements de piste à la main d'affilée, chacun rouvrant le flux, `sortie démarrée` une vingtaine de millisecondes après `piste ouverte`, et **aucun avertissement** |
+| **12** — le mode exclusif | `mode exclusif actif peripherique=Écouteurs externes`, la piste rouverte à `depart_ms=8544` : la position est conservée. Thomas a envoyé la copie d'écran — badge **Bit-perfect**, volume à 100 %, compteur de trous à 0 |
+| **13bis** — déplacement après un saut | aucun avertissement à la fermeture du flux qui suivait le déplacement : le saut n'a ajouté aucun trou |
 
-Restent, et elles demandent tes oreilles : **4** (pause), **5** (déplacement) et **7**
-(volume). Et **aucune étape du bloc DAC (10 à 14) n'est passée** : le repli à
-96 kHz de l'étape 9 s'est fait sur une **sortie intégrée** qui plafonne là, pas sur un DAC —
-le journal nomme `id=86`, soit « Écouteurs externes ». **Hean n'a encore jamais piloté ton
-DAC** : c'est la partie qui reste entièrement à éprouver.
+**5 (déplacement) a échoué du premier coup, et le défaut était dans la barre, pas dans le
+moteur.** Le curseur se relisait depuis l'état sondé : chaque relevé réécrivait sa valeur
+sous le doigt, donc viser était impossible. Corrigé, puis **repassée par Thomas**. Ce qui
+rendait le défaut invisible à la relecture : le curseur de volume a la même forme et marche,
+parce que la valeur qu'il relit est celle qu'on vient d'y poser — elle ne bouge pas
+d'elle-même. **Un deuxième contrôle de la même forme qui fonctionne ne prouve rien sur le
+premier.**
+
+« Pas bit-perfect : le mode exclusif est coupé » n'est pas un défaut : c'est la quatrième des
+quatre conditions (ADR 0007), et c'est l'**étape 12** qui la lève en cochant la case.
+
+**3 n'est pas encore tenue** : aucun avertissement sur les huit fermetures de flux du 26 ni
+sur celles du 27, mais il reste à tenir trois minutes d'affilée sur une seule piste.
+
+**Ce qui reste et ne demande aucun matériel** : **1** (la liste des sorties), **17** (changer
+la sortie dans les Réglages Son de macOS pendant une piste), et la tenue de **3**. Cela fait
+**neuf étapes sur vingt** tenues. Et **aucune étape du bloc DAC (10, 11, 13, 14) n'est
+passée** : le repli à 96 kHz de l'étape 9 s'est fait sur une **sortie intégrée** qui plafonne
+là, pas sur un DAC — le journal nomme `id=86`, soit « Écouteurs externes ». **Hean n'a encore
+jamais piloté ton DAC** : c'est la partie qui reste entièrement à éprouver.
 
 ## Sans rien brancher
 

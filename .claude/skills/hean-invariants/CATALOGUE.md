@@ -1,4 +1,4 @@
-# Catalogue des invariants — les 28 fiches
+# Catalogue des invariants — les 29 fiches
 
 <!-- Lu par `tools/check-invariants.mjs`, `tools/check-comptes.mjs` et `tools/gen/couverture.mjs`,
      conjointement avec SKILL.md. Garder le format `### INV-NN` + les quatre champs. -->
@@ -450,6 +450,37 @@ dette **visible**, que `./check` recompte à chaque passage.
   Corollaire pour les documents, qui n'a pas de détecteur et n'en aura pas : un nombre qu'on
   n'a pas mesuré s'écrit **estimé**, avec la méthode d'estimation — c'est elle qui a permis de
   voir, après coup, que les 41 ms par fichier venaient d'un calcul de débit.
+
+---
+
+### INV-30 — Un contrôle dont la valeur est sondée ne se relit pas pendant qu'on le manipule
+
+- pile : test
+- gravité : 🟡 AVERTISSEMENT
+- couverture : planifiée (phase 4) — **et la matière existe déjà**, les deux curseurs de
+  `Lecture.svelte` : ce qui manque est un détecteur qui distingue « valeur sondée » de
+  « valeur qu'on vient de poser », et c'est une question de conception, pas d'absence de
+  corpus. Dire « faute de matière » ici serait la faute d'INV-04 du 2026-11-25
+- pourquoi : né le 2026-11-27, sur la **première épreuve du moteur de son par Thomas**. La
+  barre de position liait son `value` à l'état de lecture, qui est **sondé** et non poussé :
+  chaque relevé réécrivait la valeur du curseur sous le doigt, le pouce poussait, le sondage
+  ramenait. Le déplacement n'était pas lent ni imprécis — **il était impossible à viser**, et
+  l'étape 5 du protocole a échoué sur le matériel de Thomas alors que le moteur, lui, faisait
+  son travail : le saut était calculé juste et appliqué juste. Le défaut vivait entièrement
+  dans l'interface.
+  **Ce qui le rendait invisible à la relecture est la vraie leçon**, et c'est elle qui vaut
+  une règle : le curseur de volume, dix lignes plus bas, a **exactement la même forme** et
+  fonctionne. Il fonctionne parce que la valeur qu'il relit est celle qu'on vient d'y poser —
+  elle ne bouge pas d'elle-même. Un relecteur qui compare les deux conclut que la forme est
+  bonne. **Un deuxième contrôle de la même forme qui marche ne prouve rien sur le premier** :
+  ce qui les sépare n'est pas leur code, c'est de savoir si la valeur relue évolue sans
+  qu'on y touche. La question à se poser devant un contrôle lié à un état sondé est donc
+  celle-là, et pas « est-ce que ça ressemble à ce qui marche ».
+  🟡 et non 🔴 : rien n'est perdu et l'app reste utilisable. Mais le coût réel est le même
+  qu'INV-28 et qu'INV-21 — une fonction qui a l'air présente et ne l'est pas se signale
+  moins qu'une panne franche, et c'est Thomas qui l'a payée, à la main, en premier.
+  Correctif : pendant le déplacement c'est le doigt qui commande, et le sondage reprend la
+  main à l'échéance qui suit le relâchement.
 
 ---
 

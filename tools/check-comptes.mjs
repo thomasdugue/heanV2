@@ -77,6 +77,21 @@ if (regles === undefined) {
   erreurs.push(`README.md annonce « les ${regles} règles », il y en a ${total}`);
 }
 
+// 2c. Le titre de CATALOGUE.md porte le même nombre, et c'est la copie qui a dérivé la
+// première fois qu'une règle est née après le garde du README : INV-29 a été écrite le
+// 2026-11-27, les quatre autres copies mises à jour, et ce titre est resté à 28 — les deux
+// gardes vertes. Relevé par `invariant-guardian`. La leçon est celle de 2b, et elle n'avait
+// pas été tirée jusqu'au bout : un garde-fou qui ne couvre QUE les endroits où quelqu'un a
+// déjà trébuché laisse debout tous ceux où personne n'a encore trébuché.
+const fiches = /^# Catalogue des invariants — les (\d+) fiches$/m.exec(
+  lire('.claude/skills/hean-invariants/CATALOGUE.md'),
+)?.[1];
+if (fiches === undefined) {
+  erreurs.push("CATALOGUE.md : impossible d'y lire le nombre de fiches — le format du titre a changé");
+} else if (Number(fiches) !== total) {
+  erreurs.push(`CATALOGUE.md annonce « les ${fiches} fiches », il y en a ${total}`);
+}
+
 const attendus = [
   [/\*\*(\d+) règles\*\*/, total, 'le total des invariants'],
   [/dont \*\*(\d+) déjà actives\*\*/, actives, 'les invariants déjà couverts par un test'],

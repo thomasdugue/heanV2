@@ -58,6 +58,37 @@
     if (!etat.mode_exclusif) manque.push('le mode exclusif est coupé');
     return manque.join(', ');
   });
+
+  /**
+   * Combien de temps la visée garde la main après le relâchement, en millisecondes. Cadence
+   * estimée et jamais mesurée : de quoi couvrir quelques sondages, le temps que le moteur
+   * applique le saut et republie la position.
+   */
+  const VISEE_TENUE_MS = 300; // estimé, jamais mesuré — INV-28 veut l'origine sur cette ligne
+
+  /**
+   * La position que le doigt vise, pendant qu'il déplace la barre et juste après.
+   *
+   * SANS CE VERROU, LE DÉPLACEMENT EST IMPOSSIBLE À VISER : l'état est sondé dix fois par
+   * seconde, et chaque relevé réécrit la valeur du curseur sous le doigt — le pouce pousse,
+   * le sondage ramène, et le curseur retombe sur la position qui joue. C'est aussi ce qui
+   * rend le défaut invisible à la relecture du curseur de volume juste en dessous, qui a la
+   * même forme et marche : la valeur qu'on y relit est celle qu'on vient de poser, elle ne
+   * bouge pas d'elle-même.
+   *
+   * `jusqua` est à l'infini tant que le doigt est posé, puis devient une échéance : le
+   * moteur applique le saut en quelques millisecondes, mais un sondage peut tomber entre
+   * l'envoi et l'application, et celui-là annoncerait encore l'ancienne position.
+   */
+  let visee = $state<{ cible: number; jusqua: number } | null>(null);
+
+  // Une échéance relue à chaque sondage plutôt qu'un verrou à rendre : un `$effect` qui
+  // lirait `visee` pour la remettre à zéro se redéclencherait lui-même.
+  const positionAffichee = $derived.by(() => {
+    const sondee = etat?.position_ms ?? 0;
+    if (visee === null) return sondee;
+    return Date.now() < visee.jusqua ? visee.cible : sondee;
+  });
 </script>
 
 <section>
@@ -80,7 +111,7 @@
 
   {#if etat && joue}
     <p>
-      {duree(etat.position_ms)} / {dureeConnue ? duree(etat.duree_ms) : 'durée inconnue'}
+      {duree(positionAffichee)} / {dureeConnue ? duree(etat.duree_ms) : 'durée inconnue'}
       — piste {etat.index + 1} sur {etat.total}
     </p>
     <p>
@@ -93,9 +124,19 @@
           min="0"
           max={Math.max(etat.duree_ms, 1)}
           step="1000"
-          value={etat.position_ms}
+          value={positionAffichee}
           disabled={!dureeConnue}
-          onchange={(e) => surDeplacement(Number(e.currentTarget.value))}
+          oninput={(e) => {
+            visee = { cible: Number(e.currentTarget.value), jusqua: Number.POSITIVE_INFINITY };
+          }}
+          onchange={(e) => {
+            const cible = Number(e.currentTarget.value);
+            visee = { cible, jusqua: Date.now() + VISEE_TENUE_MS };
+            surDeplacement(cible);
+          }}
+          onpointercancel={() => {
+            visee = null;
+          }}
         />
       </label>
     </p>
