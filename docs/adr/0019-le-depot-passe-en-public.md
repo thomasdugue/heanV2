@@ -41,6 +41,13 @@ Ce qui a été masqué dans l'arbre courant, par cette décision :
 | Chemins `/Users/<compte>` | 11 fichiers, 23 fois | `$HOME` — et non `~`, qui ne s'étend pas entre guillemets doubles ; le dépôt en a un cas, `docs/PROTOCOLE-SON.md` |
 | Mot de passe app-specific Apple | `GUIDE-LAUNCH-BETA-V1.md`, 1 fois | `<MOT_DE_PASSE_APP_SPECIFIQUE>` |
 
+**Vérifié le 2026-11-27** : un balayage de tous les fichiers suivis, motifs tolérants aux
+guillemets — c'est un guillemet ouvrant qui avait caché le mot de passe Apple — ne trouve plus
+aucune valeur : ni jeton à préfixe connu (`ghp_`, `github_pat_`, `sk-`, `xox…`, `AKIA`,
+`BEGIN … PRIVATE KEY`), ni forme `xxxx-xxxx-xxxx-xxxx`, ni 32 hexadécimaux suivis d'un `@`. Les
+neuf lignes restantes sont des noms de variables, des fixtures de test et un en-tête HTTP.
+`secrets.env.template` n'a que des valeurs vides, et aucun `scripts/.env.local` n'existe.
+
 ## Ce que le masquage ne règle pas, et qui reste à la charge de Thomas
 
 ⚠️ **Masquer un fichier ne touche pas l'historique.** Publier expose ce qui est sur GitHub :
@@ -54,9 +61,13 @@ publiées, et il dérive à chaque commit de n'importe quelle session.)
    pas, il **se révoque**, des deux côtés :
    - **Le mot de passe app-specific, sur appleid.apple.com.** C'est le seul des trois qui
      *authentifie* : il soumet des notarisations au nom de l'Apple ID. À révoquer en premier.
-   - **La clé Sentry, côté Sentry.** Un DSN n'ouvre aucune donnée et part de toute façon dans
-     chaque binaire distribué, donc il est déjà extractible avec `strings` ; publié, il permet
-     seulement de noyer le quota d'événements.
+   - **La clé Sentry, côté Sentry.** ⚠️ Ce n'est **pas** celle du projet courant : relevé le
+     2026-11-27, le compte ne porte qu'une organisation (`hean-app`, région EU), un projet
+     (`rust`) et une clé, d'organisation `o4511310012088322` — quand le DSN du dépôt porte
+     `o4511016013463552`. La clé exposée est celle de V1, dans une organisation que ce compte
+     ne voit plus : déjà morte, ou sous un autre identifiant Sentry — à vérifier en se
+     connectant. La révoquer ne casse donc rien ici. Et un DSN n'ouvre aucune donnée : publié,
+     il permet seulement de noyer le quota d'événements.
 2. **37 commits de `main` portent l'adresse e-mail personnelle en champ auteur** (116 sur
    l'ensemble des branches poussées). Masquer les 4 fichiers n'y change rien : seule une
    réécriture d'historique l'enlèverait, et elle casserait tous les clones existants. Pour la
