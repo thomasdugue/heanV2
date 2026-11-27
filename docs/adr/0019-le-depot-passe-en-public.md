@@ -51,7 +51,8 @@ neuf lignes restantes sont des noms de variables, des fixtures de test et un en-
 ## Ce que le masquage ne règle pas, et qui reste à la charge de Thomas
 
 ⚠️ **Masquer un fichier ne touche pas l'historique.** Publier expose ce qui est sur GitHub :
-**60 commits sur `main`**, et 139 au total sur les 26 branches poussées. (Le compte
+**60 commits sur `main`**, et 139 au total sur les 26 branches poussées — relevé le 2026-11-26, et
+ce dernier compte baisse, les branches fusionnées étant supprimées : 22 le 2026-11-27. (Le compte
 `git rev-list --all` est un faux ami : il inclut des branches locales qui ne seront jamais
 publiées, et il dérive à chaque commit de n'importe quelle session.)
 

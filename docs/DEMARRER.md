@@ -39,7 +39,9 @@ puisque le travail de design sur V1 est arrêté depuis octobre :
 
 ### A2. Capturer la cible visuellement 🟠 ~~bloquant~~ — **fait pour la validation, en pause pour la référence**
 
-**Le 2026-11-21 à 18 h 51, la cible a été lancée pour la première fois.** Huit captures :
+**Le 2026-11-21 à 18 h 51, la cible a été lancée pour la première fois.** Huit captures, **retirées
+du dépôt le 2026-11-27** avant la bascule en public ([ADR 0020](adr/0020-les-captures-sortent-du-depot.md)) :
+ce qu'elles montraient, écran par écran, est consigné dans
 [`../bootstrap/02-design/reference/captures/`](../bootstrap/02-design/reference/captures/README.md).
 
 Ces captures avaient deux rôles. **Le premier est rempli** : la cible est validée — les `--glass-*`
@@ -74,7 +76,8 @@ cd $HOME/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
 C'est bien le **checkout principal** et pas le workspace Conductor : lui seul a `scripts/.env.local`
 (sans quoi `dev.sh` s'arrête net) et 17 Go de cache de build Rust.
 
-Destination : `bootstrap/02-design/reference/captures/`. La liste des écrans à couvrir est dans
+Destination : **locale, hors de git** tant que le dépôt est public ([ADR 0020](adr/0020-les-captures-sortent-du-depot.md)).
+La liste des écrans à couvrir est dans
 [`../bootstrap/02-design/reference/README.md`](../bootstrap/02-design/reference/README.md).
 
 Urgence réelle : ces captures doivent être prises **depuis l'état actuel** de ta machine

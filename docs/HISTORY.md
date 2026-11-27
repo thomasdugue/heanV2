@@ -1760,3 +1760,18 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
   **Et la leçon** : j'avais cherché le mot de passe avec un motif qui butait sur le guillemet
   ouvrant, et je ne l'ai pas vu alors que j'éditais les lignes au-dessus et au-dessous. D'où
   INV-29, proposée : aucun justificatif en clair dans un fichier suivi par git.
+- **2026-11-27** (suite du masquage) : Thomas tranche le sort des 8 captures — **les retirer**.
+  ADR [0020](adr/0020-les-captures-sortent-du-depot.md). Elles montraient sa bibliothèque réelle, et
+  leur propre `README.md` portait la consigne depuis le 2026-11-21 : « ce dépôt est privé, il doit le
+  rester, ou ces captures doivent être retirées avant toute ouverture ». Les images sortent, **le
+  `README.md` reste** et porte seul, écran par écran, ce qu'elles montraient et les trois défauts
+  qu'elles ont révélés — c'est cette prose que la phase 4 lira, et la série devait de toute façon
+  être reprise en entier après la passe « davantage de DM Sans ».
+  ⚠️ **Mesuré : les images sont dans l'arbre de 53 des 61 commits de `main`.** Comme pour les
+  justificatifs, retirer de `HEAD` retire de la page que GitHub montre, pas du dépôt — et une image
+  ne se révoque pas. Le retrait est nécessaire, pas suffisant : réécrire l'historique ou publier un
+  dépôt neuf à un seul commit sont en décision ouverte, avec leur coût mesuré.
+  Autre relevé du jour : **la clé Sentry du dépôt n'est pas celle du projet courant** — le compte ne
+  porte qu'une organisation, un projet et une clé, d'identifiant différent. La clé exposée est celle
+  de V1, déjà morte ou sous un autre compte. L'ADR 0019 le dit maintenant : une consigne de
+  révocation qui nomme la mauvaise clé fait croire le travail fait.

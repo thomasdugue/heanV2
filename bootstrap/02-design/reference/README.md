@@ -37,6 +37,9 @@ mieux.
 bootstrap : le CSS seul ne dit pas à quoi ressemble le résultat composé, et le §24 du design system
 donne les specs, pas le rendu — et il précède le redesign v3.
 
+Huit l'ont été le 2026-11-21, puis **retirées le 2026-11-27** avant la bascule du dépôt en public :
+ce qu'elles montraient est consigné dans [`captures/README.md`](captures/README.md).
+
 ⚠️ **Les captures doivent être prises sur la cible de parité**, pas sur `main` ni sur l'app installée.
 Le worktree qui porte le bon commit :
 
