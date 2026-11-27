@@ -52,6 +52,8 @@ lignes sans numéro sont des observations utiles qui ne valident aucune étape d
 | **6** — suivante et précédente | sept changements de piste à la main d'affilée, chacun rouvrant le flux, `sortie démarrée` une vingtaine de millisecondes après `piste ouverte`, et **aucun avertissement** |
 | **12** — le mode exclusif | `mode exclusif actif peripherique=Écouteurs externes`, la piste rouverte à `depart_ms=8544` : la position est conservée. Thomas a envoyé la copie d'écran — badge **Bit-perfect**, volume à 100 %, compteur de trous à 0 |
 | **13bis** — déplacement après un saut | aucun avertissement à la fermeture du flux qui suivait le déplacement : le saut n'a ajouté aucun trou |
+| **3** — zéro trou sur trois minutes | **3 min 15 s de lecture d'affilée**, un seul flux, aucun avertissement à la fermeture (`In Your Eyes`, 16 bits / 44,1 kHz) |
+| **17** — la sortie change dans macOS | Thomas a basculé macOS vers « Écouteurs externes » pendant que Hean jouait sur les haut-parleurs : le son **n'a pas bougé**, et Hean a continué d'afficher sa propre sortie. **Rien dans le journal**, ce qui est le comportement attendu — l'AudioUnit est lié au périphérique, pas au défaut système |
 
 **5 (déplacement) a échoué du premier coup, et le défaut était dans la barre, pas dans le
 moteur.** Le curseur se relisait depuis l'état sondé : chaque relevé réécrivait sa valeur
@@ -64,12 +66,26 @@ premier.**
 « Pas bit-perfect : le mode exclusif est coupé » n'est pas un défaut : c'est la quatrième des
 quatre conditions (ADR 0007), et c'est l'**étape 12** qui la lève en cochant la case.
 
-**3 n'est pas encore tenue** : aucun avertissement sur les huit fermetures de flux du 26 ni
-sur celles du 27, mais il reste à tenir trois minutes d'affilée sur une seule piste.
+**3 est tenue depuis le 2026-11-27 au soir**, et c'est elle qui portait le plus : aucun
+avertissement sur les huit fermetures de flux du 26, ni sur celles du 27, **ni sur trois
+minutes et quinze secondes d'un seul morceau sans y toucher**. La promesse « ça ne coupe
+pas » est désormais mesurée sur de la vraie musique, et pas seulement déduite d'un test.
 
-**Ce qui reste et ne demande aucun matériel** : **1** (la liste des sorties), **17** (changer
-la sortie dans les Réglages Son de macOS pendant une piste), et la tenue de **3**. Cela fait
-**neuf étapes sur vingt** tenues. Et **aucune étape du bloc DAC (10, 11, 13, 14) n'est
+⚠️ **Trouvé à l'étape 17, et ce n'est pas l'étape 17 : changer de sortie DANS Hean peut
+laisser le son inaudible.** Thomas est passé des écouteurs aux haut-parleurs du Mac mini
+depuis l'application ; la lecture a bien suivi (`sortie changée, défaut système synchronisé
+id=80`, position conservée à `depart_ms=18390`), mais **il n'entendait rien avant d'appuyer
+sur la touche volume +** de son clavier. La cause est mesurée dans le code : le moteur
+**n'écrit jamais** le volume matériel — aucune écriture de `kAudioDevicePropertyVolumeScalar`
+dans tout `src-tauri/src/audio/` — et notre volume est interne, appliqué sur les échantillons.
+macOS garde un volume **par périphérique** : on atterrit donc sur celui du nouveau, qui peut
+être à zéro, pendant que Hean affiche « 100 % » et que rien n'explique le silence. C'est la
+famille de l'indicateur qui ment, celle que l'étape 9 existe pour empêcher. **Décision
+ouverte pour Thomas** : lire le volume du périphérique et le dire, le relever, ou ne rien
+faire. Non corrigé ici — ce n'est pas le périmètre de cette session.
+
+**Ce qui reste et ne demande aucun matériel** : **1** (la liste des sorties), et elle seule.
+Cela fait **onze étapes sur vingt** tenues. Et **aucune étape du bloc DAC (10, 11, 13, 14) n'est
 passée** : le repli à 96 kHz de l'étape 9 s'est fait sur une **sortie intégrée** qui plafonne
 là, pas sur un DAC — le journal nomme `id=86`, soit « Écouteurs externes ». **Hean n'a encore
 jamais piloté ton DAC** : c'est la partie qui reste entièrement à éprouver.
