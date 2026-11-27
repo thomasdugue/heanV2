@@ -453,3 +453,32 @@ dette **visible**, que `./check` recompte à chaque passage.
 
 ---
 
+### INV-29 — Un contrôle dont la valeur est sondée ne se relit pas pendant qu'on le manipule
+
+- pile : test
+- gravité : 🟡 AVERTISSEMENT
+- couverture : planifiée (phase 4) — muette faute de matière : deux curseurs existent
+  aujourd'hui, et la vraie façade du lecteur arrive en phase 4
+- pourquoi : né le 2026-11-27, sur la **première épreuve du moteur de son par Thomas**. La
+  barre de position liait son `value` à l'état de lecture, qui est **sondé** et non poussé :
+  chaque relevé réécrivait la valeur du curseur sous le doigt, le pouce poussait, le sondage
+  ramenait. Le déplacement n'était pas lent ni imprécis — **il était impossible à viser**, et
+  l'étape 5 du protocole a échoué sur le matériel de Thomas alors que le moteur, lui, faisait
+  son travail : le saut était calculé juste et appliqué juste. Le défaut vivait entièrement
+  dans l'interface.
+  **Ce qui le rendait invisible à la relecture est la vraie leçon**, et c'est elle qui vaut
+  une règle : le curseur de volume, dix lignes plus bas, a **exactement la même forme** et
+  fonctionne. Il fonctionne parce que la valeur qu'il relit est celle qu'on vient d'y poser —
+  elle ne bouge pas d'elle-même. Un relecteur qui compare les deux conclut que la forme est
+  bonne. **Un deuxième contrôle de la même forme qui marche ne prouve rien sur le premier** :
+  ce qui les sépare n'est pas leur code, c'est de savoir si la valeur relue évolue sans
+  qu'on y touche. La question à se poser devant un contrôle lié à un état sondé est donc
+  celle-là, et pas « est-ce que ça ressemble à ce qui marche ».
+  🟡 et non 🔴 : rien n'est perdu et l'app reste utilisable. Mais le coût réel est le même
+  qu'INV-28 et qu'INV-21 — une fonction qui a l'air présente et ne l'est pas se signale
+  moins qu'une panne franche, et c'est Thomas qui l'a payée, à la main, en premier.
+  Correctif : pendant le déplacement c'est le doigt qui commande, et le sondage reprend la
+  main à l'échéance qui suit le relâchement.
+
+---
+

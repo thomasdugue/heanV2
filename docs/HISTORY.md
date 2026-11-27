@@ -1746,3 +1746,18 @@ cd /Users/tsunami25/Documents/Thomas/heanV2 && npm run tauri dev
   externes », relevé au démarrage de 20:21) et non sur les haut-parleurs du Mac mini comme je
   l'avais d'abord écrit, faute de l'avoir vérifié : **Hean n'a
   encore jamais piloté le DAC**, et le document le dit maintenant.
+- **2026-11-27** (le protocole son, sur le matériel de Thomas) : **six étapes de plus, et un
+  vrai défaut trouvé.** Passées : 4 (pause) et 7 (volume), jugées par Thomas car le journal
+  n'en dit rien par construction ; 6, sept changements de piste à la main sans un
+  avertissement ; 12, position conservée et badge **Bit-perfect** sur sa copie d'écran ;
+  13bis, zéro trou après un saut ; et **5 après correction**. Neuf sur vingt sont tenues ;
+  3 attend ses trois minutes d'affilée. **Échec de l'étape 5** : la barre était impossible
+  à viser, et le moteur n'y était pour rien — le curseur relisait la position sondée, donc
+  chaque relevé réécrivait sa valeur sous le doigt. D'où **INV-29** (🟡) : *un contrôle dont
+  la valeur est sondée ne se relit pas pendant qu'on le manipule*, et son corollaire, qui est
+  ce qui a rendu le défaut invisible à la relecture — **un deuxième contrôle de la même forme
+  qui marche ne prouve rien sur le premier**. **Leçon de procédé, qui a coûté deux fois** :
+  j'ai poussé quatre commits sur `claude/coreaudio-sortie-8e47a4` **après** la fusion en
+  squash de la #25 ; l'app de Thomas ne les a jamais eus, et son test n'a réussi que parce
+  que le Vite de mon worktree tenait le port 1420. **Un `./check` vert dans un worktree ne
+  dit rien de ce que main contient** : avant de pousser, `gh pr view <n> --json state`.
