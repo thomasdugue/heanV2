@@ -1793,15 +1793,15 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
 - **2026-11-27** (le protocole son, sur le matériel de Thomas) : **six étapes de plus, et un
   vrai défaut trouvé.** Passées : 4 et 7, jugées par Thomas car le journal n'en dit rien par
   construction ; 6, 12 (position conservée, badge **Bit-perfect** sur sa copie d'écran),
-  13bis, et **5 après correction**. Neuf sur vingt sont tenues ; 3 attend ses trois minutes.
-  **Échec de l'étape 5** : la barre était impossible
-  à viser, et le moteur n'y était pour rien — le curseur relisait la position sondée, donc
-  chaque relevé réécrivait sa valeur sous le doigt. D'où **INV-30** (🟡 ; le 29 est
-  réclamé par l'entrée du masquage ci-dessus, j'arrive second) : *un contrôle dont la valeur
-  est sondée ne se relit pas pendant qu'on le manipule*, et son corollaire, qui est ce qui a
-  rendu le défaut invisible à la relecture — **un deuxième contrôle de la même forme qui
-  marche ne prouve rien sur le premier**. **Leçon de procédé, qui a coûté deux fois** :
-  j'ai poussé quatre commits sur `claude/coreaudio-sortie-8e47a4` **après** la fusion en
-  squash de la #25 ; l'app de Thomas ne les a jamais eus, et son test n'a réussi que parce
-  que le Vite de mon worktree tenait le port 1420. **Un `./check` vert dans un worktree ne
-  dit rien de ce que main contient** : avant de pousser, `gh pr view <n> --json state`.
+  13bis, et **5 après correction**. Neuf sur vingt tenues ; 3 attend ses trois minutes.
+  **Échec de l'étape 5** : la barre était impossible à viser, et le moteur n'y était pour
+  rien — le curseur relisait la position sondée, donc chaque relevé réécrivait sa valeur sous
+  le doigt. D'où **INV-30** (🟡 ; le 29 est réclamé par l'entrée du masquage ci-dessus,
+  j'arrive second) : *un contrôle dont la valeur est sondée ne se relit pas pendant qu'on le
+  manipule* — et son corollaire, qui est ce qui a rendu le défaut invisible à la relecture :
+  **un deuxième contrôle de la même forme qui marche ne prouve rien sur le premier**.
+  **INV-28 étendue**, sur décision de Thomas : une durée dont l'unité vit dans le NOM d'une
+  constante en est une ; `VISEE_TENUE_MS = 300` était invisible au détecteur, qui exigeait
+  l'unité collée aux chiffres. **Leçon de procédé** : j'ai poussé quatre commits après la
+  fusion en squash de la #25, donc hors de main ; le test de Thomas n'a réussi que parce que
+  mon Vite tenait le port 1420. Avant de pousser, `gh pr view <n> --json state`.

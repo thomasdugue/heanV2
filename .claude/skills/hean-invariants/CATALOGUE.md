@@ -450,6 +450,17 @@ dette **visible**, que `./check` recompte à chaque passage.
   Corollaire pour les documents, qui n'a pas de détecteur et n'en aura pas : un nombre qu'on
   n'a pas mesuré s'écrit **estimé**, avec la méthode d'estimation — c'est elle qui a permis de
   voir, après coup, que les 41 ms par fichier venaient d'un calcul de débit.
+  **Étendue le 2026-11-27, sur décision de Thomas** : une durée dont l'unité vit dans le NOM
+  d'une constante (`VISEE_TENUE_MS = 300`) est une durée. La grammaire d'origine exigeait
+  l'unité **collée aux chiffres**, donc ce premier exemplaire du dépôt lui était totalement
+  invisible — relevé par `invariant-guardian` sur le diff même qui l'a créé, et c'est le cas
+  d'école du détecteur qu'on croit satisfait alors qu'il est muet. Deuxième expression plutôt
+  qu'un terme de plus dans la première, parce que celle-ci porte le drapeau `i` : la casse
+  haute, qui est ce qui distingue une constante d'un champ de l'état sondé, n'y tiendrait pas,
+  et le détecteur attraperait `duree_ms = 0`. Trois assertions tiennent ce choix, sans quoi
+  replier les deux grammaires resterait une « simplification » tentante. Éprouvée par
+  injection **sur la matière réelle** — l'origine retirée de la vraie constante fait rougir
+  l'interdiction et l'assertion de matière, pas seulement la faute inventée.
 
 ---
 

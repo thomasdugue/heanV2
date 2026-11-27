@@ -40,6 +40,21 @@ import { lire, sources } from './_lecture';
 const DUREE =
   /\b(?:\d+(?:[.,]\d+)?\s*(?:ms|s|secondes?|min|minutes?|h|heures?)|(?:une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|quinze|vingt|trente|quarante|soixante)\s+(?:secondes?|minutes?|heures?)|demi-heures?)\b/gi;
 
+/**
+ * Une durée dont l'unité vit dans le NOM de la constante, pas à côté du nombre.
+ *
+ * Deuxième grammaire et non un terme de plus dans `DUREE`, pour une raison qui se mesure :
+ * `DUREE` porte le drapeau `i`, donc un `[A-Z]` y matcherait aussi les minuscules et le
+ * détecteur attraperait `etat.duree_ms = 0` — un champ de l'état, pas un chiffre annoncé.
+ * La casse haute est la convention qui distingue une constante d'un champ, et elle ne tient
+ * que dans une expression sans `i`.
+ *
+ * Né le 2026-11-27 de `VISEE_TENUE_MS = 300`, premier exemplaire du dépôt : `DUREE` exige
+ * l'unité **collée aux chiffres**, donc ce qui suivait `300` était `;` et la ligne était
+ * totalement invisible. Relevé par `invariant-guardian`, tranché par Thomas.
+ */
+const DUREE_NOMMEE = /\b[A-Z][A-Z0-9_]*_(?:MS|S|SEC|SECONDES|MIN|MINUTES|H|HEURES)\s*=\s*\d+(?:[.,]\d+)?/g;
+
 /** Ce qui situe un chiffre : il est mesuré, ou il s'annonce estimé. Les deux conviennent. */
 const ORIGINE = /mesur[ée]|estim[ée]/i;
 
@@ -56,7 +71,11 @@ export function dureesAnnoncees(svelte: string): { ligne: number; texte: string;
   return sansStyle
     .split('\n')
     .flatMap((l, i) =>
-      [...l.matchAll(DUREE)].map((m) => ({ ligne: i + 1, texte: m[0], situee: ORIGINE.test(l) })),
+      [...l.matchAll(DUREE), ...l.matchAll(DUREE_NOMMEE)].map((m) => ({
+        ligne: i + 1,
+        texte: m[0],
+        situee: ORIGINE.test(l),
+      })),
     );
 }
 
@@ -80,6 +99,38 @@ describe('chiffres annoncés à l’utilisateur (INV-28)', () => {
     expect(dureesAnnoncees('<p>36 min</p>')[0]?.situee).toBe(false);
     expect(dureesAnnoncees('<p>36 min, mesuré le 2026-11-25</p>')[0]?.situee).toBe(true);
     expect(dureesAnnoncees('<p>une demi-heure — estimée</p>')[0]?.situee).toBe(true);
+  });
+
+  it('une durée dont l’unité est dans le nom est une durée', () => {
+    expect(dureesAnnoncees('const VISEE_TENUE_MS = 300;')[0]).toEqual({
+      ligne: 1,
+      texte: 'VISEE_TENUE_MS = 300',
+      situee: false,
+    });
+    expect(dureesAnnoncees('const X_MS = 300; // estimé')[0]?.situee).toBe(true);
+    expect(dureesAnnoncees('const ATTENTE_MIN = 2;').length).toBe(1);
+  });
+
+  it('un champ en minuscules n’est pas une constante annoncée', () => {
+    // La raison d'être d'une deuxième expression sans `i` : repliée dans `DUREE`, qui porte
+    // ce drapeau, la casse haute cessait d'être une exigence et ces trois lignes rougissaient
+    // — un champ de l'état sondé n'est pas un chiffre montré à quelqu'un. Sans cette
+    // assertion, la fusion des deux grammaires reste une « simplification » tentante.
+    expect(dureesAnnoncees('let duree_ms = 0;')).toEqual([]);
+    expect(dureesAnnoncees('etat.position_ms = 1200;')).toEqual([]);
+    expect(dureesAnnoncees('const dureeMs = 300;')).toEqual([]);
+  });
+
+  it('il voit la constante réelle du lecteur', () => {
+    // La matière réelle, pas la faute inventée : les deux ne se remplacent pas. Cette
+    // assertion se périme d'elle-même le jour où plus aucune constante de durée ne vit dans
+    // un `.svelte` — et c'est sa qualité, elle rougira pour dire qu'il n'y a plus rien à
+    // surveiller. Le dépôt n'en porte qu'une, d'où le seuil à 1.
+    const vues = dureesAnnoncees(lire('src/lib/ui/Lecture.svelte')).filter((d) =>
+      /^[A-Z][A-Z0-9_]*_/.test(d.texte),
+    );
+    expect(vues.length, 'plus aucune constante de durée dans un composant').toBeGreaterThan(0);
+    expect(vues.every((d) => d.situee), 'une constante de durée ne dit pas son origine').toBe(true);
   });
 
   it('la fenêtre est la ligne, et les deux formes écartées sont interdites', () => {
