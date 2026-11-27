@@ -23,8 +23,8 @@ use crate::faux_partage::FauxPartage;
 const SOURCES_V1: &str = r#"[
   {
     "id": "dcdd24af-ca15-48a4-adde-18b5fcfa92f0",
-    "name": "dugstation",
-    "host": "dugstation.local",
+    "name": "nas",
+    "host": "nas.local",
     "share": "music",
     "remote_path": "/LOSSLESS/complete",
     "credentials": { "username": "admin", "domain": null, "is_guest": false },
@@ -47,7 +47,7 @@ fn mp3() -> Vec<u8> {
 }
 
 /// Le faux NAS de Thomas : l'arborescence exacte qui produit `PISTE_REELLE`.
-fn dugstation() -> FauxPartage {
+fn nas() -> FauxPartage {
     FauxPartage::nouveau()
         .dossier("/LOSSLESS/complete", &[("To Pimp a Butterfly (2015)", true)])
         .dossier(
@@ -76,10 +76,10 @@ fn un_scan_ecrit_exactement_les_chemins_que_v1_avait_ecrits() {
         .source_reseau("dcdd24af-ca15-48a4-adde-18b5fcfa92f0")
         .expect("lecture")
         .expect("la source de V1 est en base, avec SON identifiant");
-    assert_eq!(source.nom, "dugstation");
+    assert_eq!(source.nom, "nas");
 
     let perimetre = Perimetre::Source(uri::prefixe(&source.id));
-    let partage = dugstation();
+    let partage = nas();
     let deja = inventaire::DejaConnu::depuis_le_depot(&depot, &perimetre).expect("état connu");
     let inv = inventaire::inventorier(&partage, &source, &deja).expect("inventaire");
     let rapport = depot

@@ -21,8 +21,8 @@ use crate::faux_partage::FauxPartage;
 fn source() -> SourceReseau {
     SourceReseau {
         id: "dcdd24af".into(),
-        nom: "dugstation".into(),
-        hote: "dugstation.local".into(),
+        nom: "nas".into(),
+        hote: "nas.local".into(),
         partage: "music".into(),
         chemin_distant: "/LOSSLESS".into(),
         utilisateur: "admin".into(),
@@ -363,5 +363,5 @@ fn une_racine_refusee_explique_quoi_verifier_et_dans_quel_ordre() {
     // Le dossier et le partage sont nommés : « ça ne marche pas » ne se diagnostique pas.
     assert!(message.contains("/LOSSLESS"), "{message}");
     assert!(message.contains("music"), "{message}");
-    assert!(message.contains("dugstation.local"), "{message}");
+    assert!(message.contains("nas.local"), "{message}");
 }

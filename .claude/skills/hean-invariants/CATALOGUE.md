@@ -453,7 +453,7 @@ dette **visible**, que `./check` recompte à chaque passage.
 
 ---
 
-### INV-29 — Un contrôle dont la valeur est sondée ne se relit pas pendant qu'on le manipule
+### INV-30 — Un contrôle dont la valeur est sondée ne se relit pas pendant qu'on le manipule
 
 - pile : test
 - gravité : 🟡 AVERTISSEMENT

@@ -25,3 +25,7 @@ scripts/.env.local
 /test-results/
 /playwright-report/
 __snapshots__/*.actual.png
+
+# Les captures de la bibliothèque ne reviennent pas dans le dépôt tant qu'il est public
+# (ADR 0020). Un `git add -f` reste possible, et c'est le but : il se voit en revue.
+bootstrap/02-design/reference/captures/*.png

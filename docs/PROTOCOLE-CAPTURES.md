@@ -7,11 +7,11 @@ typographie (préalable A4).
 ## Lancement
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop && git checkout thomasdugue/design-migration-audit
+cd $HOME/Documents/Thomas/noirdesktop && git checkout thomasdugue/design-migration-audit
 ```
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
+cd $HOME/Documents/Thomas/noirdesktop/noir-tauri && ./scripts/dev.sh
 ```
 
 **Pourquoi le checkout principal et pas le workspace Conductor** : il a déjà
@@ -26,7 +26,7 @@ fichiers non suivis à la racine ne sont pas suivis dans la branche cible, et le
 Vérifier après le checkout :
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop && git log -1 --format=%h
+cd $HOME/Documents/Thomas/noirdesktop && git log -1 --format=%h
 ```
 
 Doit afficher `e12a200`. Si ce n'est pas ça, les captures ne valent rien.
@@ -53,7 +53,12 @@ l'arbitrage devient : l'embarquer en local, ou assumer Geist Mono partout.
 
 ## 2. Les captures
 
-Destination : `bootstrap/02-design/reference/captures/`
+Destination : **un dossier local, hors de git** — `~/Desktop/captures-hean/` fait l'affaire. Le
+dépôt est destiné à devenir public depuis le 2026-11-27 et ne porte plus aucune capture de la
+bibliothèque ([ADR 0020](adr/0020-les-captures-sortent-du-depot.md)) ;
+`bootstrap/02-design/reference/captures/` ne garde que le `README.md` qui dit ce que les huit
+premières montraient. Un `.gitignore` refuse les `.png` de ce dossier : les y remettre demande un
+`git add -f`, qui se voit en revue.
 
 Nommage : `NN-ecran.png`, numéroté dans l'ordre ci-dessous, pour que le dossier se lise comme un
 parcours. `Cmd+Shift+4` puis espace capture la fenêtre seule, sans le bureau.
@@ -107,7 +112,7 @@ là. Un build de dev n'a pas le même profil mémoire — comparer les deux ne v
 C'est donc un exercice séparé, sur l'app installée :
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/heanV2 && ./tools/measure-app.sh noir-tauri 90
+cd $HOME/Documents/Thomas/heanV2 && ./tools/measure-app.sh noir-tauri 90
 ```
 
 Découpage : 10 s au repos → Albums et défiler toute la grille jusqu'à ~45 s → 15 s au repos → trois
@@ -118,7 +123,7 @@ requêtes dans la recherche → repos.
 ## Après
 
 ```bash
-cd /Users/tsunami25/Documents/Thomas/noirdesktop && git checkout claude/kind-cerf-A9weP
+cd $HOME/Documents/Thomas/noirdesktop && git checkout claude/kind-cerf-A9weP
 ```
 
 Pour remettre le checkout principal où il était — ou le laisser sur la cible, c'est elle qui compte

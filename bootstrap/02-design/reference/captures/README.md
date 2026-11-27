@@ -1,19 +1,26 @@
-# Captures de la cible de parité
+# Ce que les captures de la cible de parité ont montré
 
 Prises le **2026-11-21 à 18 h 51-53** sur le commit `e12a200`, build de dev, bibliothèque réelle
-(3 443 pistes, 91 % sur NAS). **C'est la première fois que ce design était lancé par qui que ce
+(3 443 pistes, 91 % sur NAS). **C'était la première fois que ce design était lancé par qui que ce
 soit.**
 
-| Fichier | Écran | Ce qu'il faut y regarder |
-|---|---|---|
-| `01-home.png` | Accueil | L'**eyebrow** (point pulsant + `HEAN · 21 NOV · 06:51 PM` + filet dégradé) et la **now-strip** : cover 200 px, titre en très gros, les 4 cellules hallmark (Bit depth / Sample / Format / Bit perfect), bouton play rond blanc. Puis `RECENT` **au-dessus** de « Recently Added » — le correctif `fc77789`. |
-| `02-albums.png` | Grille d'albums | ⚠️ La **première vignette déborde** : le titre commence hors de la carte et se coupe. Défaut à ne pas reproduire. |
-| `03-album-page.png` | Page album | La structure hero / corps / aside, le watermark « AIR », les boutons Play album · Shuffle · Add to queue, l'aside Details. ⚠️ Chaque piste est **listée deux fois** — voir `../../../../docs/MESURES-V1.md` §10. |
-| `04-menu-contextuel.png` | Menu contextuel | Play · Add to queue · Add to playlist · Go to album · Go to artist · Info · Edit Metadata · Remove from library (en rouge). |
-| `05-settings.png` | Réglages (drawer) | Sections Audio / Library / Network library / Playback / Keyboard shortcuts. |
-| `06-tracks.png` | Vue Pistes | Les **badges de qualité ambrés** pour le hi-res (24-bit) contre gris pour le reste — une couleur hors de la règle monochrome, à documenter ou à trancher. Et beaucoup d'`Unknown Artist` / `-:--` : ce sont les pistes dont la lecture de métadonnées FLAC échoue au scan réseau. |
-| `07-artistes.png` | Grille d'artistes | Pochettes circulaires, index alphabétique à droite, compteur de pistes. |
-| `08-artiste-page.png` | Page artiste | Le **watermark** « PRINCE », la photo circulaire, les stats (albums / pistes / durée totale). |
+> 🗑 **Les huit images ne sont plus dans le dépôt**, retirées le 2026-11-27 avant la bascule en
+> public : elles montraient une bibliothèque personnelle. Décision et alternatives écartées :
+> [`0020`](../../../../docs/adr/0020-les-captures-sortent-du-depot.md). Ce fichier porte désormais
+> seul ce qu'elles apprenaient — et c'est lui que la phase 4 lira. Pour en reprendre une série :
+> [`PROTOCOLE-CAPTURES.md`](../../../../docs/PROTOCOLE-CAPTURES.md), destination **locale**, hors
+> de git tant que le dépôt est public.
+
+| Écran | Ce qu'il fallait y regarder |
+|---|---|
+| Accueil (`01-home`) | L'**eyebrow** (point pulsant + `HEAN · 21 NOV · 06:51 PM` + filet dégradé) et la **now-strip** : cover 200 px, titre en très gros, les 4 cellules hallmark (Bit depth / Sample / Format / Bit perfect), bouton play rond blanc. Puis `RECENT` **au-dessus** de « Recently Added » — le correctif `fc77789`. |
+| Grille d'albums (`02-albums`) | ⚠️ La **première vignette débordait** : le titre commençait hors de la carte et se coupait. Défaut à ne pas reproduire. |
+| Page album (`03-album-page`) | La structure hero / corps / aside, le watermark « AIR », les boutons Play album · Shuffle · Add to queue, l'aside Details. ⚠️ Chaque piste était **listée deux fois** — voir [`MESURES-V1.md`](../../../../docs/MESURES-V1.md) §10. |
+| Menu contextuel (`04-menu-contextuel`) | Play · Add to queue · Add to playlist · Go to album · Go to artist · Info · Edit Metadata · Remove from library (en rouge). |
+| Réglages, en drawer (`05-settings`) | Sections Audio / Library / Network library / Playback / Keyboard shortcuts. |
+| Vue Pistes (`06-tracks`) | Les **badges de qualité ambrés** pour le hi-res (24-bit) contre gris pour le reste — une couleur hors de la règle monochrome, à documenter ou à trancher. Et beaucoup d'`Unknown Artist` / `-:--` : les pistes dont la lecture de métadonnées FLAC échoue au scan réseau. |
+| Grille d'artistes (`07-artistes`) | Pochettes circulaires, index alphabétique à droite, compteur de pistes. |
+| Page artiste (`08-artiste-page`) | Le **watermark** « PRINCE », la photo circulaire, les stats (albums / pistes / durée totale). |
 
 ## Ce qu'elles ont validé
 
@@ -23,17 +30,14 @@ soit.**
 - ✅ **DM Sans se charge** — l'hypothèse « bloquée par la CSP » était fausse. Détail :
   [`../../ECARTS-DESIGN.md`](../../ECARTS-DESIGN.md) §2.
 
+Ces deux verdicts tiennent sans les images : ils sont la raison pour laquelle la phase 0 a pu
+démarrer sans attendre le design.
+
 ## Ce qu'elles ont révélé
 
-Trois défauts, tous consignés dans [`../../../../docs/MESURES-V1.md`](../../../../docs/MESURES-V1.md) :
+Trois défauts, tous consignés dans [`MESURES-V1.md`](../../../../docs/MESURES-V1.md) :
 l'extraction de couleur ambiante qui échoue à chaque page album (§9), 21 % de la bibliothèque en
 double (§10), et le débordement de la première vignette d'album.
-
-## ⚠️ Ces images contiennent des données personnelles
-
-Chemins de bibliothèque avec le nom d'utilisateur, nom d'hôte du NAS, noms de playlists, contenu
-réel de la bibliothèque. **Ce dépôt est privé — il doit le rester**, ou ces captures doivent être
-retirées avant toute ouverture.
 
 ## ⏸ La série est en pause, pas abandonnée — décidé le 2026-11-21
 
@@ -43,12 +47,12 @@ repliée sous 900 px, le module d'indexation en cours, et la player bar en gros 
 glow.
 
 **Elles attendent volontairement la passe « davantage de DM Sans »** que Thomas fait côté design : la
-typographie change sur tous ces écrans, les capturer maintenant reviendrait à les refaire. Les huit
-captures existantes suffisent à ce dont on avait besoin aujourd'hui — valider la cible.
+typographie change sur tous ces écrans, les capturer maintenant reviendrait à les refaire.
 
 **Quand la passe aura atterri** : réextraire `styles.css` / `views.js` / `tokens.css` depuis le
 nouveau commit, écrire l'ADR qui remplace `0004`, puis **reprendre la série en entier** (les huit
-d'aujourd'hui comprises, puisqu'elles auront vieilli).
+d'alors comprises, puisqu'elles auraient vieilli de toute façon — c'est ce qui rend leur retrait peu
+coûteux).
 
 La liste complète et l'ordre sont dans
-[`../../../../docs/PROTOCOLE-CAPTURES.md`](../../../../docs/PROTOCOLE-CAPTURES.md).
+[`PROTOCOLE-CAPTURES.md`](../../../../docs/PROTOCOLE-CAPTURES.md).

@@ -142,8 +142,8 @@ mod tests {
     const REEL: &str = r#"[
   {
     "id": "dcdd24af-ca15-48a4-adde-18b5fcfa92f0",
-    "name": "dugstation",
-    "host": "dugstation.local",
+    "name": "nas",
+    "host": "nas.local",
     "share": "music",
     "remote_path": "/LOSSLESS/complete",
     "credentials": {
@@ -165,8 +165,8 @@ mod tests {
         let s = &sources[0];
         // L'identifiant d'abord : c'est lui qui est écrit dans ses 3 137 URI de pistes.
         assert_eq!(s.id, "dcdd24af-ca15-48a4-adde-18b5fcfa92f0");
-        assert_eq!(s.nom, "dugstation");
-        assert_eq!(s.hote, "dugstation.local");
+        assert_eq!(s.nom, "nas");
+        assert_eq!(s.hote, "nas.local");
         assert_eq!(s.partage, "music");
         assert_eq!(s.chemin_distant, "/LOSSLESS/complete");
         assert_eq!(s.utilisateur, "admin");
