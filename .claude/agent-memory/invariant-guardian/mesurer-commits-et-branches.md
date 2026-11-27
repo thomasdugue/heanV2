@@ -1,6 +1,6 @@
 ---
 name: mesurer-commits-et-branches
-description: Comment re-mesurer les chiffres d'historique qu'un diff avance (commits de main, branches poussées, commits portant un fichier) — et les deux pièges qui font qu'un relevé honnête tombe à côté
+description: Comment re-mesurer les chiffres d'historique qu'un diff avance (commits de main, branches poussées, travail hors de main, commits portant un fichier) — et les pièges qui font qu'un relevé honnête tombe à côté
 metadata:
   type: reference
 ---
@@ -25,6 +25,22 @@ un relevé de bonne foi faux, et les deux se vérifient en une commande.
   `git rev-list --count origin/main` contre `git rev-list --count main`.
 - **Le dépôt fusionne en squash**, donc `main` gagne **un** commit par PR : un chiffre écrit pendant
   la PR et le même projeté après fusion diffèrent de un. Dire lequel on cite.
+- **Trois points recomptent ce qui est déjà fusionné.** `git diff origin/main...branche` part de la
+  **base de fusion**, qui est d'avant le *squash* : sur une branche dont la PR a été fusionnée puis
+  qui a continué, il réaffiche tout ce que la PR avait apporté. Mesuré le 2026-11-27 sur
+  `coreaudio-sortie` : **40 fichiers et +5 207 lignes** à trois points, **3 fichiers et +96** à deux
+  points — le vrai. Pour « ce que cette branche a et que `main` n'a pas », c'est `git diff` à **deux
+  points** (arbre contre arbre). ⚠️ Et il garde un fond de 400 à 1 100 lignes sur les branches
+  mortes, qui est la dérive des fichiers qui grossissent (`HISTORY.md`, les ADR) : il **classe**, il
+  ne désigne pas. Ce qui désigne le travail vivant, c'est la **date** — une branche fusionnée n'a
+  pas de commit après sa fusion (`gh pr list --head "$b" --state merged --jq '.[0].mergedAt'`
+  contre `git log -1 --format=%ct`). Les deux ensemble réduisent vingt-et-une branches à quatre.
+- **`git status` ne voit pas le travail commité**, donc « zéro fichier modifié dans les worktrees »
+  ne prouve pas « rien à sauver ». Écrit tel quel dans le protocole du 2026-11-27, corrigé le même
+  jour : c'est la mesure facile prise pour la mesure demandée.
+- **Vérifier « cette ligne est-elle dans `main` ? » ligne par ligne sur-rapporte.** Une entrée de
+  `HISTORY.md` reformulée ou réindentée à la fusion est absente au `grep -F` et présente en fait.
+  Lire ce que la ligne dit, puis le chercher par mots-clés.
 
 Commits portant un fichier donné (ici les captures) :
 `for c in $(git rev-list origin/main); do git ls-tree -r --name-only $c -- <dossier> | grep -q '\.png$' && echo x; done | wc -l`.

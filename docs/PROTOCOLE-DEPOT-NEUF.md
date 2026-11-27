@@ -17,7 +17,7 @@ Compte **vingt minutes**. Les étapes sont dans l'ordre : chacune suppose la pr�
 |---|---|
 | **Le nom du dépôt public** | `hean` — le nom du produit, et celui du dossier de données (ADR [0003](adr/0003-dossier-de-donnees.md)). Il ne peut pas être `heanV2`, ce nom restant pris par le dépôt privé. Tout ce qui suit l'appelle `hean` |
 | **Aucune URL en dur à reprendre** | vérifié le 2026-11-27 : les 408 fichiers suivis ne citent `thomasdugue/heanV2` nulle part. Les 21 URL de dépôt qu'ils portent visent `noirdesktop` et `noir-feedback`, les dépôts de V1 — des références historiques, qui restent justes |
-| **Rien en cours à sauver** | mesuré le 2026-11-27 : une seule PR ouverte (la #26), et **zéro fichier modifié** dans les six worktrees |
+| **Ce qui est en cours** | une seule PR ouverte (la #26), et zéro fichier modifié dans les six worktrees. ⚠️ Mais **« zéro fichier modifié » ne voit pas le travail déjà commité** : mesuré le 2026-11-27, `claude/coreaudio-sortie-8e47a4` porte 3 fichiers et +96 lignes absents de `main`, et sa session travaillait encore. C'est la seconde condition de l'étape 1 |
 
 ## 1. Fusionner la PR #26, côté privé
 
@@ -31,6 +31,37 @@ cd $HOME/Documents/Thomas/heanV2 && git switch main && git pull --ff-only && git
 La dernière commande doit ne **rien** afficher. L'étape 3 balaie l'arbre de travail et l'étape 4
 archive `HEAD` : tant qu'un fichier est modifié, les deux ne parlent pas du même état, et c'est
 celui qu'on n'a pas balayé qui serait publié.
+
+### Et toute autre branche qui porte du travail hors de `main`
+
+C'est la **seule** étape où le travail des autres sessions peut se perdre, et elle ne se rattrape
+pas : le dépôt neuf n'a **aucun ancêtre commun** avec l'ancien. Une branche laissée derrière ne se
+fusionnera plus jamais — elle se **rejoue** par `git format-patch` / `git am`, ou se refait.
+
+```bash
+cd $HOME/Documents/Thomas/heanV2 && git fetch -q origin && for b in $(git ls-remote --heads origin | sed 's#.*refs/heads/##' | grep -v '^main$'); do m=$(gh pr list --head "$b" --state merged --json mergedAt --jq '.[0].mergedAt // ""'); t=$(git log -1 --format=%ct origin/$b); if [ -n "$m" ]; then me=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$m" +%s); [ "$t" -le "$me" ] && continue; fi; echo "$(git diff --numstat origin/main origin/$b | awk '{a+=$1} END{print a+0}') lignes hors de main — $b — fusion ${m:-aucune}, dernier commit $(git log -1 --format=%cI origin/$b)"; done
+```
+
+Il ne rend **pas** un verdict, il réduit vingt-et-une branches à une poignée à juger. Relevé le
+2026-11-27, il en donne quatre, et les quatre réponses sont différentes :
+
+- `claude/masquer-donnees-sensibles` — **aucune fusion** : c'est la PR #26, que l'étape fusionne.
+- `claude/coreaudio-sortie-8e47a4` — **3 fichiers, +96 lignes** hors de `main`
+  (`src/lib/ui/Lecture.svelte`, `docs/HISTORY.md`, `docs/PROTOCOLE-SON.md`), dernier commit du
+  2026-11-27 et **session encore ouverte**. Le seul vrai travail en cours : fusionner sa PR avant
+  de continuer, ou rejouer ses trois fichiers par patch.
+- `claude/coquille-visible-cef91a` et `claude/harnais-extensions-non-lues` — des **queues de deux
+  à trois minutes** des 23 et 24 novembre : la session a poussé un dernier commit pendant que le
+  *squash* atterrissait. Vérifié ligne par ligne le 2026-11-27, rien n'y est perdu — l'entrée de
+  `HISTORY.md` est dans `main` reformulée, et les commentaires de `check` décrivaient deux angles
+  morts que `check-sizes.sh` couvre depuis (`src-tauri/tests` le 23, `examples` le 25).
+
+⚠️ **Deux pièges, et les deux m'ont fait crier au loup.** Le compte de lignes a un **fond de 400 à
+1 100 lignes** sur les branches mortes : c'est la dérive des fichiers qui grossissent
+(`HISTORY.md`, les ADR), pas du travail — elles sont 15 000 lignes *derrière* `main`. Et ne jamais
+mesurer à trois points (`origin/main...branche`) : la base de fusion est d'avant le *squash*, donc
+le diff **recompte ce qui est déjà dans `main`** — il annonçait 40 fichiers et 5 207 lignes pour
+les 96 réelles de `coreaudio-sortie`.
 
 ## 2. Révoquer le mot de passe app-specific Apple
 

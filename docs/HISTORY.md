@@ -1781,12 +1781,12 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
   dépôt en porte 26, et **25 donnent encore** le mot de passe, le DSN et les huit captures.
   Réécrire l'historique aurait coûté 22 branches et 6 worktrees **pour ne rien nettoyer** — pire que
   ne rien faire, puisqu'on aurait cru le problème réglé. J'avais chiffré le coût de l'option, pas
-  son effet. Le reste s'effondre, mesuré : **une seule PR ouverte**, **zéro fichier modifié** dans
-  les six worktrees, et l'historique raconté vit dans l'**arbre** — `HISTORY.md` et les 21 ADR
-  partent avec le commit initial. Écrit : [`PROTOCOLE-DEPOT-NEUF.md`](PROTOCOLE-DEPOT-NEUF.md).
-  ⚠️ **Et le guardian a rendu BLOQUANT sur ce protocole, deux fois à raison** : son balayage nommait
-  le nom d'hôte du NAS, donc le document le **remettait** dans le dépôt et son compteur ne pouvait
-  plus valoir zéro ; et sa vérification d'après-publication filtrait des noms de fichiers au lieu de
-  lignes, donc elle aurait annoncé cinq justificatifs dans un dépôt déjà public. **Leçon** : une
-  commande écrite dans un document se rejoue avant d'être commitée, comme un détecteur s'éprouve par
-  injection. Les comptes du matin (60, 52) ont été périmés à 14:07 par un push : 61 et 53.
+  son effet. Écrit : [`PROTOCOLE-DEPOT-NEUF.md`](PROTOCOLE-DEPOT-NEUF.md), et l'historique raconté
+  part avec le commit initial — `HISTORY.md` et les 21 ADR sont dans l'**arbre**, pas dans git.
+  ⚠️ **Le guardian a rendu BLOQUANT sur ce protocole, deux fois à raison** : son balayage nommait le
+  nom d'hôte du NAS, donc le document le **remettait** dans le dépôt ; et sa vérification d'après
+  publication filtrait des noms de fichiers, donc elle aurait annoncé cinq justificatifs dans un
+  dépôt déjà public. Trois fois j'ai pris la mesure facile pour la mesure demandée : 60 commits
+  périmés à 14:07 par un push (61, 53), et **« zéro fichier modifié » qui ne voit pas le travail
+  commité** — une branche porte +96 lignes hors de `main`, session ouverte. **Leçon** : une commande
+  écrite dans un document se rejoue avant d'être commitée, comme un détecteur s'éprouve par injection.

@@ -33,7 +33,11 @@ Pourquoi le coût est faible, et c'est mesuré le 2026-11-27, pas supposé :
   poussées qui paraissent « en avance » sur `main` le sont parce que les fusions sont des *squash*,
   pas parce qu'elles portent du travail non intégré. Mon estimation précédente — « 22 branches
   partiraient à refaire » — comptait des branches mortes.
-- **aucun fichier modifié** dans les 6 worktrees : la bascule ne perd aucun travail en cours.
+- **le travail en cours tient en une branche** : `claude/coreaudio-sortie-8e47a4`, 3 fichiers et
+  +96 lignes hors de `main`, session encore ouverte. ⚠️ Les 6 worktrees n'ont aucun fichier
+  modifié, mais ça ne le prouvait pas : `git status` ne voit pas ce qui est commité, et le dépôt
+  neuf n'ayant **aucun ancêtre commun**, une branche laissée derrière ne se fusionne plus — elle se
+  rejoue par `git format-patch`. D'où la seconde condition de l'étape 1 du protocole.
 - **l'historique raconté ne disparaît pas** : il est dans l'**arbre**, pas dans git — `HISTORY.md`,
   les 21 ADR, [`MESURES-V1.md`](../MESURES-V1.md). C'est la raison d'être de ces fichiers, et elle
   devient ici littérale.
