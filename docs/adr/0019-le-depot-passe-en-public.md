@@ -71,9 +71,10 @@ publiées, et il dérive à chaque commit de n'importe quelle session.)
      connectant. La révoquer ne casse donc rien ici. Et un DSN n'ouvre aucune donnée : publié,
      il permet seulement de noyer le quota d'événements.
 2. **37 commits de `main` portent l'adresse e-mail personnelle en champ auteur** (116 sur
-   l'ensemble des branches poussées). Masquer les 4 fichiers n'y change rien : seule une
-   réécriture d'historique l'enlèverait, et elle casserait tous les clones existants. Pour la
-   suite : `git config user.email` vers l'adresse `noreply`.
+   l'ensemble des branches poussées). Masquer les 4 fichiers n'y change rien. ⚠️ Et une réécriture
+   d'historique ne l'enlèverait pas non plus : les 26 `refs/pull/*` de GitHub ne sont pas
+   supprimables — d'où le dépôt neuf de l'ADR [0021](0021-un-depot-neuf-a-un-seul-commit.md), dont
+   le commit initial porte l'adresse `noreply`, écrite **dans** la commande du protocole.
 3. **Le nom « Thomas Dugué » n'est pas masqué**, volontairement. Il est l'auteur de chaque commit,
    le propriétaire du compte GitHub, et il figurera sur l'application signée. Le masquer dans
    trois fichiers serait du théâtre.

@@ -1775,3 +1775,17 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
   porte qu'une organisation, un projet et une clé, d'identifiant différent. La clé exposée est celle
   de V1, déjà morte ou sous un autre compte. L'ADR 0019 le dit maintenant : une consigne de
   révocation qui nomme la mauvaise clé fait croire le travail fait.
+- **2026-11-27** (fin du masquage) : Thomas tranche la décision ouverte — **dépôt neuf**, ADR
+  [0021](adr/0021-un-depot-neuf-a-un-seul-commit.md). ⚠️ **Et la mesure qui a tranché avec lui** :
+  GitHub garde pour chaque PR une `refs/pull/<n>/head` que le propriétaire **ne peut pas
+  supprimer**. Le dépôt en porte 26, et **25 donnent encore** le mot de passe, le DSN et les huit
+  captures. Réécrire l'historique de `main` aurait donc coûté 22 branches et 6 worktrees **pour ne
+  rien nettoyer** — le pire des deux, puisqu'on aurait cru le problème réglé. J'avais chiffré le
+  coût de l'option A, pas son effet.
+  Le reste du coût s'effondre aussi, mesuré : **une seule PR ouverte** (les 13 branches qui
+  paraissent en avance le sont par *squash*), **zéro fichier modifié** dans les six worktrees. Et
+  l'historique raconté est dans l'**arbre**, pas dans git : `HISTORY.md` et les 21 ADR partent avec
+  le commit initial. Écrit : [`PROTOCOLE-DEPOT-NEUF.md`](PROTOCOLE-DEPOT-NEUF.md), neuf étapes dont
+  deux irrattrapables — `user.email` **dans** la commande du commit, et un balayage final resserré
+  sur de la matière réelle (le motif large attrapait 16 fichiers de classes CSS en kebab-case ; un
+  balayage qui crie au loup seize fois ne se lit pas jusqu'au bout).

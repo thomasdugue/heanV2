@@ -118,6 +118,14 @@ Le nouveau dépôt n'a aucun secret. Avant la première release (phase 7, pas av
 [`../bootstrap/06-setup-v2/ci/secrets.env.template`](../bootstrap/06-setup-v2/ci/secrets.env.template).
 Ne pas découvrir ça le jour de la release.
 
+⚠️ **Deux secrets ont existé en clair dans le dépôt** et sont dans l'arbre de ses 60 commits : un
+mot de passe app-specific Apple et un DSN Sentry (ADR
+[0019](adr/0019-le-depot-passe-en-public.md)). Le mot de passe **reste à révoquer** — c'est le seul
+des deux qui authentifie. Et la bascule du dépôt en public passe par un **dépôt neuf à un seul
+commit** (ADR [0021](adr/0021-un-depot-neuf-a-un-seul-commit.md)) : neuf étapes dans l'ordre,
+[`PROTOCOLE-DEPOT-NEUF.md`](PROTOCOLE-DEPOT-NEUF.md), dont deux ne se rattrapent pas une fois le
+dépôt public.
+
 ---
 
 ## B. Changer de modèle
