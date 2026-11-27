@@ -12,7 +12,7 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
-use hean_lib::network::client::{Entree, Erreur, Smb};
+use hean_lib::network::client::{Entree, Erreur, Smb, Tranche};
 
 pub struct FauxPartage {
     /// chemin de dossier → (nom, est-ce un dossier, taille, mtime en nanosecondes)
@@ -115,6 +115,27 @@ impl Smb for FauxPartage {
             None => octets.clone(),
         })
     }
+
+    /// Implémentée pour de vrai, et non laissée à `todo!()`, pour deux raisons : un `todo!()`
+    /// panique le jour où quelqu'un s'en sert sans s'y attendre, et ce faux porte déjà des
+    /// contenus de fichiers — donc la lecture en direct de l'ADR 0022 s'éprouve ici aussi, le
+    /// jour où un test de scan voudra aussi jouer ce qu'il a trouvé.
+    fn tranche(&self, chemin: &str, debut: u64, max: usize) -> Result<Tranche, Erreur> {
+        self.lectures.borrow_mut().push(chemin.to_string());
+        self.tailles_demandees.borrow_mut().push(Some(max));
+        let octets = self.fichiers.get(chemin).ok_or_else(|| Erreur::Fichier {
+            hote: "faux".into(),
+            chemin: chemin.into(),
+            detail: "introuvable".into(),
+        })?;
+        let taille = octets.len() as u64;
+        let debut = usize::try_from(debut.min(taille)).unwrap();
+        let fin = debut.saturating_add(max).min(octets.len());
+        Ok(Tranche {
+            octets: octets[debut..fin].to_vec(),
+            taille,
+        })
+    }
 }
 
 /// Le partage **par référence**, pour que le test garde la main dessus pendant que
@@ -131,5 +152,9 @@ impl Smb for &FauxPartage {
 
     fn lire(&self, chemin: &str, max: Option<usize>) -> Result<Vec<u8>, Erreur> {
         (**self).lire(chemin, max)
+    }
+
+    fn tranche(&self, chemin: &str, debut: u64, max: usize) -> Result<Tranche, Erreur> {
+        (**self).tranche(chemin, debut, max)
     }
 }

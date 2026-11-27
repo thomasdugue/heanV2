@@ -70,6 +70,8 @@ pub(super) enum Etape {
 }
 
 pub(super) struct Fil {
+    /// Comment ouvrir une piste. Voir `super::Ouvreur` : le fil ignore d'où elle vient.
+    pub(super) ouvreur: super::Ouvreur,
     pub(super) etat: Arc<EtatPartage>,
     pub(super) backend: Option<BackendCoreAudio>,
     pub(super) file: Vec<PathBuf>,
@@ -95,8 +97,9 @@ pub(super) struct Fil {
     pub(super) attente_depuis: Option<Instant>,
 }
 
-pub fn tourner(reception: Receiver<Commande>, etat: Arc<EtatPartage>) {
+pub fn tourner(reception: Receiver<Commande>, etat: Arc<EtatPartage>, ouvreur: super::Ouvreur) {
     let mut fil = Fil {
+        ouvreur,
         etat,
         backend: None,
         file: Vec::new(),
@@ -248,7 +251,7 @@ impl Fil {
             // Le fichier n'est ouvert qu'UNE fois, et le décodeur est réutilisé : connaître
             // le format demande de l'ouvrir, et le rouvrir ensuite doublerait
             // l'entrée/sortie à chaque passage de piste — invisible en local, pas sur le NAS.
-            match Decodeur::ouvrir(&self.file[suivante]) {
+            match (self.ouvreur)(&self.file[suivante]) {
                 // LES DEUX ISSUES S'ENTENDENT PAREIL, ET NE SE CORRIGENT PAS AU MÊME
                 // ENDROIT : un silence au passage de piste est un défaut dans la première
                 // branche et le comportement normal dans la seconde. Sans ces deux lignes,

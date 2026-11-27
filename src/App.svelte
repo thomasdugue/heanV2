@@ -7,11 +7,11 @@
   // écrite ici serait du travail à jeter — et pire, elle donnerait l'impression que le
   // design est « commencé » alors qu'il ne l'est pas.
   //
-  // ELLE JOUE, depuis le 2026-11-26. Un clic sur une piste lance l'album entier à partir
-  // d'elle, par le backend CoreAudio. Ce qui reste hors de portée est nommé, et ce n'est pas
-  // un oubli : **une piste du NAS ne se joue pas encore** (il faudrait toucher à
-  // `src-tauri/src/network/`, hors du périmètre de la session — ADR 0013), et l'égaliseur,
-  // les touches media et le plein écran ne sont pas portés.
+  // ELLE JOUE, depuis le 2026-11-26, et **les pistes du NAS aussi depuis le 2026-11-28**
+  // (ADR 0022 : lecture en direct, sans fichier temporaire). Un clic sur une piste lance
+  // l'album entier à partir d'elle, locale ou distante. Ce qui reste hors de portée est
+  // nommé, et ce n'est pas un oubli : l'égaliseur, les touches media et le plein écran ne
+  // sont pas portés.
   import {
     appVersion,
     playbackSeek,
@@ -141,19 +141,19 @@
    * l'enchaînement sans trou qui est le jalon de Thomas, et il ne se vérifie qu'avec une
    * file. La file est la liste affichée, dans l'ordre affiché.
    *
-   * Les pistes du NAS sont écartées ici : leur lecture demande de toucher au module réseau,
-   * hors du périmètre de cette session. Les laisser passer donnerait « fichier illisible »,
-   * une erreur juste pour une mauvaise raison.
+   * **Plus aucun filtre sur la provenance.** Les pistes du NAS étaient écartées ici tant que
+   * le moteur ne savait ouvrir qu'un fichier local ; il sait maintenant lire un partage en
+   * direct (ADR 0022). Les filtrer encore laisserait 91 % de la bibliothèque injouable d'un
+   * clic, et surtout : la file mélangée est ce qui fait qu'un album à cheval sur le disque et
+   * le NAS s'enchaîne, au lieu de s'arrêter à la frontière.
    */
   function jouer(piste: Track): void {
     choisie = piste;
-    const locales = pistes.filter((p) => !p.path.startsWith('smb://'));
-    const depart = locales.findIndex((p) => p.path === piste.path);
-    if (depart < 0) {
-      erreur = 'Les pistes du NAS ne se jouent pas encore : la lecture réseau reste à porter.';
-      return;
-    }
-    ordre(() => playTracks(locales.map((p) => p.path), depart));
+    const depart = pistes.findIndex((p) => p.path === piste.path);
+    // La piste cliquée vient de la liste affichée, donc elle y est : ce garde ne protège
+    // d'aucun cas réel, il évite un `playTracks(…, -1)` si cela changeait un jour.
+    if (depart < 0) return;
+    ordre(() => playTracks(pistes.map((p) => p.path), depart));
   }
 
   function lectureOuPause(): void {

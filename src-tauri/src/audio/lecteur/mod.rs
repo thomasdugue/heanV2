@@ -31,13 +31,18 @@ mod fil;
 mod pilotage;
 mod publication;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 
 use coreaudio_sys::AudioObjectID;
 
 use super::chain::Volume;
+
+/// Comment un chemin de la file devient un décodeur.
+pub type Ouvreur =
+    Arc<dyn Fn(&Path) -> Result<super::decode::Decodeur, ErreurAudio> + Send + Sync>;
+
 use super::coreaudio::InfoPeripherique;
 use super::error::ErreurAudio;
 
@@ -153,14 +158,26 @@ impl Lecteur {
     /// brancher le DAC en cours de route ne le ferait pas apparaître. Ce sont des lectures.
     /// Le commentaire disait « n'ouvre aucun périphérique », ce qui était faux à la lettre :
     /// relevé par `invariant-guardian`, et c'est le genre de phrase qu'on croit.
+    /// Démarre avec l'ouverture par défaut : un fichier **local**.
     pub fn demarrer() -> Self {
+        Self::demarrer_avec(Arc::new(super::decode::Decodeur::ouvrir))
+    }
+
+    /// Démarre en recevant **la façon d'ouvrir une piste**.
+    ///
+    /// Injectée plutôt que décidée ici, et c'est la règle de zone qui l'impose : le fil de
+    /// lecture n'a pas à savoir qu'une piste peut vivre sur un NAS, et le réseau n'a pas à
+    /// connaître le décodeur. Le câblage des deux vit dans `lib.rs`, le seul endroit qui a
+    /// déjà le droit de connaître les deux (ADR 0022). C'est aussi la couture qui rendrait un
+    /// test de lecture distante possible sans NAS, comme `scanner_avec` l'a fait pour le scan.
+    pub fn demarrer_avec(ouvreur: Ouvreur) -> Self {
         let etat = Arc::new(EtatPartage::default());
         etat.definir_volume(Volume::UNITE);
         let (envoi, reception) = mpsc::channel();
         let pour_le_fil = Arc::clone(&etat);
         std::thread::Builder::new()
             .name("hean-lecture".to_owned())
-            .spawn(move || fil::tourner(reception, pour_le_fil))
+            .spawn(move || fil::tourner(reception, pour_le_fil, ouvreur))
             .expect("le fil de lecture ne démarre pas");
         Self {
             commandes: envoi,

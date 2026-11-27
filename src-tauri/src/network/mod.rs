@@ -29,6 +29,7 @@
 pub mod client;
 pub mod entete;
 pub mod erreur;
+pub mod flux;
 pub mod identifiants;
 pub mod inventaire;
 pub mod reprise;
@@ -52,6 +53,37 @@ pub enum Erreur {
     Smb(#[from] client::Erreur),
     #[error(transparent)]
     Depot(#[from] crate::library::repository::Erreur),
+}
+
+/// Ouvre une piste distante pour la lecture **en direct** (ADR 0022).
+///
+/// Le verrou de la bibliothèque est pris le temps de lire la source, **et relâché avant le
+/// moindre aller-retour réseau** : c'est la raison du scan en trois temps, appliquée ici.
+/// Tenir ce verrou pendant une opération SMB gèlerait la fenêtre — W005 par la cause.
+///
+/// **Une source désactivée joue quand même, et c'est volontaire** : désactiver veut dire « ne
+/// la scanne plus », pas « ne joue plus ce qui est déjà en bibliothèque ». Refuser ici rendrait
+/// injouables des pistes visibles à l'écran, sans que rien n'explique pourquoi — c'est le scan
+/// qui refuse une source désactivée, parce que lui seul écrit.
+///
+/// Le partage de l'URI n'est pas employé : c'est celui de la **source** qui fait la
+/// connexion, et c'est volontaire. Si quelqu'un renomme le partage d'une source, ses pistes
+/// gardent l'ancien nom dans leur URI ; suivre l'URI ouvrirait un partage qui n'existe plus,
+/// suivre la source joue la piste. On ne peut pas avoir les deux, et la seconde rend le son.
+pub fn ouvrir_pour_lecture(
+    bibliotheque: &Mutex<Depot>,
+    uri: &str,
+) -> Result<flux::FichierDistant<client::ClientSmb>, Erreur> {
+    let (source_id, _partage, chemin) =
+        uri::parties(uri).ok_or_else(|| Erreur::SourceInconnue(uri.to_string()))?;
+    let source = {
+        let depot = verrou(bibliotheque);
+        depot
+            .source_reseau(&source_id)?
+            .ok_or(Erreur::SourceInconnue(source_id))?
+    };
+    let client = client::ClientSmb::nouveau(&source, mot_de_passe_si_necessaire(&source)?);
+    Ok(flux::FichierDistant::ouvrir(client, &chemin)?)
 }
 
 /// Scanne une source réseau et met la bibliothèque à jour.

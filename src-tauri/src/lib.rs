@@ -79,11 +79,43 @@ pub fn run() {
     // Le fil de lecture démarre avec l'application, mais il ne touche à AUCUN matériel
     // avant le premier `play_tracks` : lancer Hean ne doit ni réserver le DAC, ni changer sa
     // fréquence, ni réveiller un AirPlay.
-    let lecteur = audio::Lecteur::demarrer();
+    // Le dépôt est partagé, et pas seulement confié à Tauri : la fabrique d'ouverture
+    // ci-dessous doit lire les sources réseau du MÊME dépôt que les commandes.
+    let depot = std::sync::Arc::new(Mutex::new(depot));
+    let pour_ouvrir = std::sync::Arc::clone(&depot);
+
+    // LE SEUL ENDROIT QUI CONNAÎT LES DEUX ZONES, et c'est pour ça qu'il est ici (ADR 0022) :
+    // le fil de lecture ignore qu'une piste peut vivre sur un NAS, le réseau ignore qu'il
+    // existe un décodeur. Chacun reste chez lui, et le câblage se lit en un endroit.
+    let lecteur = audio::Lecteur::demarrer_avec(std::sync::Arc::new(
+        move |chemin: &std::path::Path| {
+            let texte = chemin.to_string_lossy();
+            // `est_distant` et non `starts_with("smb://")` : la forme d'une URI est déjà
+            // écrite dans `library::scan`, et l'écrire une troisième fois est la forme de
+            // défaut d'INV-01 et d'INV-06 — une normalisation répartie en plusieurs endroits,
+            // trois bugs pour une cause.
+            if !library::scan::est_distant(&texte) {
+                return audio::Decodeur::ouvrir(chemin);
+            }
+            let distant = network::ouvrir_pour_lecture(&pour_ouvrir, &texte).map_err(|e| {
+                // Le texte de l'erreur réseau est conservé tel quel : c'est lui qui nomme
+                // l'hôte, le partage et la cause probable, et c'est ce que l'écran affiche.
+                audio::ErreurAudio::Lecture {
+                    chemin: chemin.to_path_buf(),
+                    source: std::io::Error::other(e.to_string()),
+                }
+            })?;
+            let taille = distant.taille();
+            audio::Decodeur::ouvrir_flux(
+                Box::new(audio::source::SourceMesuree::nouvelle(distant, taille)),
+                chemin,
+            )
+        },
+    ));
     let _ = lecteur.envoyer(audio::Commande::RafraichirPeripheriques);
 
     tauri::Builder::default()
-        .manage(Mutex::new(depot) as commands::bibliotheque::Bibliotheque)
+        .manage(depot as commands::bibliotheque::Bibliotheque)
         .manage(Mutex::new(lecteur) as commands::lecture::Lecture)
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {

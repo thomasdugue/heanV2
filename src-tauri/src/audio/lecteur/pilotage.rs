@@ -102,7 +102,7 @@ impl Fil {
 
     /// Ouvre une piste, prépare la sortie si le format change, et l'inscrit comme en vol.
     pub(super) fn ouvrir_la_piste(&mut self, index: usize, depart: Duration) -> Result<(), ErreurAudio> {
-        let mut decodeur = Decodeur::ouvrir(&self.file[index])?;
+        let mut decodeur = (self.ouvreur)(&self.file[index])?;
         let format = decodeur.format();
         let mut debut_ms = 0;
         if !depart.is_zero() {

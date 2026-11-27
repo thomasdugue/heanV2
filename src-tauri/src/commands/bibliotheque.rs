@@ -24,7 +24,7 @@ use tauri::State;
 use crate::library::{Depot, Edition, RapportDeScan, Track};
 
 /// L'état partagé : le dépôt, derrière un verrou.
-pub type Bibliotheque = Mutex<Depot>;
+pub type Bibliotheque = std::sync::Arc<Mutex<Depot>>;
 
 /// Traduit une erreur interne en message pour l'interface, après l'avoir journalisée.
 /// Le `format!` final est volontairement complet (`{:#}` suit la chaîne des causes) :
