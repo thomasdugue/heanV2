@@ -46,15 +46,18 @@ Il ne rend **pas** un verdict, il réduit vingt-et-une branches à une poignée 
 2026-11-27, il en donne quatre, et les quatre réponses sont différentes :
 
 - `claude/masquer-donnees-sensibles` — **aucune fusion** : c'est la PR #26, que l'étape fusionne.
-- `claude/coreaudio-sortie-8e47a4` — **3 fichiers, +96 lignes** hors de `main`
-  (`src/lib/ui/Lecture.svelte`, `docs/HISTORY.md`, `docs/PROTOCOLE-SON.md`) : **trois commits
-  postérieurs à la fusion de sa PR #25**, qu'**aucune PR ouverte ne suit**. Le seul vrai travail en
-  cours. ⚠️ Ne pas attendre qu'il atterrisse tout seul : rien ne le suit, et sa session a rendu son
-  rapport. Sa PR se fusionne avant de continuer, ou ses trois fichiers se rejouent par patch.
-  ⚠️ Et sa version de `docs/PROTOCOLE-SON.md` porte encore trois chemins `/Users/<compte>` que
-  cette PR a passés à `$HOME` : une fois la #26 fusionnée, `./check` est **rouge** sur sa branche
-  jusqu'à leur correction — l'exception `BLOC_DE_LANCEMENT` du test d'architecture, que la #26
-  retire, est précisément ce qui les laissait passer. Session prévenue le 2026-11-27.
+- `claude/coreaudio-sortie-8e47a4` — **abandonnée, et c'est réglé.** Elle portait trois commits
+  postérieurs à la fusion de sa PR #25 qu'aucune PR ne suivait. Prévenue le 2026-11-27, la session
+  a repris le contenu juste dans la **PR #27** et laissé le reste — deux de ces commits **annulaient**
+  des corrections que `main` a reçues depuis, donc un `git am` les aurait réintroduites. C'est la
+  réponse à « rejouer par patch » : un patch rejoué sans être relu réintroduit ce qui a été corrigé.
+  ⚠️ **Vérifié ici, pas cru sur parole** : la fusion de la #27 dans le `main` masqué a été simulée
+  par `git merge-tree --write-tree` — elle passe **sans conflit**, et l'arbre qui en résulte passe le
+  balayage de l'étape 3 : `0`, `0`, `0`. Elle ne réintroduit ni chemin machine ni nom d'hôte, alors
+  que sa base (`eb7d32c`) est **d'avant** le masquage : son diff ne touche aucune des lignes
+  masquées, donc la fusion à trois branches garde la version de `main`. GitHub l'annonce
+  « CONFLICTING » — verdict calculé avant la fusion de la #26, donc périmé ; c'est la simulation qui
+  tranche, pas l'étiquette.
 - `claude/coquille-visible-cef91a` et `claude/harnais-extensions-non-lues` — des **queues de deux
   à trois minutes** des 23 et 24 novembre : la session a poussé un dernier commit pendant que le
   *squash* atterrissait. Vérifié ligne par ligne le 2026-11-27, rien n'y est perdu — l'entrée de
@@ -95,12 +98,18 @@ ce projet — le mot de passe SMB du NAS et le jeton du worker Cloudflare — n'
 seule la forme d'une *affectation* les voit.
 
 ```bash
-git grep -nIE '(mot_de_passe|password|passwd|token|secret|dsn|api[_-]?key)[a-z_]*[[:space:]]*[:=][[:space:]]*["'][^"' ]{8,}' -- .
+git grep -nIE "(mot_de_passe|password|passwd|token|secret|dsn|api[_-]?key)[a-z_]*[[:space:]]*[:=][[:space:]]*[\"'][^\"' ]{8,}" -- .
 ```
 
 **Attendu : deux lignes**, les fixtures `"secret-token-1234"` et `"uniq-test-token-9876"` de
 `bootstrap/05-postmortem/chantier-wifi-sync/code/rust/wifi_sync/server.rs`. Toute autre ligne
 arrête le protocole.
+
+⚠️ **Cette commande est en guillemets doubles, et ça n'est pas un détail de style.** En guillemets
+simples, l'apostrophe de la classe `["']` ferme la chaîne : zsh rend `unmatched "` et **rien ne
+s'exécute**. C'est la forme qui a été commitée ici le 2026-11-27, avec son « attendu : deux lignes »
+— j'avais rejoué une variante, pas le texte du document. Une commande écrite dans un document se
+rejoue **telle qu'écrite**, copiée depuis le fichier : c'est la seule lecture qui vaut.
 
 **Échec** : n'importe quel nombre au-dessus de zéro. Relance sans les deux derniers filtres, la
 sortie dit le fichier et la ligne. Ne passe pas à l'étape 4 : après, ce qui est publié est publié.
@@ -219,6 +228,13 @@ commit n°2 et tous les suivants repartiraient avec l'adresse personnelle, cette
 l'argument de la décision retourné contre son exécution. Le réglage de compte GitHub « Block
 command line pushes that expose my email » ferme la même porte pour tous les dépôts à venir, et
 rend la faute inexprimable au lieu de la rappeler.
+
+⚠️ **La fenêtre de Hean que tu as sous les yeux ne vient pas du dossier principal.** Relevé le
+2026-11-27 : l'app qui tourne (`target/debug/hean`, PID 22986) **et** le serveur Vite qui lui sert
+sa façade (port 1420, PID 24717) sont tous deux lancés depuis le worktree
+`phase-2-bibliotheque-dce2d1` — celui de la session coreaudio, que la bascule abandonne. Deux
+conséquences : ce que tu testes en ce moment n'est pas `main`, et après cette étape la fenêtre perd
+sa façade. Il faudra relancer `npm run tauri dev` depuis `$HOME/Documents/Thomas/hean`.
 
 `$HOME/Documents/Thomas/heanV2` devient **l'archive, à ne pas supprimer** : c'est la seule copie
 locale de l'historique. Ses six worktrees ne portent aucun travail non commité, et les branches qui
