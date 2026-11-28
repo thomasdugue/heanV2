@@ -50,7 +50,13 @@ echo "=== check heanV2 ==="; echo
 # Une valeur déjà présente ne se touche pas — si Thomas en a choisi une autre, c'est la
 # sienne. Pas en CI : le disque y est nu à chaque fois, et aucun commit n'y est fait.
 if [ -z "${CI:-}" ] && [ -d tools/git-hooks ] && [ -z "$(git config --get core.hooksPath || true)" ]; then
-  git config --worktree core.hooksPath tools/git-hooks \
+  # ⚠️ `--worktree` SANS cette extension écrit dans `.git/config`, le fichier COMMUN, et sans
+  # broncher — vérifié dans un dépôt neuf le 2026-11-28. L'isolation tenait donc à une
+  # configuration locale non suivie : dans un clone frais, le correctif retombait en silence
+  # sur le défaut qu'il corrige. Relevé par `invariant-guardian`. Les deux lignes vont
+  # ensemble, et `extensions.worktreeConfig` est idempotent.
+  git config extensions.worktreeConfig true \
+    && git config --worktree core.hooksPath tools/git-hooks \
     && echo "→ pre-commit activé (core.hooksPath = tools/git-hooks) — pour CE worktree" \
     && echo
 fi

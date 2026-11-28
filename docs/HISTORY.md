@@ -1847,5 +1847,5 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
   diff.** Côté protocole : `\b` en **ERE POSIX** ne matche jamais (zéro sans rien lire depuis le 27),
   et la casse. Les miens, relevés par `invariant-guardian` : un **registre d'empreintes vide** est un
   détecteur muet (6ᵉ variante d'« éprouver un détecteur »), l'exception « chemin » avalait un secret
-  base64 sur deux, un `static OnceLock` **ne vide jamais** le journal et `non_blocking` jette par
-  défaut, et mon `hooksPath` commun s'imposait à cinq chantiers vivants sans qu'ils l'aient demandé.
+  base64 sur deux, le garde du journal n'était **jamais** lâché (`App::run` ne rend pas la main, et
+  `panic = "abort"`) d'où l'écriture **synchrone**, et mon `hooksPath` s'imposait à cinq chantiers.

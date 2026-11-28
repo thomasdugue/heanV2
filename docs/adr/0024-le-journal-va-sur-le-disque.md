@@ -24,7 +24,7 @@ de 01:07:35Z n'ont jamais existé ailleurs que dans un défilement de terminal.
 
 Une **couche fichier** s'ajoute à la console : `~/Library/Application Support/hean/logs/`
 (le dossier de l'[ADR 0003](0003-dossier-de-donnees.md), jamais un second chemin), rotation
-**journalière**, **quinze** fichiers gardés, écriture **non bloquante**.
+**journalière**, **quinze** fichiers gardés, écriture **synchrone**.
 
 Le chemin entre dans `CLAUDE.md`, en remplacement de la ligne `core.hooksPath` que `./check`
 pose désormais tout seul : **une ligne pour une ligne**, le fichier reste à 149 sur 150.
@@ -32,18 +32,17 @@ pose désormais tout seul : **une ligne pour une ligne**, le fichier reste à 14
 ## Alternatives écartées
 
 - **Rotation par taille** : on cherche *un jour de test*, pas un volume.
-- **Écriture bloquante** : plus simple, mais elle met des écritures disque sur le chemin de
-  l'appelant. L'écrivain non bloquant exige en échange qu'un garde vive aussi longtemps que le
-  process **et soit lâché à la fin**.
-  ⚠️ **Première version de cet ADR et de ce module : l'inverse, et deux fois.** Elle gardait le
-  garde dans un `static OnceLock` en affirmant que « lâché, il emporte les lignes en attente ».
-  La source de `tracing-appender` 0.2.5 dit le contraire : c'est le `Drop` du garde qui demande
-  le vidage et l'attend, donc un `OnceLock` — qui n'est jamais lâché — **ne vide jamais**, et
-  les lignes d'avant un arrêt, les seules qu'on relira, sont précisément celles qui manquent.
-  Et `non_blocking()` est **lossy par défaut** (`is_lossy: true`) : à saturation il jette les
-  lignes en silence. Les deux relevés par `invariant-guardian`, vérifiés dans la source,
-  corrigés avant la fusion — `lossy(false)`, et le garde rendu par `init` puis lié dans `run`.
-  Le test d'intégration échoue si on ne le lie pas : c'est ce qui le rend non décoratif.
+- **Écriture non bloquante**, essayée deux fois et abandonnée. Elle garde l'écriture disque
+  hors du fil de l'appelant, au prix d'un garde (`WorkerGuard`) dont le `Drop` demande le
+  vidage final. **Ce garde ne peut pas être lâché ici**, et les deux tentatives l'ont montré :
+  dans un `static OnceLock`, un statique n'est jamais droppé ; lié dans `run`, `tauri::App::run`
+  **ne rend jamais la main** — elle se termine par `std::process::exit`, d'où l'existence de
+  `run_return` — et le crate est en `panic = "abort"`, donc il n'y a pas non plus de
+  déroulement. Dans les deux cas les lignes d'avant l'arrêt, les seules qu'on relira,
+  manquaient. S'en sortir demandait `run_return` + `drop` + `exit` explicites, c'est-à-dire
+  changer la sortie de l'application pour un bénéfice de journalisation. L'écriture synchrone
+  supprime la classe entière : pas de garde, pas de fil, pas de tampon, rien à lâcher.
+  Les deux défauts relevés par `invariant-guardian`, en deux passes.
 - **Refuser le démarrage si le journal ne s'ouvre pas** : un journal qui manque est un
   désagrément, un démarrage refusé serait une panne. `HOME` absent laisse la console seule.
 
@@ -60,3 +59,12 @@ pose désormais tout seul : **une ligne pour une ligne**, le fichier reste à 14
   parce que `try_init` n'installe qu'un souscripteur par processus — prouve qu'un
   `tracing::info!` du vrai code y atterrit. Le premier a d'ailleurs corrigé ce document : la
   date se place **entre** le préfixe et le suffixe (`hean.2026-11-28.log`), pas à la fin.
+- ⚠️ **Le prix du synchrone, et la règle qu'il appelle : jamais de `tracing::*` dans le
+  callback de rendu CoreAudio.** Une ligne écrite là bloquerait un fil temps réel sur une
+  écriture disque, c'est-à-dire un trou audible. Aucune ligne n'y part aujourd'hui — les
+  compteurs se déversent à l'arrêt de la lecture (`audio/coreaudio/mesures.rs`) — mais rien ne
+  le tient qu'un commentaire, et l'[ADR 0005](0005-entretien-du-harnais-et-orchestration.md)
+  refuse ce montage. C'est une **règle candidate** (🟡, détecteur dans `backend.test.ts`)
+  relevée par `invariant-guardian` : le harnais est gelé
+  ([0017](0017-ce-que-thomas-a-tranche-le-25-novembre.md)), donc c'est à Thomas de dire si
+  elle entre. Elle est inscrite comme décision ouverte dans [l'index](README.md).

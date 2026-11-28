@@ -70,8 +70,12 @@ test, qui ne nomme que l'étiquette.
   donc jamais affiché. C'était une phrase qui ne peut pas échouer, exactement ce que l'ADR 0005
   refuse, dans l'ADR qui l'invoque. Relevé par `invariant-guardian`, corrigé avant la fusion :
   un registre sans empreinte rend le contrôle **rouge**, sauf une dérogation écrite dans le
-  registre lui-même (`# AUCUNE-AIGUILLE: <raison>`) — même contrat que le corpus vide de
-  `_lecture.ts`. **Enregistrer le nom du NAS reste à faire, et c'est à Thomas de le décider.**
+  registre lui-même (`# AUCUNE-AIGUILLE: <raison>`) — **même contrat** que le corpus vide de
+  `_lecture.ts`, donc une raison **et une échéance** (une date ou une phase) : sans elle, une
+  dérogation est une couverture définitive écrite en petit. Trois autres portes par lesquelles
+  ce registre pouvait redevenir muet sont fermées depuis la seconde passe du guardian — une
+  empreinte mal recopiée était jetée en silence, et une dérogation oubliée pouvait coexister
+  avec des empreintes. **Enregistrer le nom du NAS reste à faire, et c'est à Thomas de le décider.**
 - **Le Team ID n'est pas couvert, et c'est un choix.** La décision ouverte le listait avec le
   mot de passe Apple, le DSN et les clés PEM. Dix caractères alphanumériques majuscules n'ont
   aucune forme distinctive : tout motif qui les attrape attrape aussi les identifiants, les

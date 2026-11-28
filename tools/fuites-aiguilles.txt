@@ -1,5 +1,5 @@
-# Aiguilles nommées, hachées — le registre du contrôle « aucune aiguille nommée » de
-# tests/architecture/aucune-donnee-sensible.test.ts (INV-29, ADR 0023).
+# Aiguilles nommées, hachées — le registre du contrôle « aucune aiguille nommée »
+# (INV-29, ADR 0023). Les règles sont dans tests/architecture/regles-donnees-sensibles.ts.
 #
 # Une ligne par aiguille :  <sha256 du jeton, en minuscules>  <étiquette>
 # L'étiquette est la seule chose que le test affiche. La valeur ne s'écrit nulle part.
@@ -9,12 +9,14 @@
 #
 #   read -r NOM; printf '%s' "$NOM" | tr '[:upper:]' '[:lower:]' | shasum -a 256
 #
-# puis coller l'empreinte ici, suivie d'une étiquette.
+# puis coller l'empreinte ici, suivie d'une étiquette. Une ligne qui n'est ni vide, ni un
+# commentaire, ni une empreinte de 64 caractères minuscules fait ÉCHOUER le contrôle : une
+# empreinte mal recopiée serait sinon perdue en silence.
 #
-# Fenêtre du détecteur : un jeton de quatre caractères ou plus, sans espace (voir JETON dans
-# le test). Une aiguille plus courte, ou qui en contient une, ne sera jamais trouvée — elle
-# doit se masquer autrement.
+# Fenêtre du détecteur : un jeton de quatre caractères ou plus, sans espace. Une aiguille plus
+# courte, ou qui en contient une, ne sera jamais trouvée — elle doit se masquer autrement.
 #
-# AUCUNE-AIGUILLE: la seule aiguille connue est le nom d'hôte du NAS, dont la valeur
-# appartient à Thomas ; l'enregistrer est sa décision (ADR 0023). Tant que cette ligne existe,
-# le contrôle est vert et muet ; la retirer le rend rouge.
+# AUCUNE-AIGUILLE: au 2026-11-28, la seule aiguille connue est le nom d'hôte du NAS, dont la
+# valeur appartient à Thomas ; l'enregistrer est sa décision (ADR 0023). À reprendre en
+# phase 6, avec la release signée. D'ici là le contrôle est vert : la classe « nom d'hôte »
+# n'est couverte par rien, et cette ligne est le seul endroit où ça s'écrit.

@@ -47,9 +47,7 @@ pub fn ipc_builder() -> Builder<tauri::Wry> {
 
 /// Point d'entrée de l'application.
 pub fn run() {
-    // Le garde se LIE pour toute la durée de `run` : c'est son `Drop` qui vide la fin du
-    // journal (voir `observability::init`). `let _ =` le jetterait aussitôt.
-    let _garde = observability::init();
+    observability::init();
     let builder = ipc_builder();
 
     // La bibliothèque s'ouvre AU DÉMARRAGE et une seule fois : un seul écrivain pour une
