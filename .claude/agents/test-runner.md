@@ -40,3 +40,8 @@ laisse-le finir.
    quelle, sans commentaire.
 
 Pas de conseil, pas de diagnostic long, pas de proposition de correctif.
+
+⚠️ **« Lecture seule » parle des fichiers du projet.** Depuis le 2026-11-28, `./check` pose
+`core.hooksPath` sur le worktree courant quand il est vide, pour installer le pre-commit. Tu ne
+modifies donc aucun fichier suivi, mais ton premier `./check` dans un worktree neuf écrit une
+ligne de configuration git — idempotente, et limitée à ce worktree.

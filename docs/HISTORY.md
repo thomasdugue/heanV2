@@ -1834,3 +1834,18 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
   (Origin + « Signal Processing Suite »). **Trou confirmé par grep** : zéro ligne de licence, d'essai
   ou d'activation dans V1 — « même feature set » ne donne pas un produit vendable. `CLAUDE.md` **non
   touché** : 149/150 lignes, le budget ne permettait plus un renvoi.
+- **2026-11-28** (les trois trous d'une rétrospective des sept premiers jours) : **(1)** les quatre
+  contrôles du « dernier balayage » de [`PROTOCOLE-DEPOT-NEUF.md`](PROTOCOLE-DEPOT-NEUF.md) §3
+  deviennent un test d'architecture, **INV-29 🔴**, et les aiguilles nommées vivent **hachées** (ADR
+  [0023](adr/0023-les-aiguilles-nommees-vivent-hachees.md)) — quatre données sensibles sont entrées
+  dans un dépôt **public depuis sa création** en une semaine, et les quatre sont sorties par une
+  relecture, jamais par une vérification. **(2)** `./check` pose `core.hooksPath` (`--worktree`) : le
+  pre-commit attendait depuis le 21 une commande jamais tapée, donc **81 commits sont passés sans
+  lui**. La régénération reste hors de `--fast` : **1 min 43 à froid** contre 1,4 s à chaud. **(3)** le
+  journal va sur le disque (ADR [0024](adr/0024-le-journal-va-sur-le-disque.md)) : il coûtait un
+  aller-retour humain par test matériel. ⚠️ **Cinq verts imméritée, dont quatre dans mon propre
+  diff.** Côté protocole : `\b` en **ERE POSIX** ne matche jamais (zéro sans rien lire depuis le 27),
+  et la casse. Les miens, relevés par `invariant-guardian` : un **registre d'empreintes vide** est un
+  détecteur muet (6ᵉ variante d'« éprouver un détecteur »), l'exception « chemin » avalait un secret
+  base64 sur deux, le garde du journal n'était **jamais** lâché (`App::run` ne rend pas la main, et
+  `panic = "abort"`) d'où l'écriture **synchrone**, et mon `hooksPath` s'imposait à cinq chantiers.

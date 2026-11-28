@@ -1,6 +1,6 @@
 ---
 name: hean-invariants
-description: Règles « ne JAMAIS casser » de heanV2 — les pièges de plateforme qu'aucun test ne prouvera, et les règles de travail sur le code (zones, 400 lignes, échappement, performance). Charger AVANT toute modif de code et avant toute review de diff. Le catalogue des 29 fiches est dans CATALOGUE.md, à n'ouvrir que pour ajouter ou modifier une règle.
+description: Règles « ne JAMAIS casser » de heanV2 — les pièges de plateforme qu'aucun test ne prouvera, et les règles de travail sur le code (zones, 400 lignes, échappement, performance). Charger AVANT toute modif de code et avant toute review de diff. Le catalogue des 30 fiches est dans CATALOGUE.md, à n'ouvrir que pour ajouter ou modifier une règle.
 ---
 
 # hean-invariants — ce qui ne doit jamais casser (V2)
@@ -14,7 +14,7 @@ description: Règles « ne JAMAIS casser » de heanV2 — les pièges de platefo
 
 **Règle du partage : ce qu'un test applique ne s'écrit pas pour être lu.**
 
-Les 29 fiches d'invariants vivent dans [`CATALOGUE.md`](CATALOGUE.md). Tu n'as pas à les lire
+Les 30 fiches d'invariants vivent dans [`CATALOGUE.md`](CATALOGUE.md). Tu n'as pas à les lire
 pour écrire du code : elles sont tenues par des tests, et `./check` t'arrêtera si tu en casses
 une. Ouvre le catalogue pour **ajouter une règle, en modifier une, ou comprendre un refus**.
 
@@ -37,7 +37,7 @@ en **prose** : une phrase dans un document ne peut pas échouer. Un test, si.
 | Pile | Ce que ça veut dire | Combien |
 |---|---|---|
 | **rayé** | L'architecture de V2 rend la faute inexprimable. Plus de règle à retenir. | 6 |
-| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 21 |
+| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 22 |
 | **irréductible** | Comportement de CoreAudio, de WebKit ou de Gatekeeper. Aucun test ne le prouve. | 2 + 7 pièges |
 
 **La mesure du succès : la pile « irréductible » ne grossit pas, et la pile « test » se
@@ -169,6 +169,16 @@ censé voir.
   **les appelants**, qui sont le site réaliste de la faute. Deux conséquences écrites : la liste
   de mots porte les deux langues, et **une injection se fait chez l'appelant**, pas à la
   frontière d'une dépendance. Relevé par `invariant-guardian` le 2026-11-25.
+- **Un registre vide est un détecteur muet.** Sixième variante, et la première qui porte sur
+  les **données** du détecteur plutôt que sur son corpus, son vocabulaire ou sa fenêtre. Le
+  contrôle des aiguilles d'INV-29 est né **vert et inerte** : `aiguilles()` rend `[]` dès que
+  le registre d'empreintes est vide, donc la classe « nom d'hôte » — la fuite qui avait touché
+  7 fichiers — n'était couverte par rien, le jour même où le contrôle qui la couvrait était
+  déclaré mort. Et la seule chose censée rendre ce vide visible était un compte dans le message
+  d'une assertion : affiché en cas d'échec, c'est-à-dire jamais. Un registre, une liste de
+  clés, une table de motifs : s'ils peuvent être vides, le vide s'écrit comme un corpus vide —
+  rouge par défaut, dérogation **écrite** à côté des données — jamais dans un commentaire.
+  Relevé par `invariant-guardian` le 2026-11-28, sur le diff qui créait la règle.
 - **Un auto-test ne remplace pas la matière réelle.** Un auto-test prouve que le détecteur voit
   la faute **qu'on lui a inventée**. Il ne prouve pas qu'il voit le code **réel** : les deux
   assertions ne se remplacent pas. Payé sur INV-06, dont le détecteur cherchait `\bTrack\b` là où
