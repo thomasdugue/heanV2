@@ -54,6 +54,7 @@ lignes sans numéro sont des observations utiles qui ne valident aucune étape d
 | **13bis** — déplacement après un saut | aucun avertissement à la fermeture du flux qui suivait le déplacement : le saut n'a ajouté aucun trou |
 | **3** — zéro trou sur trois minutes | **3 min 15 s de lecture d'affilée**, un seul flux, aucun avertissement à la fermeture (`In Your Eyes`, 16 bits / 44,1 kHz) |
 | **1** — la liste des sorties | les **six** sorties que macOS expose sont là, relevées à l'instant par `system_profiler` : l'écran en HDMI, les écouteurs, les haut-parleurs du Mac mini, le micro USB et les deux périphériques virtuels de Steam. Aucun nom manquant |
+| **19** — une piste du NAS, sans trou | **5 min 52 s d'affilée** sur un FLAC **24 bits / 192 kHz** du NAS (`0009 Sweet Child o' Mine.flac`), puis **enchaînement automatique** sur la piste suivante avec renégociation de 192 vers 44,1 kHz — et **aucun avertissement à la fermeture du flux**. Le son est parti **112 ms** après l'ouverture, mesuré entre deux lignes du journal |
 | **17** — la sortie change dans macOS | Thomas a basculé macOS vers « Écouteurs externes » pendant que Hean jouait sur les haut-parleurs : le son **n'a pas bougé**, et Hean a continué d'afficher sa propre sortie. **Rien dans le journal**, ce qui est le comportement attendu — l'AudioUnit est lié au périphérique, pas au défaut système |
 
 **5 (déplacement) a échoué du premier coup, et le défaut était dans la barre, pas dans le
@@ -85,9 +86,17 @@ famille de l'indicateur qui ment, celle que l'étape 9 existe pour empêcher. **
 ouverte pour Thomas** : lire le volume du périphérique et le dire, le relever, ou ne rien
 faire. Non corrigé ici — ce n'est pas le périmètre de cette session.
 
-**Plus rien ne se teste sans matériel.** **Douze étapes sur vingt** sont tenues, **une est
-sans objet** ici (voir juste en dessous), et les **sept** qui restent demandent le DAC ou un
-AirPlay : 10, 11, 13, 14, 15, 16, 18.
+**Treize étapes sur vingt-deux** sont tenues et **une est sans objet** ici (voir juste en
+dessous). Des huit qui restent, **une seule se fait sans matériel** : l'étape **20**, jouer
+pendant un scan. Les sept autres attendent le DAC ou un AirPlay : 10, 11, 13, 14, 15, 16, 18.
+
+**Ce que l'étape 19 a prouvé au-delà de ce qu'elle demandait**, le 2026-11-28 à 00:45. Le
+fichier joué était un **24/192** — le débit le plus exigeant de la bibliothèque, environ
+**1,1 Mo/s** d'audio décodé à soutenir sans interruption — et le NAS a tenu **six minutes**.
+Comme ce fichier dépasse ce que les écouteurs savent jouer, l'étape a aussi rejoué le repli de
+fréquence de l'**étape 9** sur une piste **distante** : 192 → 96 kHz, badge perdu, affiché.
+Puis l'enchaînement vers un 44,1 kHz a renégocié la sortie, tampon vidé, sans un trou. Rien de
+tout cela n'était demandé par l'étape : c'est le journal qui l'a montré.
 
 ⚠️ **9bis ne se fera pas sur ce matériel : aucun DAC de Thomas ne monte à 192 kHz** (dit par
 lui le 2026-11-27). **Mais son but est déjà atteint autrement**, et c'est ce qui compte : elle
