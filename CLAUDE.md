@@ -78,9 +78,8 @@ npm run dev        # Vite seul (pas de fenêtre native)
 npm run tauri dev  # l'app complète
 npm run gen        # régénère tout ce qui est généré (./check échoue si ça diffère du commit)
 git config core.hooksPath tools/git-hooks   # une fois par machine : ./check --fast au commit
+./scripts/release.sh --test   # DMG signé, local, sans secrets ni notarisation — sans --test : distribuable
 ```
-
-⟦À REMPLIR en phase 6 : release signée + notarisée⟧
 
 ## Architecture
 

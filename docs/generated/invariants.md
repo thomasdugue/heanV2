@@ -8,7 +8,7 @@ En V1, **3 sur 20** étaient couvertes par un test.
 | # | Règle | Pile | Gravité | Ce qui la protège |
 |---|---|---|---|---|
 | INV-13 | Mosaïque 28×28 : positionnement absolu, jamais CSS Grid | 🪨 irréductible | 🟡 AVERTISSEMENT | manuelle — piège PLAT-5, détecté a posteriori par la régression visuelle |
-| INV-18 | dylibbundler doit être suivi du fix des LC_RPATH dupliqués | 🪨 irréductible | 🔴 BLOQUANT | manuelle — piège PLAT-6, vérifiable dans le pipeline de release (phase 6) |
+| INV-18 | dylibbundler doit être suivi du fix des LC_RPATH dupliqués | 🪨 irréductible | 🔴 BLOQUANT | manuelle — la règle n'est tenue pour vraie qu'une fois l'app lancée sur un Mac |
 | INV-06 | Suppression de pistes = PERMANENTE | ✂️ rayé | 🔴 BLOQUANT | sans objet — architecture `une-seule-source-de-pistes.test.ts` |
 | INV-08 | METADATA_CACHE : UPDATE, jamais REMOVE | ✂️ rayé | 🔴 BLOQUANT | sans objet — SQLite, un seul écrivain, transactions (ADR 0002) |
 | INV-09 | start_background_scan() : re-application du cache de métadonnées | ✂️ rayé | 🔴 BLOQUANT | sans objet — SQLite, un seul écrivain, transactions (ADR 0002) |
