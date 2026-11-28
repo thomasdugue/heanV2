@@ -77,7 +77,7 @@ fichier [`check`](check), chacune annotée de sa phase.
 npm run dev        # Vite seul (pas de fenêtre native)
 npm run tauri dev  # l'app complète
 npm run gen        # régénère tout ce qui est généré (./check échoue si ça diffère du commit)
-git config core.hooksPath tools/git-hooks   # une fois par machine : ./check --fast au commit
+tail -200 ~/Library/"Application Support"/hean/logs/hean.$(date +%F).log   # ce que l'app a dit
 ```
 
 ⟦À REMPLIR en phase 6 : release signée + notarisée⟧
@@ -121,8 +121,8 @@ toute donnée affichée, et les trois règles de performance — sont dans le sk
 Source de vérité : [`.claude/skills/hean-invariants/SKILL.md`](.claude/skills/hean-invariants/SKILL.md).
 Tableau à jour, **généré** : [`docs/generated/invariants.md`](docs/generated/invariants.md).
 
-**29 règles**, les 20 de V1 plus neuf nées depuis : 1. **Rayées (6)** — inexprimables par
-construction. 2. **Devenues des tests (21)**, dont **12 déjà actives** et **9 « planifiées »**,
+**30 règles**, les 20 de V1 plus dix nées depuis : 1. **Rayées (6)** — inexprimables par
+construction. 2. **Devenues des tests (22)**, dont **13 déjà actives** et **9 « planifiées »**,
 dette visible que `./check` recompte. 3. **Irréductibles (2 + 7 pièges de plateforme)** —
 CoreAudio, WebKit, dyld, Gatekeeper : aucun test ne les prouvera jamais, et ce sont les seules
 que le skill te fait encore lire.

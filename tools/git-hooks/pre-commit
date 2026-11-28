@@ -3,9 +3,11 @@
 # Pas de lefthook, pas de seconde liste de vérifications à entretenir — c'est tout l'intérêt
 # d'avoir un point d'entrée unique.
 #
-# À activer une fois par machine, depuis la racine du dépôt :
-#   git config core.hooksPath tools/git-hooks
+# Activé automatiquement par `./check` depuis le 2026-11-28, quand `core.hooksPath` est vide.
+# Il a attendu une semaine une commande à taper une fois par machine : personne ne l'a tapée,
+# et les 81 premiers commits de `main` sont passés sans lui. Une consigne dans un document
+# ne s'exécute pas (ADR 0005).
 #
-# (Volontairement pas activé automatiquement : `core.hooksPath` est une configuration de
-# dépôt, partagée avec les autres worktrees. C'est à Thomas de la poser.)
+# Pour le désactiver : `git config --unset core.hooksPath` — `./check` le reposera. Pour le
+# garder désactivé, lui donner une autre valeur, que `./check` ne touche pas.
 exec ./check --fast

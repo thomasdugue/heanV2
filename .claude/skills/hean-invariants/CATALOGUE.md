@@ -1,4 +1,4 @@
-# Catalogue des invariants — les 29 fiches
+# Catalogue des invariants — les 30 fiches
 
 <!-- Lu par `tools/check-invariants.mjs`, `tools/check-comptes.mjs` et `tools/gen/couverture.mjs`,
      conjointement avec SKILL.md. Garder le format `### INV-NN` + les quatre champs. -->
@@ -461,6 +461,39 @@ dette **visible**, que `./check` recompte à chaque passage.
   replier les deux grammaires resterait une « simplification » tentante. Éprouvée par
   injection **sur la matière réelle** — l'origine retirée de la vraie constante fait rougir
   l'interdiction et l'assertion de matière, pas seulement la faute inventée.
+
+---
+
+### INV-29 — Aucune donnée sensible dans un fichier suivi par git
+
+- pile : test
+- gravité : 🔴 BLOQUANT
+- couverture : architecture `aucune-donnee-sensible.test.ts`
+- pourquoi : **quatre fuites en une semaine, toutes trouvées par la relecture d'un agent et
+  aucune par une vérification** — le nom d'hôte du NAS dans 7 fichiers, un mot de passe
+  app-specific Apple *entre deux lignes déjà masquées*, une clé Sentry, l'e-mail d'un tiers.
+  Le motif de recherche de l'époque butait sur le guillemet ouvrant, et une relecture à l'œil
+  a vu deux justificatifs sur trois : le troisième — le seul qui authentifie — n'avait aucun
+  mécanisme.
+  🔴 parce que la fenêtre ne se referme pas : le dépôt est **public depuis sa création**
+  ([ADR 0019](../../../docs/adr/0019-le-depot-passe-en-public.md)), et une PR fusionnée laisse
+  une `refs/pull/<n>/head` que le propriétaire ne peut pas supprimer — mesuré sur les 26 d'ici
+  ([ADR 0021](../../../docs/adr/0021-un-depot-neuf-a-un-seul-commit.md)). Un justificatif qui
+  entre ne sort plus. INV-17 couvre les secrets **à la compilation** ; celui-ci couvre les
+  secrets **dans l'arbre**, et c'était la dernière décision ouverte de l'index des ADR.
+  **Les motifs ne sont pas nouveaux** : ce sont les quatre contrôles du « dernier balayage »
+  de [`PROTOCOLE-DEPOT-NEUF.md`](../../../docs/PROTOCOLE-DEPOT-NEUF.md) §3, déjà corrigés
+  trois fois sur de la matière réelle. Ils étaient écrits pour être tapés **une fois, à la
+  main, avant une bascule** : la seule chose qui change est qu'ils tournent désormais à chaque
+  `./check` (ADR 0005 — par mécanisme, jamais par discipline).
+  Deux défauts de ces motifs ont été relevés en les portant, et les deux donnaient un vert
+  imméritée : le troisième contrôle cherchait les noms d'hôte par `git grep -E '\b…\b'`, où
+  `\b` **ne matche jamais** en ERE POSIX — il rendait zéro sans rien lire ; et le quatrième
+  était sensible à la casse, donc aveugle à `PASSWORD=…`, où un vrai secret se pose aussi
+  bien. Le premier est remplacé par une recherche **par empreinte** (ADR
+  [0023](../../../docs/adr/0023-les-aiguilles-nommees-vivent-hachees.md)) : chercher toute la
+  classe `*.local` rend douze gabarits et aucun vrai nom, donc du bruit, et nommer l'aiguille
+  la remettrait dans le dépôt.
 
 ---
 

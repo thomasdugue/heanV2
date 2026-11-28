@@ -31,6 +31,10 @@ tauri-specta = { version = "=2.0.0-rc.29", features = ["derive", "typescript"] }
 # 63 lignes de journal pour toute la vie de l'app installée.
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# La couche FICHIER (ajoutée le 2026-11-28). Sans elle tout partait sur stdout : Thomas
+# recopiait des blocs de journal à la main à chaque test matériel, et un journal qu'on ne
+# peut pas relire après coup ne sert qu'à celui qui regardait l'écran au bon moment.
+tracing-appender = "0.2"
 
 # Décodage audio (ADR 0002 : jamais CPAL — mais le décodage, lui, est celui de V1).
 # Les features sont EXPLICITES et limitées aux formats annoncés comme supportés : FLAC, WAV,

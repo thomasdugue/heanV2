@@ -1,6 +1,6 @@
 ---
 name: hean-invariants
-description: Règles « ne JAMAIS casser » de heanV2 — les pièges de plateforme qu'aucun test ne prouvera, et les règles de travail sur le code (zones, 400 lignes, échappement, performance). Charger AVANT toute modif de code et avant toute review de diff. Le catalogue des 29 fiches est dans CATALOGUE.md, à n'ouvrir que pour ajouter ou modifier une règle.
+description: Règles « ne JAMAIS casser » de heanV2 — les pièges de plateforme qu'aucun test ne prouvera, et les règles de travail sur le code (zones, 400 lignes, échappement, performance). Charger AVANT toute modif de code et avant toute review de diff. Le catalogue des 30 fiches est dans CATALOGUE.md, à n'ouvrir que pour ajouter ou modifier une règle.
 ---
 
 # hean-invariants — ce qui ne doit jamais casser (V2)
@@ -14,7 +14,7 @@ description: Règles « ne JAMAIS casser » de heanV2 — les pièges de platefo
 
 **Règle du partage : ce qu'un test applique ne s'écrit pas pour être lu.**
 
-Les 29 fiches d'invariants vivent dans [`CATALOGUE.md`](CATALOGUE.md). Tu n'as pas à les lire
+Les 30 fiches d'invariants vivent dans [`CATALOGUE.md`](CATALOGUE.md). Tu n'as pas à les lire
 pour écrire du code : elles sont tenues par des tests, et `./check` t'arrêtera si tu en casses
 une. Ouvre le catalogue pour **ajouter une règle, en modifier une, ou comprendre un refus**.
 
@@ -37,7 +37,7 @@ en **prose** : une phrase dans un document ne peut pas échouer. Un test, si.
 | Pile | Ce que ça veut dire | Combien |
 |---|---|---|
 | **rayé** | L'architecture de V2 rend la faute inexprimable. Plus de règle à retenir. | 6 |
-| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 21 |
+| **test** | La règle est (ou sera) une vérification exécutable. Elle a quitté les têtes. | 22 |
 | **irréductible** | Comportement de CoreAudio, de WebKit ou de Gatekeeper. Aucun test ne le prouve. | 2 + 7 pièges |
 
 **La mesure du succès : la pile « irréductible » ne grossit pas, et la pile « test » se

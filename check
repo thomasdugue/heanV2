@@ -32,6 +32,22 @@ run() { echo "→ $1"; shift; "$@" || fail=1; echo; }
 
 echo "=== check heanV2 ==="; echo
 
+# Le pre-commit s'installe tout seul. Il existait depuis le 2026-11-21 et attendait une
+# commande à taper une fois par machine, documentée dans CLAUDE.md : elle ne l'a jamais été,
+# donc les 81 commits de `main` sont tous passés sans lui. Une étape manuelle documentée est
+# de la discipline, ce que l'ADR 0005 refuse — et `./check` est le seul endroit qui soit sûr
+# d'être exécuté.
+#
+# `core.hooksPath` est une configuration de DÉPÔT, partagée par tous les worktrees : la poser
+# une fois depuis n'importe lequel couvre les autres. Une valeur déjà présente ne se touche
+# pas — si Thomas en a choisi une autre, c'est la sienne. Pas en CI : le disque y est nu à
+# chaque fois, et aucun commit n'y est fait.
+if [ -z "${CI:-}" ] && [ -d tools/git-hooks ] && [ -z "$(git config --get core.hooksPath || true)" ]; then
+  git config core.hooksPath tools/git-hooks \
+    && echo "→ pre-commit activé (core.hooksPath = tools/git-hooks) — une fois pour ce dépôt" \
+    && echo
+fi
+
 # Le harnais s'installe tout seul : V1 avait un cas particulier « si node_modules est absent ».
 # ⚠️ « Absent » ne suffisait pas : un `node_modules` PÉRIMÉ passait au travers. Le 2026-11-25,
 # `fast-check` était arrivé dans `package.json` sans être installé localement, et `./check`
@@ -69,6 +85,11 @@ if [ "$FAST" -eq 0 ]; then
     run "clippy"      cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
     run "cargo test"  cargo test --locked --manifest-path src-tauri/Cargo.toml
   fi
+  # Reste hors de `--fast`, donc hors du pre-commit : la dérive des artefacts a été relevée
+  # 11 fois, ce qui justifierait de l'attraper plus tôt, mais `tools/gen/all.sh` coûte
+  # 1 min 43 à FROID — il recompile le Rust pour les liaisons specta — contre 1,4 s à chaud.
+  # Un commit touchant au Rust attendrait deux minutes, et un pre-commit qu'on contourne ne
+  # protège plus rien. Mesuré le 2026-11-28.
   run "artefacts générés" bash tools/check-generated.sh
 fi
 

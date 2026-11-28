@@ -1,0 +1,3 @@
+# Aiguilles nommées, hachées (sha256 du jeton en minuscules) — voir tools/check-fuites.sh §2.
+# Ajouter une aiguille :  printf '%s' "$NOM" | tr '[:upper:]' '[:lower:]' | shasum -a 256
+# Le nom ne s'écrit nulle part : ni ici, ni dans la sortie du contrôle.
