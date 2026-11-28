@@ -1806,17 +1806,31 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
   j'ai poussé quatre commits après la fusion en squash de la #25, donc hors de main ; le test
   de Thomas n'a réussi que parce que mon Vite tenait le port 1420.
 - **2026-11-28** (même session, chantier à part) : **les 91 % de la bibliothèque qui vivent sur
-  le NAS se jouent**, et c'est éprouvé sur le matériel de Thomas le soir même. Le lecteur n'en
-  jouait que 9 %. Thomas a tranché la **lecture en direct, sans fichier temporaire** — ADR
+  le NAS se jouent**, éprouvé sur le matériel de Thomas le soir même. Le lecteur n'en jouait
+  que 9 %. Thomas a tranché la **lecture en direct, sans fichier temporaire** — ADR
   [0022](adr/0022-la-lecture-nas-se-fait-en-direct.md), qui écarte le progressif de V1 sur un
-  défaut **mesuré** (le nettoyage de `smb_buffer` ne nettoyait pas) : le défaut n'était pas de
-  télécharger, mais que chaque écoute laisse un fichier à ranger. ⚠️ `pavao::SmbFile` emprunte
-  le client, qui vit sous le mutex de PLAT-2, donc le cache de blocs n'est **pas** une
-  optimisation mais une condition — deux tests comptent les ouvertures, éprouvés par injection.
+  défaut **mesuré** : le nettoyage de `smb_buffer` ne nettoyait pas. ⚠️ `pavao::SmbFile`
+  emprunte le client, qui vit sous le mutex de PLAT-2, donc le cache de blocs n'est **pas** une
+  optimisation mais une condition — deux tests comptent les ouvertures.
   **Étape 19 passée** : 5 min 52 s d'un 24/192 du NAS (~1,1 Mo/s à soutenir), enchaînement avec
   renégociation 192 → 44,1 kHz, **zéro trou**, son parti 112 ms après l'ouverture. Treize
-  étapes sur vingt-deux. ⚠️ **Et le même piège de procédé une troisième fois** : deux commits
-  poussés sur `claude/protocole-3-et-17` n'ont jamais atteint main, la #30 ayant été fusionnée
-  en squash **pendant** que je poussais — j'avais pourtant vérifié son état juste avant.
-  « Vérifier avant de pousser » ne suffit donc pas, la fusion étant concurrente : ce qui
-  l'aurait vu est de vérifier **après** que le commit est un ancêtre de `origin/main`.
+  étapes sur vingt-deux. ⚠️ **Deux leçons de procédé, payées le même soir.** (1) **Ce journal
+  est en ajout seul, et condenser se fait DANS ses propres lignes** : ma réécriture de cette
+  entrée remplaçait une plage allant jusqu'à la fin du fichier, et elle a **emporté l'entrée
+  voisine d'une autre session** — relevé par elle, restauré depuis `origin/main`. (2) Quatre
+  commits poussés sur des branches fusionnées en squash n'ont jamais atteint main : vérifier
+  **après** le push qu'on est ancêtre de `origin/main`, et une branche neuve par incrément.
+- **2026-11-28** (distiller les trois études de marché) : écrit
+  [`bootstrap/01-produit/MARCHE.md`](../bootstrap/01-produit/MARCHE.md), une page, 8 sections — ce qui
+  est utilisable dans les ~470 lignes de `recherche/`, et ce qui ne doit **pas** être cité (le chiffre
+  de 82 800 € ; les TAM/SAM/SOM annotés *Low confidence* par l'étude elle-même ; la section marque,
+  écrite pour « Noir », jamais rejouée pour « Hean »). `NON-GOALS.md` y renvoie. Aucun ADR : rien à
+  décider ici. **Trois écarts entre les études**, qu'aucune des deux ne signale : Audirvana Studio
+  (deux prix), JRiver (trois), Roon annuel (deux) — les deux valeurs sont écrites exprès, avec leur
+  source. **Le relevé de audirvana.com du jour** (session appelante) en tranche une et **corrige trois
+  lignes** de la lecture d'origine : Origin est à 149,99 € (pas 119,99 €), son UI n'est plus datée
+  (Origin 3.0), et il lit un NAS — par un CorePlayer installé **sur** le NAS. D'où le chiffre le plus
+  fort du document, qui n'était dans aucune étude : **69 € EQ compris contre 219,99 €** chez Audirvana
+  (Origin + « Signal Processing Suite »). **Trou confirmé par grep** : zéro ligne de licence, d'essai
+  ou d'activation dans V1 — « même feature set » ne donne pas un produit vendable. `CLAUDE.md` **non
+  touché** : 149/150 lignes, le budget ne permettait plus un renvoi.
