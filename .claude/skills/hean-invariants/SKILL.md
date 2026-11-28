@@ -74,11 +74,17 @@ documentation Apple et qui coûteraient les mêmes semaines à redécouvrir.
 ### INV-18 — dylibbundler doit être suivi du fix des LC_RPATH dupliqués
 - pile : irréductible
 - gravité : 🔴 BLOQUANT
-- couverture : manuelle — piège PLAT-6, vérifiable dans le pipeline de release (phase 6)
-- pourquoi : `dylibbundler` ajoute un `LC_RPATH` à chaque dylib, mais ~66 des 92 dylibs Samba
-  de Homebrew en avaient déjà un → doublons → **dyld refuse de charger depuis Big Sur**.
-  Sans la passe `install_name_tool -delete_rpath` puis re-signature, l'app crash au lancement
-  sur tout Mac sans Homebrew, donc chez tous les testeurs.
+- couverture : manuelle — la règle n'est tenue pour vraie qu'une fois l'app lancée sur un Mac
+  **sans** Homebrew, et ça, aucun test d'ici ne le prouve. Ce que `scripts/release.sh`
+  automatise : les passes elles-mêmes, et le **refus de produire le DMG** s'il reste une
+  dépendance à chemin absolu hors du paquet (inspection qui sort en erreur si elle n'a lu
+  aucun binaire — ne rien lire ne doit pas rendre le même verdict qu'un bundle propre).
+  Le reste du risque, dyld, reste irréductible : il se mesure sur la machine d'arrivée.
+- pourquoi : `dylibbundler` ajoute un `LC_RPATH` à chaque dylib, mais **66 des 92** dylibs
+  Samba de Homebrew en avaient déjà un (mesuré le 2026-11-28, les chiffres de V1 étaient
+  exacts) → doublons → **dyld refuse de charger depuis Big Sur**. Sans la passe
+  `install_name_tool -delete_rpath` puis re-signature, l'app ne démarre pas sur un Mac sans
+  Homebrew. Et l'app non bundlée liait bien `/opt/homebrew` : le défaut est réel, pas théorique.
 
 ### Les cinq autres pièges de plateforme
 

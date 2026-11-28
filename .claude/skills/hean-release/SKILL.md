@@ -3,9 +3,26 @@ name: hean-release
 description: Use when building, signing, notarizing, or shipping a Hean release/beta — orchestrates the BETA_LAUNCH_GUIDE 4 steps (signing + Sentry + auto-updater + feedback token), validates compile-time secrets, runs `npm run tauri build`, verifies signature/notarization, generates the DMG, and publishes the GitHub release with `latest.json`. Trigger on: "ship", "release", "beta launch", "build release", "publish a new version", "update Hean", "push a beta".
 ---
 
-> ⚠️ **Version V1, à adapter.** Les chemins de fichiers cités ici (`noir-tauri/src/…`,
-> `src-tauri/src/…`) sont ceux de Hean V1 et n'existent pas encore dans ce dépôt. Le *savoir*
-> est valide ; les chemins sont à remplacer au fur et à mesure que le code de V2 apparaît.
+## En V2, le pipeline est un script — commence par là
+
+```bash
+./scripts/release.sh --test   # DMG local signé : secrets absents tolérés, pas de notarisation
+./scripts/release.sh          # distribuable : les 6 variables et la notarisation sont exigées
+```
+
+Il fait, dans cet ordre : `./check`, compilation de l'app **seule** (`--bundles app`, parce que
+Tauri supprime `Hean.app` juste après avoir fait le DMG), `dylibbundler`, dédoublonnage des
+`LC_RPATH`, re-signature, **refus de produire le DMG s'il reste une dépendance hors du paquet**,
+notarisation de l'app *et* du DMG, puis le DMG signé.
+
+Mesuré le 2026-11-28 sur le Mac de Thomas : **92** bibliothèques embarquées, **66** `LC_RPATH`
+en double à supprimer (INV-18, PLAT-6). Les chiffres de V1 étaient exacts.
+
+Ce qui n'est **pas** encore fait en phase 6 : le tarball de l'updater, `latest.json`, et l'appel
+réel sur l'endpoint de mise à jour (`./check`, « reste à brancher »).
+
+> ⚠️ **Tout ce qui suit est la version V1**, gardée pour le savoir : les chemins (`noir-tauri/…`)
+> n'existent pas dans ce dépôt, et les étapes manuelles sont désormais dans le script ci-dessus.
 > Référence complète : [`bootstrap/04-invariants/README.md`](../../../bootstrap/04-invariants/README.md).
 
 

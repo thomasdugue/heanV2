@@ -1834,3 +1834,19 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
   (Origin + « Signal Processing Suite »). **Trou confirmé par grep** : zéro ligne de licence, d'essai
   ou d'activation dans V1 — « même feature set » ne donne pas un produit vendable. `CLAUDE.md` **non
   touché** : 149/150 lignes, le budget ne permettait plus un renvoi.
+
+- **2026-11-28** (phase 6 — un Hean installable) : `./scripts/release.sh [--test]` fabrique un
+  DMG signé. Le piège de V1 était intact et **mesuré** : le binaire liait `/opt/homebrew`, donc
+  l'app n'aurait pas démarré ailleurs. **92** dylibs embarquées, **66** `LC_RPATH` en double —
+  les chiffres de V1 étaient exacts à l'unité. INV-18 garde sa couverture **manuelle** (seul un
+  Mac sans Homebrew prouve la règle) mais ses passes et le refus du DMG sont dans le script.
+  ⚠️ **Deux versions de l'inspection anti-fuite ont été fausses avant d'être justes** — `xargs`
+  qui renonce en silence, puis un code de retour dépendant de l'ordre de `find`, donc un échec
+  un jour sur deux. Le détail et la forme retenue sont dans INV-18 et dans le script. La leçon
+  tient en une ligne : **le verdict d'un contrôle est sa sortie, jamais son code de retour**, et
+  une inspection qui n'a rien lu doit le dire. Mise en défaut exprès avant d'être crue.
+  ⚠️ **Gatekeeper refuse une app non notarisée** (`spctl` : *rejected, Unnotarized Developer ID*)
+  — elle ne démarre qu'au double-clic contourné depuis les Réglages : la notarisation n'est pas
+  un confort. Le garde-fou `compile_error!()` des secrets a joué au premier essai.
+  `package-lock.json` était désynchronisé de `package.json` ; le `npm ci || npm install` de
+  `./check` masque cette dérive. **Reste en phase 6** : tarball updater, `latest.json`, endpoint.
