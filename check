@@ -38,13 +38,20 @@ echo "=== check heanV2 ==="; echo
 # de la discipline, ce que l'ADR 0005 refuse — et `./check` est le seul endroit qui soit sûr
 # d'être exécuté.
 #
-# `core.hooksPath` est une configuration de DÉPÔT, partagée par tous les worktrees : la poser
-# une fois depuis n'importe lequel couvre les autres. Une valeur déjà présente ne se touche
-# pas — si Thomas en a choisi une autre, c'est la sienne. Pas en CI : le disque y est nu à
-# chaque fois, et aucun commit n'y est fait.
+# ⚠️ **`--worktree`, et c'est tout l'intérêt.** La première version posait `core.hooksPath`
+# dans la configuration COMMUNE du dépôt, en se disant que « la poser une fois couvre les
+# autres worktrees ». Elle les couvrait, oui — sans que leurs sessions aient rien demandé :
+# cinq chantiers vivants ont vu leur prochain commit lancer `./check --fast`, et un rouge en
+# milieu de chantier aurait refusé le commit sans qu'on puisse relier le refus à sa cause.
+# C'est « une session, un périmètre » (ADR 0013) enfreint par un garde-fou. L'extension
+# `extensions.worktreeConfig` est déjà activée ici : chaque worktree s'équipe à son premier
+# `./check`, et aucune session n'en impose à une autre. Relevé par `invariant-guardian`.
+#
+# Une valeur déjà présente ne se touche pas — si Thomas en a choisi une autre, c'est la
+# sienne. Pas en CI : le disque y est nu à chaque fois, et aucun commit n'y est fait.
 if [ -z "${CI:-}" ] && [ -d tools/git-hooks ] && [ -z "$(git config --get core.hooksPath || true)" ]; then
-  git config core.hooksPath tools/git-hooks \
-    && echo "→ pre-commit activé (core.hooksPath = tools/git-hooks) — une fois pour ce dépôt" \
+  git config --worktree core.hooksPath tools/git-hooks \
+    && echo "→ pre-commit activé (core.hooksPath = tools/git-hooks) — pour CE worktree" \
     && echo
 fi
 

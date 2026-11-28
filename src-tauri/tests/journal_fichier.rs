@@ -17,7 +17,11 @@ fn un_info_du_code_reel_atterrit_dans_le_fichier() {
     let base = dossier_dessai();
     let _ = std::fs::remove_dir_all(&base);
 
-    hean_lib::observability::init_avec(Some(&base));
+    // Le garde se LIE. Écrit `init_avec(...);` sans le lier, ce test échoue — vérifié : le
+    // `Drop` immédiat arrête le fil d'écriture avant qu'il ait posé la ligne. C'est la preuve
+    // que le garde n'est pas décoratif, et la raison du `#[must_use]` sur `init`.
+    let _garde = hean_lib::observability::init_avec(Some(&base));
+    assert!(_garde.is_some(), "un dossier donné doit rendre un garde");
     tracing::info!(preuve = "oui", "le raccord tient");
 
     // L'écrivain est non bloquant : la ligne traverse un fil. On laisse au garde le temps

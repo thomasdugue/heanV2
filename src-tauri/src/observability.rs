@@ -15,19 +15,23 @@
 
 use std::io;
 use std::path::Path;
-use std::sync::OnceLock;
-use tracing_appender::non_blocking::WorkerGuard;
+use tracing_appender::non_blocking::{NonBlockingBuilder, WorkerGuard};
 use tracing_appender::rolling;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-/// Le garde de l'écrivain non bloquant. **Il doit vivre aussi longtemps que le process** :
-/// lâché, il emporte le fil d'écriture et les lignes en attente — un journal muet, qui est
-/// exactement le défaut que ce module existe pour fermer.
-static GARDE: OnceLock<WorkerGuard> = OnceLock::new();
-
-/// Installe le souscripteur global. Idempotent : un second appel est ignoré.
-pub fn init() {
-    init_avec(crate::library::dossier::dossier_de_donnees().as_deref());
+/// Installe le souscripteur global et **rend le garde de l'écrivain**. Idempotent : un second
+/// appel est ignoré.
+///
+/// ⚠️ **Le garde se lie, il ne se jette pas** : `let _garde = observability::init();` dans
+/// `run`. C'est son `Drop` qui demande au fil d'écriture de vider ce qui reste et qui l'attend
+/// (`WorkerGuard::drop` → `Msg::Shutdown`), donc un garde jamais lâché ne vide **jamais**, et
+/// ce sont les lignes d'avant la sortie — les seules qu'on relira — qui manquent. Première
+/// version de ce module : un `static OnceLock`, qui a exactement ce défaut, avec un
+/// commentaire qui affirmait l'inverse. Relevé par `invariant-guardian`, vérifié dans la
+/// source de `tracing-appender` 0.2.5.
+#[must_use = "le garde doit vivre jusqu'à la fin du process, sinon le journal perd sa fin"]
+pub fn init() -> Option<WorkerGuard> {
+    init_avec(crate::library::dossier::dossier_de_donnees().as_deref())
 }
 
 /// La même chose, mais le dossier de données passé en paramètre — c'est ce qui rend le cas
@@ -36,13 +40,22 @@ pub fn init() {
 ///
 /// `None` (HOME absent, cf. `library::dossier`) laisse la console seule : un journal qui
 /// manque est un désagrément, un démarrage refusé serait une panne.
-pub fn init_avec(base: Option<&Path>) {
+#[must_use = "le garde doit vivre jusqu'à la fin du process, sinon le journal perd sa fin"]
+pub fn init_avec(base: Option<&Path>) -> Option<WorkerGuard> {
     let filtre = EnvFilter::try_from_env("HEAN_LOG").unwrap_or_else(|_| EnvFilter::new("info"));
 
+    let mut garde = None;
     let couche_fichier = base.and_then(|base| journal(base).ok()).map(|ecrivain| {
-        let (ecrivain, garde) = tracing_appender::non_blocking(ecrivain);
-        // `set` échoue si `init` est rappelé : le premier garde reste, et c'est le bon.
-        let _ = GARDE.set(garde);
+        // `lossy(false)` : le défaut du crate est `true`, c'est-à-dire **jeter les lignes en
+        // silence** quand le tampon de 128 000 déborde, en ne faisant monter qu'un compteur
+        // que personne ne lit. Un journal qui perd ses lignes sans le dire est le défaut
+        // d'INV-21 déplacé d'un cran. Ici on préfère bloquer l'appelant : aucune ligne n'est
+        // écrite depuis le callback audio (c'est une règle de zone), donc le pire cas est
+        // une pause sur un fil qui n'a rien de temps réel.
+        let (ecrivain, g) = NonBlockingBuilder::default()
+            .lossy(false)
+            .finish(ecrivain);
+        garde = Some(g);
         // Pas de couleurs dans un fichier : les codes ANSI rendent `grep` illisible.
         fmt::layer()
             .with_target(true)
@@ -55,6 +68,7 @@ pub fn init_avec(base: Option<&Path>) {
         .with(fmt::layer().with_target(true))
         .with(couche_fichier)
         .try_init();
+    garde
 }
 
 /// L'écrivain tournant de `<base>/logs/hean.AAAA-MM-JJ.log` — la date se place ENTRE le
@@ -79,11 +93,12 @@ pub fn journal(base: &Path) -> io::Result<rolling::RollingFileAppender> {
 mod tests {
     use std::io::Write;
 
-    /// `None` : aucune couche fichier, donc aucun fichier touché par `cargo test`.
+    /// `None` : aucune couche fichier, donc aucun fichier touché par `cargo test`, et aucun
+    /// garde à tenir.
     #[test]
     fn init_est_idempotent() {
-        super::init_avec(None);
-        super::init_avec(None);
+        assert!(super::init_avec(None).is_none());
+        assert!(super::init_avec(None).is_none());
     }
 
     /// Éprouver plutôt que supposer : un `create_dir_all` qui réussit ne prouve pas qu'une

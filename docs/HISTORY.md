@@ -1836,16 +1836,16 @@ cd $HOME/Documents/Thomas/heanV2 && npm run tauri dev
   touché** : 149/150 lignes, le budget ne permettait plus un renvoi.
 - **2026-11-28** (les trois trous d'une rétrospective des sept premiers jours) : **(1)** les quatre
   contrôles du « dernier balayage » de [`PROTOCOLE-DEPOT-NEUF.md`](PROTOCOLE-DEPOT-NEUF.md) §3
-  deviennent un test d'architecture, **INV-29 🔴** — quatre données sensibles sont entrées dans un
-  dépôt **public depuis sa création** en une semaine, et les quatre sont sorties par une relecture,
-  jamais par une vérification (ADR [0023](adr/0023-les-aiguilles-nommees-vivent-hachees.md)). Les
-  aiguilles nommées vivent **hachées** : chercher toute la classe `*.local` rend douze gabarits et
-  aucun vrai nom. ⚠️ **Deux de ces motifs rendaient un vert imméritée**, trouvés en les portant : le
-  contrôle 3 cherche `\b…\b` en **ERE POSIX**, où `\b` ne matche **jamais** — zéro sans rien lire
-  depuis le 2026-11-27 — et le contrôle 4 était sensible à la casse, donc aveugle à `PASSWORD=…`. Le
-  document reste à corriger : une autre session le tient. **(2)** `./check` pose `core.hooksPath` tout
-  seul : le pre-commit existait depuis le 21 et attendait une commande jamais tapée, donc **81 commits
-  sont passés sans lui**. La régénération reste hors de `--fast` — `tools/gen/all.sh` coûte **1 min 43
-  à froid** contre 1,4 s à chaud, mesuré. **(3)** le journal va sur le disque (ADR
-  [0024](adr/0024-le-journal-va-sur-le-disque.md)) : il coûtait un aller-retour humain par test
-  matériel — 45 `read_terminal` sur deux sessions, et Thomas recopiait des blocs de terminal à la main.
+  deviennent un test d'architecture, **INV-29 🔴**, et les aiguilles nommées vivent **hachées** (ADR
+  [0023](adr/0023-les-aiguilles-nommees-vivent-hachees.md)) — quatre données sensibles sont entrées
+  dans un dépôt **public depuis sa création** en une semaine, et les quatre sont sorties par une
+  relecture, jamais par une vérification. **(2)** `./check` pose `core.hooksPath` (`--worktree`) : le
+  pre-commit attendait depuis le 21 une commande jamais tapée, donc **81 commits sont passés sans
+  lui**. La régénération reste hors de `--fast` : **1 min 43 à froid** contre 1,4 s à chaud. **(3)** le
+  journal va sur le disque (ADR [0024](adr/0024-le-journal-va-sur-le-disque.md)) : il coûtait un
+  aller-retour humain par test matériel. ⚠️ **Cinq verts imméritée, dont quatre dans mon propre
+  diff.** Côté protocole : `\b` en **ERE POSIX** ne matche jamais (zéro sans rien lire depuis le 27),
+  et la casse. Les miens, relevés par `invariant-guardian` : un **registre d'empreintes vide** est un
+  détecteur muet (6ᵉ variante d'« éprouver un détecteur »), l'exception « chemin » avalait un secret
+  base64 sur deux, un `static OnceLock` **ne vide jamais** le journal et `non_blocking` jette par
+  défaut, et mon `hooksPath` commun s'imposait à cinq chantiers vivants sans qu'ils l'aient demandé.

@@ -1,3 +1,20 @@
-# Aiguilles nommées, hachées (sha256 du jeton en minuscules) — voir tools/check-fuites.sh §2.
-# Ajouter une aiguille :  printf '%s' "$NOM" | tr '[:upper:]' '[:lower:]' | shasum -a 256
-# Le nom ne s'écrit nulle part : ni ici, ni dans la sortie du contrôle.
+# Aiguilles nommées, hachées — le registre du contrôle « aucune aiguille nommée » de
+# tests/architecture/aucune-donnee-sensible.test.ts (INV-29, ADR 0023).
+#
+# Une ligne par aiguille :  <sha256 du jeton, en minuscules>  <étiquette>
+# L'étiquette est la seule chose que le test affiche. La valeur ne s'écrit nulle part.
+#
+# Ajouter une aiguille SANS la laisser dans l'historique du shell — elle ne doit jamais être
+# tapée en argument d'une commande :
+#
+#   read -r NOM; printf '%s' "$NOM" | tr '[:upper:]' '[:lower:]' | shasum -a 256
+#
+# puis coller l'empreinte ici, suivie d'une étiquette.
+#
+# Fenêtre du détecteur : un jeton de quatre caractères ou plus, sans espace (voir JETON dans
+# le test). Une aiguille plus courte, ou qui en contient une, ne sera jamais trouvée — elle
+# doit se masquer autrement.
+#
+# AUCUNE-AIGUILLE: la seule aiguille connue est le nom d'hôte du NAS, dont la valeur
+# appartient à Thomas ; l'enregistrer est sa décision (ADR 0023). Tant que cette ligne existe,
+# le contrôle est vert et muet ; la retirer le rend rouge.

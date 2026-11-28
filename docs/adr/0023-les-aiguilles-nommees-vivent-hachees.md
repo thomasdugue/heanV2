@@ -64,9 +64,19 @@ test, qui ne nomme que l'étiquette.
 - **Un hachage n'est pas un coffre** : un nom d'hôte court se retrouve par force brute. Ce
   n'est pas la menace visée — la menace est de **republier par inadvertance** ce qu'on vient de
   retirer, et contre celle-là une empreinte suffit.
-- **Zéro aiguille enregistrée est l'état du jour.** Le mécanisme existe, en poser une coûte une
-  ligne, et le test affiche le compte pour que ce zéro se lise comme un choix et non comme une
-  preuve. **Enregistrer le nom du NAS reste à faire, et c'est à Thomas de le décider.**
+- **Zéro aiguille enregistrée est l'état du jour**, et il est **écrit**. Première version de cet
+  ADR : « le test affiche le compte pour que ce zéro se lise comme un choix » — faux en
+  mécanisme, ce compte ne vit que dans le message d'une assertion qui ne pouvait pas échouer,
+  donc jamais affiché. C'était une phrase qui ne peut pas échouer, exactement ce que l'ADR 0005
+  refuse, dans l'ADR qui l'invoque. Relevé par `invariant-guardian`, corrigé avant la fusion :
+  un registre sans empreinte rend le contrôle **rouge**, sauf une dérogation écrite dans le
+  registre lui-même (`# AUCUNE-AIGUILLE: <raison>`) — même contrat que le corpus vide de
+  `_lecture.ts`. **Enregistrer le nom du NAS reste à faire, et c'est à Thomas de le décider.**
+- **Le Team ID n'est pas couvert, et c'est un choix.** La décision ouverte le listait avec le
+  mot de passe Apple, le DSN et les clés PEM. Dix caractères alphanumériques majuscules n'ont
+  aucune forme distinctive : tout motif qui les attrape attrape aussi les identifiants, les
+  hachés courts et les constantes — le piège 1, à son maximum. Il reste donc à la charge d'une
+  aiguille hachée, comme le nom du NAS. Écrit ici pour que ça ne se relise pas comme un oubli.
 - Deux défauts des motifs d'origine sont corrigés en les portant, et les deux donnaient un vert
   imméritée : le contrôle des noms d'hôte cherchait `\b…\b` en **ERE POSIX**, où `\b` ne matche
   jamais — il rendait zéro sans rien lire depuis le 2026-11-27 ; et celui des affectations était

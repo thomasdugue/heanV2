@@ -33,9 +33,17 @@ pose désormais tout seul : **une ligne pour une ligne**, le fichier reste à 14
 
 - **Rotation par taille** : on cherche *un jour de test*, pas un volume.
 - **Écriture bloquante** : plus simple, mais elle met des écritures disque sur le chemin de
-  l'appelant. L'écrivain non bloquant exige qu'un garde vive aussi longtemps que le process —
-  lâché, il emporte le fil d'écriture et les lignes en attente, c'est-à-dire exactement le
-  journal muet que cet ADR ferme. D'où le `OnceLock` statique, et son commentaire.
+  l'appelant. L'écrivain non bloquant exige en échange qu'un garde vive aussi longtemps que le
+  process **et soit lâché à la fin**.
+  ⚠️ **Première version de cet ADR et de ce module : l'inverse, et deux fois.** Elle gardait le
+  garde dans un `static OnceLock` en affirmant que « lâché, il emporte les lignes en attente ».
+  La source de `tracing-appender` 0.2.5 dit le contraire : c'est le `Drop` du garde qui demande
+  le vidage et l'attend, donc un `OnceLock` — qui n'est jamais lâché — **ne vide jamais**, et
+  les lignes d'avant un arrêt, les seules qu'on relira, sont précisément celles qui manquent.
+  Et `non_blocking()` est **lossy par défaut** (`is_lossy: true`) : à saturation il jette les
+  lignes en silence. Les deux relevés par `invariant-guardian`, vérifiés dans la source,
+  corrigés avant la fusion — `lossy(false)`, et le garde rendu par `init` puis lié dans `run`.
+  Le test d'intégration échoue si on ne le lie pas : c'est ce qui le rend non décoratif.
 - **Refuser le démarrage si le journal ne s'ouvre pas** : un journal qui manque est un
   désagrément, un démarrage refusé serait une panne. `HOME` absent laisse la console seule.
 
