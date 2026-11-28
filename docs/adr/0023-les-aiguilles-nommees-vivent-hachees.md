@@ -53,6 +53,14 @@ test, qui ne nomme que l'étiquette.
 
 ## Conséquences acceptées
 
+- **Éprouvé sur la matière réelle, pas seulement sur une faute inventée.** Le test porte six
+  auto-tests (un par détecteur, plus les formes écartées), et ils ne prouvent que ce qu'on leur
+  a donné. Les détecteurs ont donc été passés sur **l'arbre d'avant le masquage** (`4af1343`,
+  373 fichiers) : **13 correspondances dans 4 fichiers**, dont le mot de passe app-specific
+  Apple et la clé Sentry de `bootstrap/06-setup-v2/GUIDE-LAUNCH-BETA-V1.md`, et l'adresse
+  personnelle de Thomas dans trois fichiers. Ce sont exactement les fuites que la relecture
+  avait trouvées à la main. Sur l'arbre d'aujourd'hui : zéro.
+
 - **Un hachage n'est pas un coffre** : un nom d'hôte court se retrouve par force brute. Ce
   n'est pas la menace visée — la menace est de **republier par inadvertance** ce qu'on vient de
   retirer, et contre celle-là une empreinte suffit.
